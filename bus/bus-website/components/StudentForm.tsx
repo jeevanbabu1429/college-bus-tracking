@@ -62,7 +62,7 @@ export function StudentForm({
       return;
     }
     const bus = buses.find((b) => b._id === busId);
-    if (!bus || !bus.stops.includes(stop)) {
+    if (!bus || !bus.stops.some((s) => s.name === stop)) {
       setStop("");
     }
   }, [busId, buses, stop]);
@@ -198,8 +198,9 @@ export function StudentForm({
             >
               <option value="">— None —</option>
               {selectedBus.stops.map((s) => (
-                <option key={s} value={s}>
-                  {s}
+                <option key={s.name} value={s.name}>
+                  {s.name}
+                  {s.suspended ? " (suspended)" : ""}
                 </option>
               ))}
             </select>

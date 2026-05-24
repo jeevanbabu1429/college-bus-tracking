@@ -1,6 +1,13 @@
 import { apiFetch } from "./client";
 import type { Driver } from "./collegeDrivers";
 
+export type BusStop = {
+  name: string;
+  lat: number | null;
+  lng: number | null;
+  suspended: boolean;
+};
+
 export type Bus = {
   _id: string;
   college: string;
@@ -9,7 +16,8 @@ export type Bus = {
   capacity: number;
   driver: Driver | null;
   route: string;
-  stops: string[];
+  stops: BusStop[];
+  notice: string;
   createdAt: string;
   updatedAt: string;
 };
@@ -36,7 +44,7 @@ export const collegeBusesApi = {
   setRoute: (
     collegeId: string,
     busId: string,
-    payload: { route: string; stops: string[] }
+    payload: { route: string; stops: BusStop[]; notice?: string }
   ) =>
     apiFetch<Bus>(`/api/colleges/${collegeId}/buses/${busId}/route`, {
       method: "PUT",

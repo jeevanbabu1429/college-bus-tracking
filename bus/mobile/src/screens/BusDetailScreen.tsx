@@ -185,6 +185,23 @@ export function BusDetailScreen({ navigation, route }: Props) {
               </View>
             )}
 
+            {bus.notice ? (
+              <View
+                style={{
+                  backgroundColor: "#fff4e5",
+                  borderRadius: 12,
+                  padding: 12,
+                  marginBottom: 12,
+                  borderWidth: 1,
+                  borderColor: "#f0c98a",
+                }}
+              >
+                <Text style={{ color: "#92400e", fontSize: 13 }}>
+                  ⚠️ {bus.notice}
+                </Text>
+              </View>
+            ) : null}
+
             <Text style={styles.sectionLabel}>Route</Text>
             {bus.route || bus.stops.length > 0 ? (
               <View style={styles.routeCard}>
@@ -201,16 +218,20 @@ export function BusDetailScreen({ navigation, route }: Props) {
                   <View style={styles.stopsList}>
                     {bus.stops.map((stop, i) => (
                       <View
-                        key={`${stop}-${i}`}
+                        key={`${stop.name}-${i}`}
                         style={[
                           styles.stopRow,
                           i < bus.stops.length - 1 && styles.stopRowDivider,
+                          stop.suspended && { opacity: 0.5 },
                         ]}
                       >
                         <View style={styles.stopBullet}>
                           <Text style={styles.stopBulletText}>{i + 1}</Text>
                         </View>
-                        <Text style={styles.stopText}>{stop}</Text>
+                        <Text style={styles.stopText}>
+                          {stop.name}
+                          {stop.suspended ? "  (suspended)" : ""}
+                        </Text>
                       </View>
                     ))}
                   </View>

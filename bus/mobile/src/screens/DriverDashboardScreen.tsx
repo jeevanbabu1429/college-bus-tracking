@@ -321,6 +321,13 @@ function HomeView({
         </View>
       )}
 
+      {bus && bus.notice ? (
+        <View style={styles.noticeCard}>
+          <Text style={styles.noticeIcon}>⚠️</Text>
+          <Text style={styles.noticeText}>{bus.notice}</Text>
+        </View>
+      ) : null}
+
       {bus && (
         <>
           <Text style={styles.sectionLabel}>Trip Control</Text>
@@ -371,6 +378,44 @@ function HomeView({
               </Pressable>
             )}
           </View>
+
+          <Text style={styles.sectionLabel}>Route stops</Text>
+          {bus.stops.length > 0 ? (
+            <View style={styles.stopsCard}>
+              {bus.stops.map((s, i) => (
+                <View
+                  key={`${s.name}-${i}`}
+                  style={[
+                    styles.stopRow,
+                    i < bus.stops.length - 1 && styles.stopRowDivider,
+                    s.suspended && { opacity: 0.55 },
+                  ]}
+                >
+                  <View
+                    style={[
+                      styles.stopBullet,
+                      s.suspended && styles.stopBulletSuspended,
+                    ]}
+                  >
+                    <Text style={styles.stopBulletText}>{i + 1}</Text>
+                  </View>
+                  <Text
+                    style={[
+                      styles.stopText,
+                      s.suspended && styles.stopTextSuspended,
+                    ]}
+                  >
+                    {s.name}
+                    {s.suspended ? "  (closed)" : ""}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <View style={styles.emptyCard}>
+              <Text style={styles.emptyBody}>No stops on this route yet.</Text>
+            </View>
+          )}
         </>
       )}
 
@@ -625,6 +670,26 @@ function makeStyles(colors: Colors) {
       fontWeight: "600",
     },
 
+    noticeCard: {
+      flexDirection: "row",
+      gap: 10,
+      alignItems: "flex-start",
+      backgroundColor: "#fff4e5",
+      borderWidth: 1,
+      borderColor: "#f0c98a",
+      borderRadius: 14,
+      padding: 14,
+      marginTop: 16,
+    },
+    noticeIcon: { fontSize: 16 },
+    noticeText: {
+      flex: 1,
+      color: "#92400e",
+      fontSize: 13,
+      lineHeight: 18,
+      fontWeight: "600",
+    },
+
     sectionLabel: {
       fontSize: 12,
       fontWeight: "700",
@@ -776,6 +841,41 @@ function makeStyles(colors: Colors) {
       color: colors.danger,
       marginTop: 16,
       textAlign: "center",
+      fontWeight: "600",
+    },
+
+    stopsCard: {
+      backgroundColor: colors.surface,
+      borderRadius: 18,
+      paddingVertical: 4,
+      shadowColor: "#000",
+      shadowOpacity: 0.04,
+      shadowRadius: 8,
+      shadowOffset: { width: 0, height: 2 },
+      elevation: 2,
+    },
+    stopRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      gap: 14,
+    },
+    stopRowDivider: { borderBottomWidth: 1, borderColor: colors.border },
+    stopBullet: {
+      width: 28,
+      height: 28,
+      borderRadius: 999,
+      backgroundColor: colors.surfaceMuted,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    stopBulletSuspended: { backgroundColor: "rgba(217,83,79,0.2)" },
+    stopBulletText: { color: colors.textMuted, fontSize: 12, fontWeight: "800" },
+    stopText: { fontSize: 14, color: colors.text, flex: 1, fontWeight: "600" },
+    stopTextSuspended: {
+      color: colors.textMuted,
+      textDecorationLine: "line-through",
       fontWeight: "600",
     },
 

@@ -8,6 +8,15 @@ const router = Router({ mergeParams: true });
 
 const GENDERS = ["male", "female", "other"];
 
+// A stop is valid for a bus if its NAME is on the route. Suspended stops still
+// count as valid targets — suspension is a temporary overlay, not a removal.
+function hasStop(
+  bus: InstanceType<typeof BusModel> | null,
+  name: string
+): boolean {
+  return !!bus && bus.stops.some((s) => s.name === name);
+}
+
 router.get("/", async (req, res) => {
   const { collegeId } = req.params as { collegeId: string };
   if (!isValidObjectId(collegeId)) {
@@ -71,7 +80,7 @@ router.post("/", async (req, res) => {
         return;
       }
       const trimmed = stop.trim();
-      if (!bus.stops.includes(trimmed)) {
+      if (!hasStop(bus, trimmed)) {
         res.status(400).json({ error: "Stop is not on this bus's route" });
         return;
       }
@@ -304,7 +313,7 @@ router.put("/:studentId", async (req, res) => {
     nextStop = null;
   } else if (stop === undefined) {
     nextStop =
-      student.stop && nextBusDoc && nextBusDoc.stops.includes(student.stop)
+      student.stop && hasStop(nextBusDoc, student.stop)
         ? student.stop
         : null;
   } else if (stop === null || stop === "") {
@@ -315,7 +324,7 @@ router.put("/:studentId", async (req, res) => {
       return;
     }
     const trimmed = stop.trim();
-    if (!nextBusDoc || !nextBusDoc.stops.includes(trimmed)) {
+    if (!hasStop(nextBusDoc, trimmed)) {
       res.status(400).json({ error: "Stop is not on this bus's route" });
       return;
     }
@@ -484,7 +493,7 @@ router.post("/bus-assignments", async (req, res) => {
 
     let resolvedStop: string | null = null;
     if (stop) {
-      if (!bus.stops.includes(stop)) {
+      if (!hasStop(bus, stop)) {
         failed.push({
           row: i + 1,
           student: studentLabel,
@@ -574,7 +583,7 @@ router.put("/:studentId/bus", async (req, res) => {
   }
 
   if (stop === undefined) {
-    if (!(student.stop && bus && bus.stops.includes(student.stop))) {
+    if (!(student.stop && hasStop(bus, student.stop))) {
       student.stop = null;
     }
   } else if (stop === null || stop === "") {
@@ -585,7 +594,7 @@ router.put("/:studentId/bus", async (req, res) => {
       return;
     }
     const trimmed = stop.trim();
-    if (!bus || !bus.stops.includes(trimmed)) {
+    if (!hasStop(bus, trimmed)) {
       res.status(400).json({ error: "Stop is not on this bus's route" });
       return;
     }

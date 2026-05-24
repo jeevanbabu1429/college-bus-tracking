@@ -445,11 +445,12 @@ export default function BulkAssignStudentsPage() {
                           >
                             {b.stops.map((st) => (
                               <span
-                                key={st}
+                                key={st.name}
                                 className="pill"
                                 style={{ fontSize: 11 }}
                               >
-                                {st}
+                                {st.name}
+                                {st.suspended ? " (suspended)" : ""}
                               </span>
                             ))}
                           </div>
