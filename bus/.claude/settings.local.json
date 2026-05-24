@@ -3,7 +3,17 @@
     "allow": [
       "Bash(npm --version)",
       "Bash(npx --version)",
-      "PowerShell(npm install *)"
+      "PowerShell(npm install *)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\canya\\\\freelance\\\\college-bus-tracking\\\\college-bus-tracking\\\\bus\\\\api\\\\src\" -Recurse -File)",
+      "Bash(Select-Object FullName)",
+      "Bash(Sort-Object FullName)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\canya\\\\freelance\\\\college-bus-tracking\\\\college-bus-tracking\\\\bus\\\\mobile\" -Recurse -Directory)",
+      "Bash(Select-Object -ExpandProperty FullName)",
+      "Bash(Sort-Object)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\canya\\\\freelance\\\\college-bus-tracking\\\\college-bus-tracking\\\\bus\\\\bus-website\" -Force)",
+      "Bash(Select-Object Name, FullName)",
+      "Bash(ls -la assets)",
+      "Bash(find . -type f \\\\\\( -name \"*.png\" -o -name \"*.jpg\" \\\\\\) -not -path '*/node_modules/*')"
     ]
   }
 }

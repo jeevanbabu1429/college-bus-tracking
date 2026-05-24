@@ -4,8 +4,14 @@
     "slug": "bus",
     "version": "0.1.0",
     "orientation": "portrait",
+    "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0e0e10"
+    },
     "ios": {
       "supportsTablet": true,
       "config": {
@@ -17,7 +23,8 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#ffffff"
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0e0e10"
       },
       "config": {
         "googleMaps": {
@@ -26,8 +33,15 @@
       },
       "permissions": [
         "ACCESS_COARSE_LOCATION",
-        "ACCESS_FINE_LOCATION"
-      ]
+        "ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ],
+      "package": "com.anonymous.bus"
     },
     "web": {
       "bundler": "metro"
