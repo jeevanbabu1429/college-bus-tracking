@@ -1,0 +1,47 @@
+{
+  "expo": {
+    "name": "Bus",
+    "slug": "bus",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "config": {
+        "googleMapsApiKey": "AIzaSyAvCmL9l8PXps8b7wWCmavTuwjeoLpkfrs"
+      },
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Allow Bus to access your location while driving so students can see the bus on the map."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#ffffff"
+      },
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyAvCmL9l8PXps8b7wWCmavTuwjeoLpkfrs"
+        }
+      },
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
+      ]
+    },
+    "web": {
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-asset",
+      "expo-secure-store",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow Bus to access your location while driving so students can see the bus on the map."
+        }
+      ],
+      "@react-native-community/datetimepicker"
+    ]
+  }
+}
