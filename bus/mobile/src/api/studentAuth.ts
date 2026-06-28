@@ -1,8 +1,16 @@
 import { apiFetch } from "./client";
 import type { Student } from "./collegeStudents";
+import type { BusStop } from "./collegeBuses";
 
 export type BusLocation = {
-  bus: { _id: string; busNumber: string; plateNumber: string } | null;
+  bus: {
+    _id: string;
+    busNumber: string;
+    plateNumber: string;
+    route: string;
+    stops: BusStop[];
+    notice: string;
+  } | null;
   tripActive: boolean;
   currentLocation: { lat: number; lng: number; updatedAt: string } | null;
 };

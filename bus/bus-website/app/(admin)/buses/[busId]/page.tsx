@@ -119,6 +119,11 @@ export default function BusDetailPage({
         ) : (
           <p className="muted">No route assigned yet.</p>
         )}
+        {bus.notice && (
+          <div className="alert alert-warning" style={{ marginTop: 12 }}>
+            {bus.notice}
+          </div>
+        )}
         {bus.stops.length > 0 && (
           <ol
             style={{
@@ -130,21 +135,32 @@ export default function BusDetailPage({
           >
             {bus.stops.map((s, i) => (
               <li
-                key={`${s}-${i}`}
+                key={`${s.name}-${i}`}
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "32px 1fr",
+                  gridTemplateColumns: "32px 1fr auto",
                   alignItems: "center",
+                  gap: 8,
                   padding: "8px 12px",
                   background: "var(--surface-muted)",
                   borderRadius: "var(--radius)",
                   fontSize: 13,
+                  opacity: s.suspended ? 0.55 : 1,
                 }}
               >
                 <span className="muted small" style={{ fontWeight: 600 }}>
                   {i + 1}.
                 </span>
-                <span>{s}</span>
+                <span
+                  style={{
+                    textDecoration: s.suspended ? "line-through" : "none",
+                  }}
+                >
+                  {s.name}
+                </span>
+                {s.suspended && (
+                  <span className="pill pill-danger">Suspended</span>
+                )}
               </li>
             ))}
           </ol>

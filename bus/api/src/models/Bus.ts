@@ -1,5 +1,20 @@
 import { Schema, model, Types, type InferSchemaType } from "mongoose";
 
+// A stop on a bus route. `name` is the stable key students reference via
+// Student.stop. lat/lng are optional (older routes have none) and power the
+// map + nearest-active-stop suggestion. `suspended` marks a stop as
+// temporarily closed (e.g. road work) without removing it — so student
+// assignments are preserved and restored when it reopens.
+const stopSchema = new Schema(
+  {
+    name: { type: String, required: true, trim: true },
+    lat: { type: Number, default: null },
+    lng: { type: Number, default: null },
+    suspended: { type: Boolean, default: false },
+  },
+  { _id: false }
+);
+
 const busSchema = new Schema(
   {
     college: {
@@ -23,7 +38,10 @@ const busSchema = new Schema(
       default: null,
     },
     route: { type: String, default: "", trim: true },
-    stops: { type: [{ type: String, trim: true }], default: [] },
+    stops: { type: [stopSchema], default: [] },
+    // Free-text disruption banner shown to drivers and students (e.g.
+    // "Anna Nagar closed May 24–31 due to road work — board at Main Road").
+    notice: { type: String, default: "", trim: true },
   },
   { timestamps: true }
 );
@@ -34,5 +52,6 @@ busSchema.index(
   { unique: true, partialFilterExpression: { driver: { $type: "objectId" } } }
 );
 
+export type BusStop = InferSchemaType<typeof stopSchema>;
 export type Bus = InferSchemaType<typeof busSchema> & { _id: Types.ObjectId };
 export const BusModel = model("Bus", busSchema);

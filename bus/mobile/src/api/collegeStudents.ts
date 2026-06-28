@@ -1,4 +1,5 @@
 import { apiFetch } from "./client";
+import type { BusStop } from "./collegeBuses";
 
 export type Gender = "male" | "female" | "other";
 
@@ -8,7 +9,8 @@ export type AssignedBus = {
   plateNumber: string;
   capacity: number;
   route?: string;
-  stops?: string[];
+  stops?: BusStop[];
+  notice?: string;
 };
 
 export type Student = {

@@ -328,25 +328,57 @@ router.put("/:busId/route", async (req, res) => {
     return;
   }
 
-  const { route, stops } = req.body ?? {};
+  const { route, stops, notice } = req.body ?? {};
   if (typeof route !== "string") {
     res.status(400).json({ error: "route must be a string" });
     return;
   }
-  if (!Array.isArray(stops) || stops.some((s) => typeof s !== "string")) {
-    res.status(400).json({ error: "stops must be an array of strings" });
+  if (!Array.isArray(stops)) {
+    res.status(400).json({ error: "stops must be an array" });
+    return;
+  }
+  if (notice !== undefined && typeof notice !== "string") {
+    res.status(400).json({ error: "notice must be a string" });
     return;
   }
 
+  // Accept stops either as plain strings (legacy/simple) or as objects
+  // { name, lat?, lng?, suspended? }. Normalize, drop unnamed entries, and
+  // de-duplicate by name (first occurrence wins) so the name stays a stable key.
+  const seen = new Set<string>();
+  const normalizedStops: {
+    name: string;
+    lat: number | null;
+    lng: number | null;
+    suspended: boolean;
+  }[] = [];
+  for (const raw of stops) {
+    const isObj = raw && typeof raw === "object";
+    const name = (isObj ? raw.name : raw);
+    if (typeof name !== "string" || !name.trim()) continue;
+    const trimmed = name.trim();
+    if (seen.has(trimmed)) continue;
+    seen.add(trimmed);
+    normalizedStops.push({
+      name: trimmed,
+      lat: isObj && typeof raw.lat === "number" ? raw.lat : null,
+      lng: isObj && typeof raw.lng === "number" ? raw.lng : null,
+      suspended: isObj && raw.suspended === true,
+    });
+  }
+
   bus.route = route.trim();
-  bus.stops = stops.map((s) => s.trim()).filter((s) => s.length > 0);
+  bus.set("stops", normalizedStops);
+  if (typeof notice === "string") bus.notice = notice.trim();
 
   await bus.save();
 
-  // Cascade: students assigned to this bus whose stop is no longer on the
-  // route lose their stop.
+  // Cascade: students keep their stop as long as its NAME still exists on the
+  // route — suspending a stop does NOT clear assignments. Only a stop that was
+  // truly removed un-assigns the affected students.
+  const stopNames = normalizedStops.map((s) => s.name);
   await StudentModel.updateMany(
-    { bus: bus._id, stop: { $nin: bus.stops, $ne: null } },
+    { bus: bus._id, stop: { $nin: stopNames, $ne: null } },
     { $set: { stop: null } }
   );
 

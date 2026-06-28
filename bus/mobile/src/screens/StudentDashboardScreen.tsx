@@ -10,14 +10,70 @@ import {
   View,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
-import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
+import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from "react-native-maps";
 import { useAuth } from "../auth/AuthContext";
 import { useTheme, type Colors } from "../theme/ThemeContext";
 import { studentAuthApi, type BusLocation } from "../api/studentAuth";
+import type { BusStop } from "../api/collegeBuses";
 
 const POLL_INTERVAL_MS = 5000;
 type Tab = "home" | "profile";
 type Styles = ReturnType<typeof makeStyles>;
+
+type PlacedStop = { name: string; lat: number; lng: number; suspended: boolean };
+
+function distanceMeters(
+  a: { lat: number; lng: number },
+  b: { lat: number; lng: number }
+): number {
+  const R = 6371000;
+  const dLat = ((b.lat - a.lat) * Math.PI) / 180;
+  const dLng = ((b.lng - a.lng) * Math.PI) / 180;
+  const lat1 = (a.lat * Math.PI) / 180;
+  const lat2 = (b.lat * Math.PI) / 180;
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+
+// When the student's own stop is suspended, suggest the nearest open stop.
+// Prefers a real distance (if both have coordinates), else the next open stop
+// in route order.
+function nearestActiveStop(
+  stops: BusStop[],
+  myStopName: string | null
+): { name: string; distance: number | null } | null {
+  if (!myStopName) return null;
+  const mine = stops.find((s) => s.name === myStopName);
+  if (!mine || !mine.suspended) return null;
+  const open = stops.filter((s) => !s.suspended && s.name !== myStopName);
+  if (open.length === 0) return null;
+
+  if (typeof mine.lat === "number" && typeof mine.lng === "number") {
+    const m = { lat: mine.lat, lng: mine.lng };
+    const withCoords = open.filter(
+      (s) => typeof s.lat === "number" && typeof s.lng === "number"
+    );
+    if (withCoords.length > 0) {
+      let best = withCoords[0];
+      let bestD = distanceMeters(m, { lat: best.lat!, lng: best.lng! });
+      for (const c of withCoords.slice(1)) {
+        const d = distanceMeters(m, { lat: c.lat!, lng: c.lng! });
+        if (d < bestD) {
+          best = c;
+          bestD = d;
+        }
+      }
+      return { name: best.name, distance: bestD };
+    }
+  }
+  return { name: open[0].name, distance: null };
+}
+
+function formatDistance(m: number): string {
+  return m >= 1000 ? `${(m / 1000).toFixed(1)} km` : `${Math.round(m)} m`;
+}
 
 export function StudentDashboardScreen() {
   const { session, refreshSession, logout } = useAuth();
@@ -148,9 +204,25 @@ type HomeViewProps = {
 
 function HomeView({ styles, colors, student, busLocation }: HomeViewProps) {
   const bus = student?.bus ?? null;
-  const stops = bus?.stops ?? [];
+  // Prefer fresh data from the live poll (notice/suspension can change during
+  // the day) and fall back to the session copy.
+  const liveBus = busLocation?.bus ?? null;
+  const stops: BusStop[] = liveBus?.stops ?? bus?.stops ?? [];
+  const notice = liveBus?.notice ?? bus?.notice ?? "";
   const tripActive = busLocation?.tripActive ?? false;
   const liveLoc = busLocation?.currentLocation ?? null;
+
+  const myStopName = student?.stop ?? null;
+  const myStop = stops.find((s) => s.name === myStopName) ?? null;
+  const suggestion = nearestActiveStop(stops, myStopName);
+
+  const placedStops = useMemo(
+    () =>
+      stops.filter(
+        (s) => typeof s.lat === "number" && typeof s.lng === "number"
+      ) as PlacedStop[],
+    [stops]
+  );
 
   const mapRef = useRef<MapView | null>(null);
   const [pinPos, setPinPos] = useState<{ lat: number; lng: number } | null>(
@@ -208,6 +280,14 @@ function HomeView({ styles, colors, student, busLocation }: HomeViewProps) {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
   }, [liveLoc?.lat, liveLoc?.lng, liveLoc?.updatedAt]);
+
+  const liveActive = Boolean(tripActive && liveLoc && pinPos);
+  // Show the map if the bus is live OR we have at least one placed stop to draw.
+  const mapCenter = pinPos
+    ? pinPos
+    : placedStops[0]
+    ? { lat: placedStops[0].lat, lng: placedStops[0].lng }
+    : null;
 
   return (
     <ScrollView
@@ -272,65 +352,102 @@ function HomeView({ styles, colors, student, busLocation }: HomeViewProps) {
         </View>
       )}
 
+      {bus && notice ? (
+        <View style={styles.noticeCard}>
+          <Text style={styles.noticeIcon}>⚠️</Text>
+          <Text style={styles.noticeText}>{notice}</Text>
+        </View>
+      ) : null}
+
       {bus && (
         <>
           <Text style={styles.sectionLabel}>Live Bus Location</Text>
-          {tripActive && liveLoc && pinPos ? (
+          {mapCenter ? (
             <View style={styles.mapCard}>
               <MapView
                 ref={mapRef}
                 provider={PROVIDER_GOOGLE}
                 style={styles.map}
                 initialRegion={{
-                  latitude: pinPos.lat,
-                  longitude: pinPos.lng,
-                  latitudeDelta: 0.01,
-                  longitudeDelta: 0.01,
+                  latitude: mapCenter.lat,
+                  longitude: mapCenter.lng,
+                  latitudeDelta: 0.02,
+                  longitudeDelta: 0.02,
                 }}
               >
-                <Marker
-                  coordinate={{
-                    latitude: pinPos.lat,
-                    longitude: pinPos.lng,
-                  }}
-                  title={`Bus ${bus.busNumber}`}
-                  description={`Updated ${new Date(liveLoc.updatedAt).toLocaleTimeString()}`}
-                  anchor={{ x: 0.5, y: 0.5 }}
-                  flat
-                >
-                  <View style={styles.busPin}>
-                    <View style={styles.busPinHalo} />
-                    <View style={styles.busPinInner}>
-                      <Text style={styles.busPinEmoji}>🚌</Text>
+                {placedStops.length >= 2 && (
+                  <Polyline
+                    coordinates={placedStops.map((s) => ({
+                      latitude: s.lat,
+                      longitude: s.lng,
+                    }))}
+                    strokeColor={colors.accent}
+                    strokeWidth={3}
+                  />
+                )}
+                {placedStops.map((s) => (
+                  <Marker
+                    key={s.name}
+                    coordinate={{ latitude: s.lat, longitude: s.lng }}
+                    title={s.name + (s.suspended ? " (suspended)" : "")}
+                    pinColor={
+                      s.suspended
+                        ? "gray"
+                        : s.name === myStopName
+                        ? "orange"
+                        : "red"
+                    }
+                  />
+                ))}
+                {liveActive && liveLoc && pinPos && (
+                  <Marker
+                    coordinate={{ latitude: pinPos.lat, longitude: pinPos.lng }}
+                    title={`Bus ${bus.busNumber}`}
+                    description={`Updated ${new Date(liveLoc.updatedAt).toLocaleTimeString()}`}
+                    anchor={{ x: 0.5, y: 0.5 }}
+                    flat
+                  >
+                    <View style={styles.busPin}>
+                      <View style={styles.busPinHalo} />
+                      <View style={styles.busPinInner}>
+                        <Text style={styles.busPinEmoji}>🚌</Text>
+                      </View>
                     </View>
-                  </View>
-                </Marker>
+                  </Marker>
+                )}
               </MapView>
-              <Pressable
-                onPress={() =>
-                  mapRef.current?.animateToRegion(
-                    {
-                      latitude: pinPos.lat,
-                      longitude: pinPos.lng,
-                      latitudeDelta: 0.01,
-                      longitudeDelta: 0.01,
-                    },
-                    600
-                  )
-                }
-                style={({ pressed }) => [
-                  styles.recenterBtn,
-                  pressed && styles.recenterBtnPressed,
-                ]}
-                hitSlop={8}
-              >
-                <Text style={styles.recenterIcon}>🚌</Text>
-              </Pressable>
+              {liveActive && pinPos && (
+                <Pressable
+                  onPress={() =>
+                    mapRef.current?.animateToRegion(
+                      {
+                        latitude: pinPos.lat,
+                        longitude: pinPos.lng,
+                        latitudeDelta: 0.01,
+                        longitudeDelta: 0.01,
+                      },
+                      600
+                    )
+                  }
+                  style={({ pressed }) => [
+                    styles.recenterBtn,
+                    pressed && styles.recenterBtnPressed,
+                  ]}
+                  hitSlop={8}
+                >
+                  <Text style={styles.recenterIcon}>🚌</Text>
+                </Pressable>
+              )}
               <View style={styles.liveBanner}>
-                <View style={styles.liveDot} />
+                <View
+                  style={[styles.liveDot, !liveActive && styles.liveDotIdle]}
+                />
                 <Text style={styles.liveText}>
-                  Live · updated{" "}
-                  {new Date(liveLoc.updatedAt).toLocaleTimeString()}
+                  {liveActive && liveLoc
+                    ? `Live · updated ${new Date(liveLoc.updatedAt).toLocaleTimeString()}`
+                    : tripActive
+                    ? "Waiting for the driver's first location…"
+                    : "Route shown · bus is idle"}
                 </Text>
               </View>
             </View>
@@ -350,14 +467,45 @@ function HomeView({ styles, colors, student, busLocation }: HomeViewProps) {
 
           <Text style={styles.sectionLabel}>Your Stop</Text>
           {student?.stop ? (
-            <View style={styles.myStopCard}>
-              <View style={styles.myStopIcon}>
-                <Text style={styles.myStopEmoji}>📍</Text>
+            <View>
+              <View
+                style={[
+                  styles.myStopCard,
+                  myStop?.suspended && styles.myStopCardSuspended,
+                ]}
+              >
+                <View style={styles.myStopIcon}>
+                  <Text style={styles.myStopEmoji}>
+                    {myStop?.suspended ? "🚧" : "📍"}
+                  </Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.myStopHint}>
+                    {myStop?.suspended ? "Stop temporarily closed" : "You board at"}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.myStopName,
+                      myStop?.suspended && styles.myStopNameSuspended,
+                    ]}
+                  >
+                    {student.stop}
+                  </Text>
+                </View>
               </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.myStopHint}>You board at</Text>
-                <Text style={styles.myStopName}>{student.stop}</Text>
-              </View>
+              {myStop?.suspended && (
+                <View style={styles.suggestionCard}>
+                  <Text style={styles.suggestionText}>
+                    {suggestion
+                      ? `Nearest open stop: ${suggestion.name}${
+                          suggestion.distance != null
+                            ? ` · ${formatDistance(suggestion.distance)} away`
+                            : ""
+                        }`
+                      : "Please check the notice above for an alternate stop."}
+                  </Text>
+                </View>
+              )}
             </View>
           ) : (
             <View style={styles.emptyCard}>
@@ -371,10 +519,10 @@ function HomeView({ styles, colors, student, busLocation }: HomeViewProps) {
           {stops.length > 0 ? (
             <View style={styles.stopsCard}>
               {stops.map((s, i) => {
-                const isMine = student?.stop === s;
+                const isMine = student?.stop === s.name;
                 return (
                   <View
-                    key={`${s}-${i}`}
+                    key={`${s.name}-${i}`}
                     style={[
                       styles.stopRow,
                       i < stops.length - 1 && styles.stopRowDivider,
@@ -384,6 +532,7 @@ function HomeView({ styles, colors, student, busLocation }: HomeViewProps) {
                       style={[
                         styles.stopBullet,
                         isMine && styles.stopBulletMine,
+                        s.suspended && styles.stopBulletSuspended,
                       ]}
                     >
                       <Text
@@ -396,11 +545,16 @@ function HomeView({ styles, colors, student, busLocation }: HomeViewProps) {
                       </Text>
                     </View>
                     <Text
-                      style={[styles.stopText, isMine && styles.stopTextMine]}
+                      style={[
+                        styles.stopText,
+                        isMine && styles.stopTextMine,
+                        s.suspended && styles.stopTextSuspended,
+                      ]}
                     >
-                      {s}
+                      {s.name}
+                      {s.suspended ? "  (closed)" : ""}
                     </Text>
-                    {isMine && (
+                    {isMine && !s.suspended && (
                       <Text style={styles.youHere}>You board here</Text>
                     )}
                   </View>
@@ -727,6 +881,44 @@ function makeStyles(colors: Colors) {
       backgroundColor: colors.accent,
     },
     liveText: { color: colors.text, fontSize: 12, fontWeight: "700" },
+    liveDotIdle: { backgroundColor: "#9aa0a6" },
+
+    noticeCard: {
+      flexDirection: "row",
+      gap: 10,
+      alignItems: "flex-start",
+      backgroundColor: "#fff4e5",
+      borderWidth: 1,
+      borderColor: "#f0c98a",
+      borderRadius: 14,
+      padding: 14,
+      marginTop: 16,
+    },
+    noticeIcon: { fontSize: 16 },
+    noticeText: {
+      flex: 1,
+      color: "#92400e",
+      fontSize: 13,
+      lineHeight: 18,
+      fontWeight: "600",
+    },
+
+    myStopCardSuspended: { backgroundColor: "#9aa0a6" },
+    myStopNameSuspended: { textDecorationLine: "line-through", color: "#fff" },
+    suggestionCard: {
+      marginTop: 8,
+      backgroundColor: colors.surfaceMuted,
+      borderRadius: 14,
+      padding: 12,
+    },
+    suggestionText: { color: colors.text, fontSize: 13, fontWeight: "700" },
+
+    stopBulletSuspended: { backgroundColor: "rgba(217,83,79,0.2)" },
+    stopTextSuspended: {
+      color: colors.textMuted,
+      textDecorationLine: "line-through",
+      fontWeight: "600",
+    },
 
     emptyCard: {
       backgroundColor: colors.surfaceMuted,

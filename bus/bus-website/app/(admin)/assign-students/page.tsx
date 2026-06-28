@@ -195,8 +195,9 @@ export default function AssignStudentsPage() {
                         >
                           <option value="">— None —</option>
                           {currentBus.stops.map((st) => (
-                            <option key={st} value={st}>
-                              {st}
+                            <option key={st.name} value={st.name}>
+                              {st.name}
+                              {st.suspended ? " (suspended)" : ""}
                             </option>
                           ))}
                         </select>

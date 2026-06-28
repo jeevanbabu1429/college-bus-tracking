@@ -48,6 +48,7 @@ router.get("/status", async (req, res) => {
           plateNumber: bus.plateNumber,
           route: bus.route,
           stops: bus.stops,
+          notice: bus.notice,
         }
       : null,
     tripActive: driver.tripActive ?? false,

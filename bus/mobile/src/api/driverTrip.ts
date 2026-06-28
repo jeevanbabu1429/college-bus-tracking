@@ -1,11 +1,13 @@
 import { apiFetch } from "./client";
+import type { BusStop } from "./collegeBuses";
 
 export type TripBus = {
   _id: string;
   busNumber: string;
   plateNumber: string;
   route: string;
-  stops: string[];
+  stops: BusStop[];
+  notice: string;
 };
 
 export type TripLocation = {

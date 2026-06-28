@@ -103,7 +103,7 @@ export function EditStudentScreen({ navigation, route }: Props) {
       return;
     }
     const next = sortedBuses.find((b) => b._id === id);
-    if (!next || !stop || !next.stops.includes(stop)) {
+    if (!next || !stop || !next.stops.some((s) => s.name === stop)) {
       setStop(null);
     }
   }
@@ -433,11 +433,11 @@ export function EditStudentScreen({ navigation, route }: Props) {
                   )}
                   <View style={styles.stopList}>
                     {selectedBus.stops.map((s, i) => {
-                      const selected = stop === s;
+                      const selected = stop === s.name;
                       return (
                         <Pressable
-                          key={`${s}-${i}`}
-                          onPress={() => setStop(s)}
+                          key={`${s.name}-${i}`}
+                          onPress={() => setStop(s.name)}
                           style={[
                             styles.stopRow,
                             selected && styles.stopRowActive,
@@ -464,7 +464,8 @@ export function EditStudentScreen({ navigation, route }: Props) {
                               selected && styles.stopTextActive,
                             ]}
                           >
-                            {s}
+                            {s.name}
+                            {s.suspended ? "  (suspended)" : ""}
                           </Text>
                           {selected && <Text style={styles.tick}>✓</Text>}
                         </Pressable>

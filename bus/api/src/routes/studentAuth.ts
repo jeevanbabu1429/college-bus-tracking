@@ -132,7 +132,14 @@ router.get("/bus-location", requireStudent, async (req, res) => {
   }
   const driver = bus.driver ? await DriverModel.findById(bus.driver) : null;
   res.json({
-    bus: { _id: bus._id, busNumber: bus.busNumber, plateNumber: bus.plateNumber },
+    bus: {
+      _id: bus._id,
+      busNumber: bus.busNumber,
+      plateNumber: bus.plateNumber,
+      route: bus.route,
+      stops: bus.stops,
+      notice: bus.notice,
+    },
     tripActive: driver?.tripActive ?? false,
     currentLocation: driver?.currentLocation ?? null,
   });

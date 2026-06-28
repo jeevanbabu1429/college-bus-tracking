@@ -42,7 +42,7 @@ export type AppStackParamList = {
     plateNumber: string;
     capacity: number;
     route: string;
-    stops: string[];
+    stops: import("../api/collegeBuses").BusStop[];
   };
   EditDriver: { collegeId: string; driver: import("../api/collegeDrivers").Driver };
   EditStudent: { collegeId: string; student: import("../api/collegeStudents").Student };

@@ -424,17 +424,20 @@ export function SelectStudentsForBusScreen({ navigation, route }: Props) {
             <View style={styles.stopList}>
               {stops.map((s, i) => (
                 <Pressable
-                  key={`${s}-${i}`}
+                  key={`${s.name}-${i}`}
                   style={({ pressed }) => [
                     styles.stopRow,
                     pressed && styles.stopRowPressed,
                   ]}
-                  onPress={() => pickStopFor && assign(pickStopFor, s)}
+                  onPress={() => pickStopFor && assign(pickStopFor, s.name)}
                 >
                   <View style={styles.stopBullet}>
                     <Text style={styles.stopBulletText}>{i + 1}</Text>
                   </View>
-                  <Text style={styles.stopRowText}>{s}</Text>
+                  <Text style={styles.stopRowText}>
+                    {s.name}
+                    {s.suspended ? "  (suspended)" : ""}
+                  </Text>
                 </Pressable>
               ))}
             </View>
