@@ -4,6 +4,7 @@ import { BusModel } from "../models/Bus.js";
 import { CollegeModel } from "../models/College.js";
 import { DriverModel } from "../models/Driver.js";
 import { StudentModel } from "../models/Student.js";
+import { sendPushSafe } from "../services/notifications.js";
 
 const router = Router({ mergeParams: true });
 
@@ -328,6 +329,12 @@ router.put("/:busId/route", async (req, res) => {
     return;
   }
 
+  const prevNotice = bus.notice ?? "";
+  const prevSuspended = new Set(
+    (bus.stops ?? []).filter((s) => s.suspended).map((s) => s.name)
+  );
+  const prevNames = new Set((bus.stops ?? []).map((s) => s.name));
+
   const { route, stops, notice } = req.body ?? {};
   if (typeof route !== "string") {
     res.status(400).json({ error: "route must be a string" });
@@ -383,8 +390,99 @@ router.put("/:busId/route", async (req, res) => {
   );
 
   const populated = await bus.populate("driver", DRIVER_PROJECTION);
+
+  // Fan-out notifications. Three things students care about: a new/changed
+  // notice banner, a stop being suspended, and a stop being removed entirely.
+  const newSuspended = new Set(
+    normalizedStops.filter((s) => s.suspended).map((s) => s.name)
+  );
+  const newlySuspended = [...newSuspended].filter((n) => !prevSuspended.has(n));
+  const newlyResumed = [...prevSuspended].filter((n) => !newSuspended.has(n) && stopNames.includes(n));
+  const removedStops = [...prevNames].filter((n) => !newSuspended.has(n) && !stopNames.includes(n));
+  const noticeChanged = (typeof notice === "string" ? notice.trim() : prevNotice) !== prevNotice;
+
+  if (noticeChanged || newlySuspended.length || newlyResumed.length || removedStops.length) {
+    notifyBusUpdate(bus._id.toString(), bus.busNumber, {
+      noticeChanged,
+      notice: bus.notice,
+      newlySuspended,
+      newlyResumed,
+      removedStops,
+    });
+  }
+
   res.json(populated);
 });
+
+function notifyBusUpdate(
+  busId: string,
+  busNumber: string,
+  changes: {
+    noticeChanged: boolean;
+    notice: string;
+    newlySuspended: string[];
+    newlyResumed: string[];
+    removedStops: string[];
+  }
+) {
+  (async () => {
+    const students = await StudentModel.find({ bus: busId }).select("_id stop").lean();
+    if (students.length === 0) return;
+
+    if (changes.noticeChanged) {
+      sendPushSafe(
+        { role: "students", ids: students.map((s) => s._id) },
+        {
+          title: `Bus ${busNumber} — route notice`,
+          body: changes.notice ? changes.notice : "The route notice has been cleared.",
+          data: { kind: "notice", busId, url: "/" },
+        }
+      );
+    }
+
+    for (const stop of changes.newlySuspended) {
+      const affected = students.filter((s) => s.stop === stop).map((s) => s._id);
+      if (affected.length === 0) continue;
+      sendPushSafe(
+        { role: "students", ids: affected },
+        {
+          title: `${stop} suspended`,
+          body: `Your stop on bus ${busNumber} is temporarily suspended. Check the route notice for details.`,
+          data: { kind: "stop-suspended", busId, stop, url: "/" },
+        }
+      );
+    }
+
+    for (const stop of changes.newlyResumed) {
+      const affected = students.filter((s) => s.stop === stop).map((s) => s._id);
+      if (affected.length === 0) continue;
+      sendPushSafe(
+        { role: "students", ids: affected },
+        {
+          title: `${stop} resumed`,
+          body: `Your stop on bus ${busNumber} is back in service.`,
+          data: { kind: "stop-resumed", busId, stop, url: "/" },
+        }
+      );
+    }
+
+    for (const stop of changes.removedStops) {
+      // These students were just un-assigned by the cascade above, but they're
+      // still on this bus document until the next refresh — the lean() snapshot
+      // captured the old stop name, which is what we want.
+      const affected = students.filter((s) => s.stop === stop).map((s) => s._id);
+      if (affected.length === 0) continue;
+      sendPushSafe(
+        { role: "students", ids: affected },
+        {
+          title: `${stop} removed`,
+          body: `Your stop has been removed from bus ${busNumber}'s route. Please contact the admin to pick a new stop.`,
+          data: { kind: "stop-removed", busId, stop, url: "/" },
+        }
+      );
+    }
+  })().catch((err) => console.error("[fcm] notifyBusUpdate failed:", err));
+}
 
 router.put("/:busId/driver", async (req, res) => {
   const { collegeId, busId } = req.params as {

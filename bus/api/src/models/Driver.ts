@@ -34,6 +34,7 @@ const driverSchema = new Schema(
     otp: { type: String, default: null },
     otpExpiresAt: { type: Date, default: null },
     tripActive: { type: Boolean, default: false },
+    fcmTokens: { type: [String], default: [] },
     currentLocation: {
       type: new Schema(
         {

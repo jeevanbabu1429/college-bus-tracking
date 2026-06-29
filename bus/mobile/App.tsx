@@ -3,9 +3,11 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AuthProvider } from "./src/auth/AuthContext";
 import { ThemeProvider, useTheme } from "./src/theme/ThemeContext";
 import { RootNavigator } from "./src/navigation/RootNavigator";
+import { useFcmRegistration } from "./src/notifications/useFcmRegistration";
 
 function ThemedRoot() {
   const { mode } = useTheme();
+  useFcmRegistration();
   return (
     <>
       <StatusBar style={mode === "dark" ? "light" : "dark"} />

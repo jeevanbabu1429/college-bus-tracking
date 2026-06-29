@@ -1,4 +1,4 @@
-package com.anonymous.bus
+package com.yourcollege.bustracking
 
 import android.app.Application
 import android.content.res.Configuration

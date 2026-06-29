@@ -27,6 +27,7 @@ const studentSchema = new Schema(
     stop: { type: String, default: null, trim: true },
     otp: { type: String, default: null },
     otpExpiresAt: { type: Date, default: null },
+    fcmTokens: { type: [String], default: [] },
   },
   { timestamps: true }
 );
