@@ -15,6 +15,22 @@ export type BusLocation = {
   currentLocation: { lat: number; lng: number; updatedAt: string } | null;
 };
 
+export type LiveBusItem = {
+  bus: {
+    _id: string;
+    busNumber: string;
+    plateNumber: string;
+    route: string;
+    stops: BusStop[];
+    notice: string;
+  };
+  driver: {
+    name: string;
+    tripActive: boolean;
+    currentLocation: { lat: number; lng: number; updatedAt: string } | null;
+  };
+};
+
 export const studentAuthApi = {
   requestOtp: (mobile: string) =>
     apiFetch<{ ok: true }>("/api/student-auth/request-otp", {
@@ -31,4 +47,6 @@ export const studentAuthApi = {
     ),
   me: () => apiFetch<Student>("/api/student-auth/me"),
   busLocation: () => apiFetch<BusLocation>("/api/student-auth/bus-location"),
+  liveBuses: () =>
+    apiFetch<LiveBusItem[]>("/api/student-auth/live-buses"),
 };

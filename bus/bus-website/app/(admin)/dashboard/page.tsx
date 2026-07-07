@@ -12,9 +12,16 @@ import {
   IconPlus,
   IconRoute,
   IconBuilding,
+  IconMap,
 } from "../../../components/icons";
 
 const QUICK_ACTIONS = [
+  {
+    href: "/track-drivers",
+    label: "Track drivers",
+    caption: "Live map of active trips",
+    Icon: IconMap,
+  },
   {
     href: "/buses/new",
     label: "Add a bus",
