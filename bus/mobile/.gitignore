@@ -4,3 +4,7 @@ dist/
 web-build/
 .env
 *.log
+
+# Firebase config (contains restricted API keys — distribute out of band)
+google-services.json
+GoogleService-Info.plist

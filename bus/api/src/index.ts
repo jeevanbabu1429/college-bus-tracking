@@ -10,6 +10,8 @@ import collegesRouter from "./routes/colleges.js";
 import collegeBusesRouter from "./routes/collegeBuses.js";
 import collegeDriversRouter from "./routes/collegeDrivers.js";
 import collegeStudentsRouter from "./routes/collegeStudents.js";
+import notificationsRouter from "./routes/notifications.js";
+import { getFirebaseApp } from "./services/firebase.js";
 
 const app = express();
 app.use(cors());
@@ -27,6 +29,7 @@ app.use("/api/colleges", collegesRouter);
 app.use("/api/colleges/:collegeId/buses", collegeBusesRouter);
 app.use("/api/colleges/:collegeId/drivers", collegeDriversRouter);
 app.use("/api/colleges/:collegeId/students", collegeStudentsRouter);
+app.use("/api/notifications", notificationsRouter);
 
 const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
   console.error(err);
@@ -40,6 +43,7 @@ const uri = process.env.MONGODB_URI ?? "mongodb://localhost:27017/bus";
 
 connectDB(uri)
   .then(() => {
+    getFirebaseApp();
     app.listen(port, () => {
       console.log(`API listening on http://localhost:${port}`);
     });
