@@ -25,6 +25,8 @@ import { EditDriverScreen } from "../screens/EditDriverScreen";
 import { EditStudentScreen } from "../screens/EditStudentScreen";
 import { DriverDashboardScreen } from "../screens/DriverDashboardScreen";
 import { StudentDashboardScreen } from "../screens/StudentDashboardScreen";
+import { TrackOtherBusesScreen } from "../screens/TrackOtherBusesScreen";
+import { TrackOtherBusMapScreen } from "../screens/TrackOtherBusMapScreen";
 import { CollegeProvider } from "../college/CollegeContext";
 import type {
   AppStackParamList,
@@ -102,6 +104,14 @@ function StudentNavigator() {
       <StudentStack.Screen
         name="StudentDashboard"
         component={StudentDashboardScreen}
+      />
+      <StudentStack.Screen
+        name="TrackOtherBuses"
+        component={TrackOtherBusesScreen}
+      />
+      <StudentStack.Screen
+        name="TrackOtherBusMap"
+        component={TrackOtherBusMapScreen}
       />
     </StudentStack.Navigator>
   );

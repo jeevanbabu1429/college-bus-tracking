@@ -54,4 +54,6 @@ export type DriverStackParamList = {
 
 export type StudentStackParamList = {
   StudentDashboard: undefined;
+  TrackOtherBuses: undefined;
+  TrackOtherBusMap: { busId: string; busNumber: string };
 };
