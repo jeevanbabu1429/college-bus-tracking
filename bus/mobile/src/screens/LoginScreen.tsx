@@ -61,6 +61,8 @@ export function LoginScreen({ navigation, route }: Props) {
     driverVerifyOtp,
     studentRequestOtp,
     studentVerifyOtp,
+    suspendedMessage,
+    clearSuspendedMessage,
   } = useAuth();
   const [role, setRole] = useState<Role | null>(route.params?.role ?? null);
 
@@ -70,6 +72,19 @@ export function LoginScreen({ navigation, route }: Props) {
         style={styles.container}
         contentContainerStyle={styles.scroll}
       >
+        {suspendedMessage && (
+          <View style={styles.suspendedBanner}>
+            <Text style={styles.suspendedTitle}>Account suspended</Text>
+            <Text style={styles.suspendedBody}>{suspendedMessage}</Text>
+            <Pressable
+              onPress={clearSuspendedMessage}
+              style={styles.suspendedDismiss}
+              hitSlop={10}
+            >
+              <Text style={styles.suspendedDismissText}>Dismiss</Text>
+            </Pressable>
+          </View>
+        )}
         <Text style={styles.heading}>Welcome</Text>
         <Text style={styles.subheading}>Choose how you'd like to sign in</Text>
 
@@ -175,4 +190,34 @@ const styles = StyleSheet.create({
   linkBtn: { marginTop: 8, alignItems: "center" },
   linkText: { color: "#666", fontSize: 13 },
   linkAccent: { color: "#f5b700", fontWeight: "700" },
+  suspendedBanner: {
+    marginBottom: 24,
+    padding: 16,
+    borderRadius: 14,
+    backgroundColor: "#fdecec",
+    borderWidth: 1,
+    borderColor: "#f5c2c2",
+  },
+  suspendedTitle: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: "#8f1d1d",
+    marginBottom: 6,
+  },
+  suspendedBody: {
+    fontSize: 13,
+    color: "#8f1d1d",
+    fontWeight: "600",
+    lineHeight: 19,
+  },
+  suspendedDismiss: {
+    marginTop: 10,
+    alignSelf: "flex-start",
+  },
+  suspendedDismissText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#8f1d1d",
+    textDecorationLine: "underline",
+  },
 });

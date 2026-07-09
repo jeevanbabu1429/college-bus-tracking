@@ -4,6 +4,10 @@ import { isValidObjectId } from "mongoose";
 import { StudentModel } from "../models/Student.js";
 import { BusModel } from "../models/Bus.js";
 import { DriverModel } from "../models/Driver.js";
+import {
+  checkCollegeAdminSuspension,
+  sendSuspended,
+} from "../lib/suspension.js";
 
 const router = Router();
 
@@ -73,6 +77,15 @@ router.post("/verify-otp", async (req, res) => {
   student.otpExpiresAt = null;
   await student.save();
 
+  const suspensionMsg = await checkCollegeAdminSuspension(
+    student.college,
+    "student"
+  );
+  if (suspensionMsg) {
+    sendSuspended(res, suspensionMsg);
+    return;
+  }
+
   await student.populate("bus");
 
   const token = signToken({ role: "student", sub: student.id });
@@ -80,7 +93,7 @@ router.post("/verify-otp", async (req, res) => {
   res.json({ token, student });
 });
 
-const requireStudent: RequestHandler = (req, res, next) => {
+const requireStudent: RequestHandler = async (req, res, next) => {
   const header = req.headers.authorization;
   if (!header?.startsWith("Bearer ")) {
     res.status(401).json({ error: "Missing bearer token" });
@@ -98,6 +111,15 @@ const requireStudent: RequestHandler = (req, res, next) => {
   }
   if (payload.role !== "student" || !payload.sub || !isValidObjectId(payload.sub)) {
     res.status(401).json({ error: "Not a student token" });
+    return;
+  }
+  const student = await StudentModel.findById(payload.sub).select("college").lean();
+  const suspensionMsg = await checkCollegeAdminSuspension(
+    student?.college,
+    "student"
+  );
+  if (suspensionMsg) {
+    sendSuspended(res, suspensionMsg);
     return;
   }
   (req as unknown as { studentId?: string }).studentId = payload.sub;

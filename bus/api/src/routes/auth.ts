@@ -3,6 +3,10 @@ import jwt, { type SignOptions } from "jsonwebtoken";
 import { isValidObjectId } from "mongoose";
 import { AdminModel, formatAdminId } from "../models/Admin.js";
 import { nextSequence } from "../models/Counter.js";
+import {
+  checkAdminSuspension,
+  sendSuspended,
+} from "../lib/suspension.js";
 
 const router = Router();
 
@@ -119,12 +123,20 @@ router.post("/verify-otp", async (req, res) => {
   admin.otpExpiresAt = null;
   await admin.save();
 
+  if (admin.suspended) {
+    const msg = await checkAdminSuspension(admin._id, "admin");
+    if (msg) {
+      sendSuspended(res, msg);
+      return;
+    }
+  }
+
   const token = signToken({ adminId: admin.adminId, sub: admin.id });
 
   res.json({ token, admin: publicAdmin(admin) });
 });
 
-const requireAdmin: RequestHandler = (req, res, next) => {
+const requireAdmin: RequestHandler = async (req, res, next) => {
   const header = req.headers.authorization;
   if (!header?.startsWith("Bearer ")) {
     res.status(401).json({ error: "Missing bearer token" });
@@ -142,6 +154,11 @@ const requireAdmin: RequestHandler = (req, res, next) => {
   }
   if (!payload.sub || !payload.adminId || !isValidObjectId(payload.sub)) {
     res.status(401).json({ error: "Not an admin token" });
+    return;
+  }
+  const suspensionMsg = await checkAdminSuspension(payload.sub, "admin");
+  if (suspensionMsg) {
+    sendSuspended(res, suspensionMsg);
     return;
   }
   (req as unknown as { adminSubId: string }).adminSubId = payload.sub;

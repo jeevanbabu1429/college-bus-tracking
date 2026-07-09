@@ -1,6 +1,10 @@
 import { Router } from "express";
 import jwt, { type SignOptions } from "jsonwebtoken";
 import { DriverModel } from "../models/Driver.js";
+import {
+  checkCollegeAdminSuspension,
+  sendSuspended,
+} from "../lib/suspension.js";
 
 const router = Router();
 
@@ -85,6 +89,15 @@ router.post("/verify-otp", async (req, res) => {
   driver.otp = null;
   driver.otpExpiresAt = null;
   await driver.save();
+
+  const suspensionMsg = await checkCollegeAdminSuspension(
+    driver.college,
+    "driver"
+  );
+  if (suspensionMsg) {
+    sendSuspended(res, suspensionMsg);
+    return;
+  }
 
   const token = signToken({ role: "driver", sub: driver.id });
 

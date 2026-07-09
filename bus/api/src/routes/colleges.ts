@@ -5,10 +5,14 @@ import { CollegeModel } from "../models/College.js";
 import { BusModel } from "../models/Bus.js";
 import { DriverModel } from "../models/Driver.js";
 import { StudentModel } from "../models/Student.js";
+import {
+  checkAdminSuspension,
+  sendSuspended,
+} from "../lib/suspension.js";
 
 const router = Router();
 
-const requireAdmin: RequestHandler = (req, res, next) => {
+const requireAdmin: RequestHandler = async (req, res, next) => {
   const header = req.headers.authorization;
   if (!header?.startsWith("Bearer ")) {
     res.status(401).json({ error: "Missing bearer token" });
@@ -26,6 +30,11 @@ const requireAdmin: RequestHandler = (req, res, next) => {
   }
   if (!payload.sub || !payload.adminId || !isValidObjectId(payload.sub)) {
     res.status(401).json({ error: "Not an admin token" });
+    return;
+  }
+  const suspensionMsg = await checkAdminSuspension(payload.sub, "admin");
+  if (suspensionMsg) {
+    sendSuspended(res, suspensionMsg);
     return;
   }
   (req as unknown as { adminSubId: string }).adminSubId = payload.sub;

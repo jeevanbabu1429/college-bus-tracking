@@ -10,6 +10,7 @@ export type Admin = {
   dob: string;
   mobile: string;
   email: string;
+  suspended?: boolean;
   createdAt: string;
   updatedAt: string;
 };

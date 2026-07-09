@@ -14,6 +14,7 @@ import { studentAuthApi } from "../api/studentAuth";
 import type { Driver } from "../api/collegeDrivers";
 import type { Student } from "../api/collegeStudents";
 import { setCurrentToken } from "./tokenStore";
+import { setOnSuspended } from "../api/client";
 
 const TOKEN_KEY = "bus.authToken";
 const SESSION_KEY = "bus.authSession";
@@ -27,6 +28,7 @@ type AuthState = {
   ready: boolean;
   token: string | null;
   session: Session | null;
+  suspendedMessage: string | null;
 };
 
 type AuthContextValue = AuthState & {
@@ -40,6 +42,7 @@ type AuthContextValue = AuthState & {
   refreshSession: () => Promise<void>;
   updateAdmin: (input: RegisterInput) => Promise<Admin>;
   logout: () => Promise<void>;
+  clearSuspendedMessage: () => void;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -49,6 +52,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     ready: false,
     token: null,
     session: null,
+    suspendedMessage: null,
   });
 
   useEffect(() => {
@@ -62,8 +66,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         ready: true,
         token,
         session: sessionJson ? (JSON.parse(sessionJson) as Session) : null,
+        suspendedMessage: null,
       });
     })();
+  }, []);
+
+  // Register a global suspension handler that apiFetch calls whenever it
+  // sees a 403 with suspended: true. Clears the session so RootNavigator
+  // flips back to the auth stack; the LoginScreen shows the message.
+  useEffect(() => {
+    setOnSuspended((message) => {
+      Promise.all([
+        SecureStore.deleteItemAsync(TOKEN_KEY),
+        SecureStore.deleteItemAsync(SESSION_KEY),
+      ]).catch(() => {
+        // best-effort — the in-memory state below is what actually flips the UI
+      });
+      setCurrentToken(null);
+      setState({
+        ready: true,
+        token: null,
+        session: null,
+        suspendedMessage: message,
+      });
+    });
+    return () => setOnSuspended(null);
   }, []);
 
   const persist = useCallback(async (token: string, session: Session) => {
@@ -72,7 +99,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       SecureStore.setItemAsync(SESSION_KEY, JSON.stringify(session)),
     ]);
     setCurrentToken(token);
-    setState({ ready: true, token, session });
+    setState({ ready: true, token, session, suspendedMessage: null });
   }, []);
 
   const register = useCallback(async (input: RegisterInput) => {
@@ -130,7 +157,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const student = await studentAuthApi.me();
       const next: Session = { role: "student", student };
       await SecureStore.setItemAsync(SESSION_KEY, JSON.stringify(next));
-      setState({ ready: true, token: state.token, session: next });
+      setState((s) => ({ ...s, ready: true, token: state.token, session: next }));
     } catch {
       // keep existing session if refresh fails (e.g. transient network)
     }
@@ -142,7 +169,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       SecureStore.deleteItemAsync(SESSION_KEY),
     ]);
     setCurrentToken(null);
-    setState({ ready: true, token: null, session: null });
+    setState({
+      ready: true,
+      token: null,
+      session: null,
+      suspendedMessage: null,
+    });
+  }, []);
+
+  const clearSuspendedMessage = useCallback(() => {
+    setState((s) => ({ ...s, suspendedMessage: null }));
   }, []);
 
   const value = useMemo<AuthContextValue>(
@@ -158,6 +194,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       refreshSession,
       updateAdmin,
       logout,
+      clearSuspendedMessage,
     }),
     [
       state,
@@ -171,6 +208,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       refreshSession,
       updateAdmin,
       logout,
+      clearSuspendedMessage,
     ]
   );
 
