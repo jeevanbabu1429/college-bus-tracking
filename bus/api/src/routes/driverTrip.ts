@@ -3,10 +3,14 @@ import jwt from "jsonwebtoken";
 import { isValidObjectId } from "mongoose";
 import { DriverModel } from "../models/Driver.js";
 import { BusModel } from "../models/Bus.js";
+import {
+  checkCollegeAdminSuspension,
+  sendSuspended,
+} from "../lib/suspension.js";
 
 const router = Router();
 
-const requireDriver: RequestHandler = (req, res, next) => {
+const requireDriver: RequestHandler = async (req, res, next) => {
   const header = req.headers.authorization;
   if (!header?.startsWith("Bearer ")) {
     res.status(401).json({ error: "Missing bearer token" });
@@ -24,6 +28,15 @@ const requireDriver: RequestHandler = (req, res, next) => {
   }
   if (payload.role !== "driver" || !payload.sub || !isValidObjectId(payload.sub)) {
     res.status(401).json({ error: "Not a driver token" });
+    return;
+  }
+  const driver = await DriverModel.findById(payload.sub).select("college").lean();
+  const suspensionMsg = await checkCollegeAdminSuspension(
+    driver?.college,
+    "driver"
+  );
+  if (suspensionMsg) {
+    sendSuspended(res, suspensionMsg);
     return;
   }
   (req as unknown as { driverId?: string }).driverId = payload.sub;
