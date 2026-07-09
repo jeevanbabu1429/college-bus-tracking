@@ -3,6 +3,8 @@ import jwt from "jsonwebtoken";
 import { isValidObjectId } from "mongoose";
 import { DriverModel } from "../models/Driver.js";
 import { BusModel } from "../models/Bus.js";
+import { StudentModel } from "../models/Student.js";
+import { sendPushSafe } from "../services/notifications.js";
 import {
   checkCollegeAdminSuspension,
   sendSuspended,
@@ -80,6 +82,7 @@ router.post("/start", async (req, res) => {
     res.status(404).json({ error: "Driver not found" });
     return;
   }
+  notifyTripChange(driver._id.toString(), "start");
   res.json({ ok: true });
 });
 
@@ -94,8 +97,28 @@ router.post("/stop", async (req, res) => {
     res.status(404).json({ error: "Driver not found" });
     return;
   }
+  notifyTripChange(driver._id.toString(), "stop");
   res.json({ ok: true });
 });
+
+function notifyTripChange(driverId: string, kind: "start" | "stop") {
+  (async () => {
+    const bus = await BusModel.findOne({ driver: driverId }).select("_id busNumber");
+    if (!bus) return;
+    const students = await StudentModel.find({ bus: bus._id }).select("_id").lean();
+    const ids = students.map((s) => s._id);
+    if (ids.length === 0) return;
+    const title = kind === "start" ? "Bus has started" : "Bus has stopped";
+    const body =
+      kind === "start"
+        ? `Bus ${bus.busNumber} is on the route. Track its live location.`
+        : `Bus ${bus.busNumber} has finished its trip.`;
+    sendPushSafe(
+      { role: "students", ids },
+      { title, body, data: { kind: `trip-${kind}`, busId: bus._id.toString(), url: "/" } }
+    );
+  })().catch((err) => console.error("[fcm] notifyTripChange failed:", err));
+}
 
 router.post("/location", async (req, res) => {
   const driverId = (req as unknown as { driverId: string }).driverId;

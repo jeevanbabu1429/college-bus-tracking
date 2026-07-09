@@ -136,6 +136,62 @@ router.get("/me", requireStudent, async (req, res) => {
   res.json(student);
 });
 
+// Same data the admin's /buses/live returns, but scoped to the calling
+// student's own college so they can see fleet activity without needing a
+// collegeId. Mobile field of view, hence we strip licence and mobile.
+router.get("/live-buses", requireStudent, async (req, res) => {
+  const studentId = (req as unknown as { studentId: string }).studentId;
+  const student = await StudentModel.findById(studentId).select("college");
+  if (!student) {
+    res.status(404).json({ error: "Student not found" });
+    return;
+  }
+
+  const activeDrivers = await DriverModel.find({
+    college: student.college,
+    tripActive: true,
+  })
+    .select("name currentLocation tripActive")
+    .lean();
+  if (activeDrivers.length === 0) {
+    res.json([]);
+    return;
+  }
+
+  const activeIds = activeDrivers.map((d) => d._id);
+  const buses = await BusModel.find({
+    college: student.college,
+    driver: { $in: activeIds },
+  })
+    .select("busNumber plateNumber route stops notice driver")
+    .lean();
+
+  const driverById = new Map(activeDrivers.map((d) => [String(d._id), d]));
+  const items = buses
+    .map((bus) => {
+      const driver = bus.driver ? driverById.get(String(bus.driver)) : null;
+      if (!driver) return null;
+      return {
+        bus: {
+          _id: bus._id,
+          busNumber: bus.busNumber,
+          plateNumber: bus.plateNumber,
+          route: bus.route,
+          stops: bus.stops,
+          notice: bus.notice,
+        },
+        driver: {
+          name: driver.name,
+          tripActive: driver.tripActive,
+          currentLocation: driver.currentLocation ?? null,
+        },
+      };
+    })
+    .filter((x) => x !== null);
+
+  res.json(items);
+});
+
 router.get("/bus-location", requireStudent, async (req, res) => {
   const studentId = (req as unknown as { studentId: string }).studentId;
   const student = await StudentModel.findById(studentId);

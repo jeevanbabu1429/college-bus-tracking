@@ -10,7 +10,9 @@ import collegesRouter from "./routes/colleges.js";
 import collegeBusesRouter from "./routes/collegeBuses.js";
 import collegeDriversRouter from "./routes/collegeDrivers.js";
 import collegeStudentsRouter from "./routes/collegeStudents.js";
+import notificationsRouter from "./routes/notifications.js";
 import superAdminRouter from "./routes/superAdmin.js";
+import { getFirebaseApp } from "./services/firebase.js";
 import { seedSuperAdmin } from "./seed.js";
 
 const app = express();
@@ -29,6 +31,7 @@ app.use("/api/colleges", collegesRouter);
 app.use("/api/colleges/:collegeId/buses", collegeBusesRouter);
 app.use("/api/colleges/:collegeId/drivers", collegeDriversRouter);
 app.use("/api/colleges/:collegeId/students", collegeStudentsRouter);
+app.use("/api/notifications", notificationsRouter);
 app.use("/api/super", superAdminRouter);
 
 const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
@@ -43,6 +46,7 @@ const uri = process.env.MONGODB_URI ?? "mongodb://localhost:27017/bus";
 
 connectDB(uri)
   .then(async () => {
+    getFirebaseApp();
     await seedSuperAdmin();
     app.listen(port, () => {
       console.log(`API listening on http://localhost:${port}`);

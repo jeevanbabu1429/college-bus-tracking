@@ -58,9 +58,31 @@ export type BulkAssignmentResult = {
   failed: BulkAssignmentFailedRow[];
 };
 
+export type LiveBusItem = {
+  bus: {
+    _id: string;
+    busNumber: string;
+    plateNumber: string;
+    capacity: number;
+    route: string;
+    stops: BusStop[];
+    notice: string;
+  };
+  driver: {
+    _id: string;
+    name: string;
+    mobile: string;
+    licenceNumber: string;
+    tripActive: boolean;
+    currentLocation: { lat: number; lng: number; updatedAt: string } | null;
+  };
+};
+
 export const collegeBusesApi = {
   list: (collegeId: string) =>
     apiFetch<Bus[]>(`/api/colleges/${collegeId}/buses`),
+  live: (collegeId: string) =>
+    apiFetch<LiveBusItem[]>(`/api/colleges/${collegeId}/buses/live`),
   create: (collegeId: string, input: BusInput) =>
     apiFetch<Bus>(`/api/colleges/${collegeId}/buses`, {
       method: "POST",

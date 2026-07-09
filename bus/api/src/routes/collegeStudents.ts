@@ -3,6 +3,7 @@ import { isValidObjectId, Types } from "mongoose";
 import { StudentModel } from "../models/Student.js";
 import { CollegeModel } from "../models/College.js";
 import { BusModel } from "../models/Bus.js";
+import { sendPushSafe } from "../services/notifications.js";
 
 const router = Router({ mergeParams: true });
 
@@ -544,12 +545,25 @@ router.put("/:studentId/bus", async (req, res) => {
     return;
   }
 
+  const prevBusId = student.bus ? student.bus.toString() : null;
+  const prevStop = student.stop ?? null;
+
   const { busId, stop } = req.body ?? {};
 
   if (busId === null || busId === undefined || busId === "") {
     student.bus = null;
     student.stop = null;
     await student.save();
+    if (prevBusId) {
+      sendPushSafe(
+        { role: "student", id: student._id },
+        {
+          title: "Bus unassigned",
+          body: "You have been removed from your bus. Please contact the admin.",
+          data: { kind: "bus-unassigned", url: "/" },
+        }
+      );
+    }
     const populated = await student.populate("bus");
     res.json(populated);
     return;
@@ -602,6 +616,20 @@ router.put("/:studentId/bus", async (req, res) => {
   }
 
   await student.save();
+  const newBusId = student.bus ? student.bus.toString() : null;
+  const newStop = student.stop ?? null;
+  if (newBusId && (newBusId !== prevBusId || newStop !== prevStop) && bus) {
+    sendPushSafe(
+      { role: "student", id: student._id },
+      {
+        title: `Assigned to bus ${bus.busNumber}`,
+        body: newStop
+          ? `Your stop is ${newStop}. Open the app to view the route.`
+          : "Open the app to pick your stop.",
+        data: { kind: "bus-assigned", busId: newBusId, stop: newStop ?? "", url: "/" },
+      }
+    );
+  }
   const populated = await student.populate("bus");
   res.json(populated);
 });

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { use, useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
@@ -15,6 +16,7 @@ import {
   IconArrowUp,
   IconArrowDown,
   IconX,
+  IconUpload,
 } from "../../../../../components/icons";
 
 // Leaflet touches `window`, so load the map only on the client.
@@ -170,6 +172,14 @@ export default function SetBusRoutePage({
           <p className="page-subtitle">
             Bus {bus.busNumber} · {bus.plateNumber}
           </p>
+        </div>
+        <div className="page-actions">
+          <Link
+            href={`/buses/${bus._id}/route/bulk`}
+            className="btn btn-secondary"
+          >
+            <IconUpload size={14} /> Import from Excel
+          </Link>
         </div>
       </div>
 

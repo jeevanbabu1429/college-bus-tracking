@@ -20,6 +20,7 @@ const adminSchema = new Schema(
     },
     otp: { type: String, default: null },
     otpExpiresAt: { type: Date, default: null },
+    fcmTokens: { type: [String], default: [] },
     // The super admin can suspend an admin (and their whole customer tree)
     // via /api/super/admins/:id/suspended. When true, the admin can't log in
     // and neither can any driver/student under any of their colleges.

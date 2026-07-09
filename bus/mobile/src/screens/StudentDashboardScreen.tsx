@@ -9,12 +9,14 @@ import {
   Text,
   View,
 } from "react-native";
-import { useFocusEffect } from "@react-navigation/native";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from "react-native-maps";
 import { useAuth } from "../auth/AuthContext";
 import { useTheme, type Colors } from "../theme/ThemeContext";
 import { studentAuthApi, type BusLocation } from "../api/studentAuth";
 import type { BusStop } from "../api/collegeBuses";
+import type { StudentStackParamList } from "../navigation/types";
 
 const POLL_INTERVAL_MS = 5000;
 type Tab = "home" | "profile";
@@ -80,6 +82,14 @@ export function StudentDashboardScreen() {
   const student = session?.role === "student" ? session.student : null;
   const { mode, colors, setMode } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
+  const navigation =
+    useNavigation<
+      NativeStackNavigationProp<StudentStackParamList, "StudentDashboard">
+    >();
+  const goTrackOther = useCallback(
+    () => navigation.navigate("TrackOtherBuses"),
+    [navigation]
+  );
 
   const [tab, setTab] = useState<Tab>("home");
   const [busLocation, setBusLocation] = useState<BusLocation | null>(null);
@@ -148,6 +158,7 @@ export function StudentDashboardScreen() {
           colors={colors}
           student={student}
           busLocation={busLocation}
+          onTrackOther={goTrackOther}
         />
       ) : (
         <ProfileView
@@ -200,9 +211,10 @@ type HomeViewProps = {
   colors: Colors;
   student: Student | null;
   busLocation: BusLocation | null;
+  onTrackOther: () => void;
 };
 
-function HomeView({ styles, colors, student, busLocation }: HomeViewProps) {
+function HomeView({ styles, colors, student, busLocation, onTrackOther }: HomeViewProps) {
   const bus = student?.bus ?? null;
   // Prefer fresh data from the live poll (notice/suspension can change during
   // the day) and fall back to the session copy.
@@ -351,6 +363,25 @@ function HomeView({ styles, colors, student, busLocation }: HomeViewProps) {
           </Text>
         </View>
       )}
+
+      <Pressable
+        onPress={onTrackOther}
+        style={({ pressed }) => [
+          styles.trackOtherCard,
+          pressed && styles.trackOtherCardPressed,
+        ]}
+      >
+        <View style={styles.trackOtherIconBox}>
+          <Text style={styles.trackOtherEmoji}>🚌</Text>
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.trackOtherTitle}>Track other bus</Text>
+          <Text style={styles.trackOtherSub}>
+            See every bus in your college that&rsquo;s on a trip right now
+          </Text>
+        </View>
+        <Text style={styles.trackOtherChevron}>›</Text>
+      </Pressable>
 
       {bus && notice ? (
         <View style={styles.noticeCard}>
@@ -595,57 +626,62 @@ function ProfileView({
       contentContainerStyle={styles.bodyContent}
       showsVerticalScrollIndicator={false}
     >
-      <View style={styles.profileCard}>
-        <View style={styles.profileAvatar}>
-          <Text style={styles.profileAvatarText}>
-            {(student?.name ?? "S").charAt(0).toUpperCase()}
-          </Text>
+      <View style={styles.phHero}>
+        <View style={styles.phAvatarLg}>
+          <Text style={styles.phAvatarLgText}>{initialsOf(student?.name, "S")}</Text>
         </View>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.profileName}>{student?.name ?? "Student"}</Text>
-          <Text style={styles.profileRole}>
-            Student · Roll {student?.rollNumber ?? "—"}
-          </Text>
+        <Text style={styles.phName}>{student?.name ?? "Student"}</Text>
+        <Text style={styles.phSubtitle}>Roll · {student?.rollNumber ?? "—"}</Text>
+        <View style={styles.phPillRow}>
+          <View style={styles.phPillAccent}>
+            <Text style={styles.phPillAccentText}>Student</Text>
+          </View>
+          {student?.bus && (
+            <View style={styles.phPill}>
+              <Text style={styles.phPillText}>Bus {student.bus.busNumber}</Text>
+            </View>
+          )}
         </View>
       </View>
 
-      <Text style={styles.sectionLabel}>Personal Details</Text>
-      <View style={styles.groupCard}>
-        <InfoRow
-          styles={styles}
-          icon="👤"
-          label="Name"
-          value={student?.name ?? "—"}
-        />
-        <InfoRow
-          styles={styles}
-          icon="🆔"
-          label="Roll number"
-          value={student?.rollNumber ?? "—"}
-        />
-        <InfoRow
-          styles={styles}
-          icon="📱"
-          label="Mobile"
-          value={student?.mobile ?? "—"}
-        />
-        <InfoRow
-          styles={styles}
-          icon="🏠"
-          label="Address"
-          value={student?.address ?? "—"}
-          isLast
-        />
+      <Text style={styles.phSectionHeader}>Personal details</Text>
+      <View style={styles.phCard}>
+        <InfoLine styles={styles} label="Full name" value={student?.name ?? "—"} first />
+        <InfoLine styles={styles} label="Roll number" value={student?.rollNumber ?? "—"} />
+        <InfoLine styles={styles} label="Mobile" value={student?.mobile ?? "—"} />
+        <InfoLine styles={styles} label="Address" value={student?.address ?? "—"} />
       </View>
+      <Text style={styles.phHelp}>
+        These details are managed by your college admin. Reach out to them to
+        make changes.
+      </Text>
 
-      <Text style={styles.sectionLabel}>Appearance</Text>
-      <View style={styles.groupCard}>
-        <View style={styles.row}>
-          <Text style={styles.rowIcon}>{mode === "dark" ? "🌙" : "☀️"}</Text>
+      {student?.bus && (
+        <>
+          <Text style={styles.phSectionHeader}>Your bus</Text>
+          <View style={styles.phCard}>
+            <InfoLine
+              styles={styles}
+              label="Bus"
+              value={`${student.bus.busNumber} · ${student.bus.plateNumber}`}
+              first
+            />
+            <InfoLine
+              styles={styles}
+              label="Boarding stop"
+              value={student.stop ?? "Not assigned yet"}
+            />
+          </View>
+        </>
+      )}
+
+      <Text style={styles.phSectionHeader}>Appearance</Text>
+      <View style={styles.phCard}>
+        <View style={styles.phToggleRow}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.rowLabel}>Dark mode</Text>
-            <Text style={styles.rowSublabel}>
-              {mode === "dark" ? "On" : "Off"}
+            <Text style={styles.phToggleLabel}>Dark mode</Text>
+            <Text style={styles.phToggleHelp}>
+              {mode === "dark" ? "Currently on" : "Currently off"}
             </Text>
           </View>
           <Switch
@@ -657,46 +693,44 @@ function ProfileView({
         </View>
       </View>
 
-      <Text style={styles.sectionLabel}>Account</Text>
-      <View style={styles.groupCard}>
+      <View style={{ marginTop: 24, marginBottom: 24 }}>
         <Pressable
           onPress={onLogout}
           style={({ pressed }) => [
-            styles.row,
-            pressed && styles.rowPressed,
+            styles.phLogout,
+            pressed && styles.phLogoutPressed,
           ]}
         >
-          <Text style={styles.rowIcon}>🚪</Text>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.rowLabel, styles.rowLabelRed]}>Logout</Text>
-          </View>
-          <Text style={styles.chevron}>›</Text>
+          <Text style={styles.phLogoutText}>Sign out</Text>
         </Pressable>
       </View>
     </ScrollView>
   );
 }
 
-function InfoRow({
+function initialsOf(name: string | undefined, fallback: string): string {
+  if (!name) return fallback;
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return fallback;
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+function InfoLine({
   styles,
-  icon,
   label,
   value,
-  isLast,
+  first,
 }: {
   styles: Styles;
-  icon: string;
   label: string;
   value: string;
-  isLast?: boolean;
+  first?: boolean;
 }) {
   return (
-    <View style={[styles.row, !isLast && styles.rowDivider]}>
-      <Text style={styles.rowIcon}>{icon}</Text>
-      <View style={{ flex: 1 }}>
-        <Text style={styles.rowSublabel}>{label}</Text>
-        <Text style={styles.rowLabel}>{value}</Text>
-      </View>
+    <View style={[styles.phInfoRow, !first && styles.phInfoRowDivider]}>
+      <Text style={styles.phInfoLabel}>{label}</Text>
+      <Text style={styles.phInfoValue}>{value}</Text>
     </View>
   );
 }
@@ -894,6 +928,34 @@ function makeStyles(colors: Colors) {
       padding: 14,
       marginTop: 16,
     },
+    trackOtherCard: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+      marginTop: 16,
+      padding: 14,
+      borderRadius: 16,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    trackOtherCardPressed: { opacity: 0.7 },
+    trackOtherIconBox: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: colors.accentSoft,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    trackOtherEmoji: { fontSize: 22 },
+    trackOtherTitle: { fontSize: 15, fontWeight: "700", color: colors.text },
+    trackOtherSub: {
+      fontSize: 12,
+      color: colors.textMuted,
+      marginTop: 2,
+    },
+    trackOtherChevron: { fontSize: 22, color: colors.textMuted, marginLeft: 4 },
     noticeIcon: { fontSize: 16 },
     noticeText: {
       flex: 1,
@@ -1011,36 +1073,6 @@ function makeStyles(colors: Colors) {
       letterSpacing: 0.5,
     },
 
-    profileCard: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 14,
-      backgroundColor: colors.surface,
-      borderRadius: 18,
-      paddingVertical: 16,
-      paddingHorizontal: 16,
-      shadowColor: "#000",
-      shadowOpacity: 0.04,
-      shadowRadius: 8,
-      shadowOffset: { width: 0, height: 2 },
-      elevation: 2,
-    },
-    profileAvatar: {
-      width: 56,
-      height: 56,
-      borderRadius: 999,
-      backgroundColor: colors.accent,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    profileAvatarText: {
-      color: colors.textOnAccent,
-      fontWeight: "800",
-      fontSize: 22,
-    },
-    profileName: { fontSize: 18, fontWeight: "700", color: colors.text },
-    profileRole: { fontSize: 13, color: colors.textMuted, marginTop: 2 },
-
     groupCard: {
       backgroundColor: colors.surface,
       borderRadius: 18,
@@ -1067,9 +1099,132 @@ function makeStyles(colors: Colors) {
     rowPressed: { backgroundColor: colors.surfaceMuted },
     rowIcon: { fontSize: 18, width: 24, textAlign: "center" },
     rowLabel: { fontSize: 16, color: colors.text, fontWeight: "700" },
-    rowLabelRed: { color: colors.danger },
     rowSublabel: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
     chevron: { color: colors.textMuted, fontSize: 22, fontWeight: "300" },
+
+    // ─── Profile redesign ──────────────────────────────────────────────
+    phHero: {
+      alignItems: "center",
+      paddingVertical: 28,
+      paddingHorizontal: 20,
+      backgroundColor: colors.surface,
+      borderRadius: 22,
+      shadowColor: "#000",
+      shadowOpacity: 0.06,
+      shadowRadius: 14,
+      shadowOffset: { width: 0, height: 4 },
+      elevation: 3,
+      marginBottom: 18,
+    },
+    phAvatarLg: {
+      width: 88,
+      height: 88,
+      borderRadius: 999,
+      backgroundColor: colors.accent,
+      alignItems: "center",
+      justifyContent: "center",
+      marginBottom: 14,
+      shadowColor: colors.accent,
+      shadowOpacity: 0.35,
+      shadowRadius: 14,
+      shadowOffset: { width: 0, height: 6 },
+      elevation: 4,
+    },
+    phAvatarLgText: {
+      color: colors.textOnAccent,
+      fontSize: 30,
+      fontWeight: "800",
+      letterSpacing: -0.5,
+    },
+    phName: { fontSize: 19, fontWeight: "800", color: colors.text },
+    phSubtitle: { fontSize: 13, color: colors.textMuted, marginTop: 4 },
+    phPillRow: {
+      flexDirection: "row",
+      gap: 8,
+      marginTop: 14,
+      flexWrap: "wrap",
+      justifyContent: "center",
+    },
+    phPill: {
+      paddingHorizontal: 12,
+      paddingVertical: 5,
+      borderRadius: 999,
+      backgroundColor: colors.surfaceMuted,
+    },
+    phPillText: { fontSize: 12, fontWeight: "700", color: colors.text },
+    phPillAccent: {
+      paddingHorizontal: 12,
+      paddingVertical: 5,
+      borderRadius: 999,
+      backgroundColor: colors.accentSoft,
+    },
+    phPillAccentText: { fontSize: 12, fontWeight: "700", color: colors.accent },
+    phSectionHeader: {
+      fontSize: 11,
+      fontWeight: "800",
+      color: colors.textMuted,
+      letterSpacing: 1.1,
+      textTransform: "uppercase",
+      marginTop: 18,
+      marginBottom: 10,
+      marginLeft: 4,
+    },
+    phCard: {
+      backgroundColor: colors.surface,
+      borderRadius: 18,
+      overflow: "hidden",
+      shadowColor: "#000",
+      shadowOpacity: 0.04,
+      shadowRadius: 8,
+      shadowOffset: { width: 0, height: 2 },
+      elevation: 2,
+    },
+    phInfoRow: { paddingVertical: 14, paddingHorizontal: 18 },
+    phInfoRowDivider: {
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+    },
+    phInfoLabel: {
+      fontSize: 11,
+      fontWeight: "700",
+      color: colors.textMuted,
+      letterSpacing: 0.5,
+      textTransform: "uppercase",
+      marginBottom: 4,
+    },
+    phInfoValue: { fontSize: 15, fontWeight: "600", color: colors.text },
+    phToggleRow: {
+      paddingVertical: 14,
+      paddingHorizontal: 18,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+    },
+    phToggleLabel: { fontSize: 15, fontWeight: "700", color: colors.text },
+    phToggleHelp: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
+    phHelp: {
+      fontSize: 12,
+      color: colors.textMuted,
+      lineHeight: 17,
+      marginTop: 10,
+      marginHorizontal: 4,
+    },
+    phLogout: {
+      paddingVertical: 14,
+      borderRadius: 14,
+      alignItems: "center",
+      justifyContent: "center",
+      borderWidth: 1,
+      borderColor: colors.danger,
+      backgroundColor: "transparent",
+    },
+    phLogoutPressed: { opacity: 0.55 },
+    phLogoutText: {
+      fontSize: 15,
+      fontWeight: "700",
+      color: colors.danger,
+      letterSpacing: 0.2,
+    },
 
     bottomBar: {
       position: "absolute",

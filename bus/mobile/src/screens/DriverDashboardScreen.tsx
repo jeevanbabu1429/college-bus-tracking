@@ -445,8 +445,19 @@ function ProfileView({
     if (!value) return "—";
     const d = new Date(value);
     if (Number.isNaN(d.getTime())) return value;
-    return d.toLocaleDateString();
+    return d.toLocaleDateString(undefined, {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
   };
+
+  const capitalise = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+  // Aadhar is a 12-digit national ID — never show all 12 in the UI.
+  const maskedAadhar = driver?.aadharNumber
+    ? `•••• •••• ${driver.aadharNumber.slice(-4)}`
+    : "—";
 
   return (
     <ScrollView
@@ -454,64 +465,76 @@ function ProfileView({
       contentContainerStyle={styles.bodyContent}
       showsVerticalScrollIndicator={false}
     >
-      <View style={styles.profileCard}>
-        <View style={styles.profileAvatar}>
-          <Text style={styles.profileAvatarText}>
-            {(driver?.name ?? "D").charAt(0).toUpperCase()}
-          </Text>
+      <View style={styles.phHero}>
+        <View style={styles.phAvatarLg}>
+          <Text style={styles.phAvatarLgText}>{initialsOf(driver?.name, "D")}</Text>
         </View>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.profileName}>{driver?.name ?? "Driver"}</Text>
-          <Text style={styles.profileRole}>
-            Driver · {driver?.mobile ?? "—"}
-          </Text>
+        <Text style={styles.phName}>{driver?.name ?? "Driver"}</Text>
+        <Text style={styles.phSubtitle}>{driver?.mobile ?? "—"}</Text>
+        <View style={styles.phPillRow}>
+          <View style={styles.phPillAccent}>
+            <Text style={styles.phPillAccentText}>Driver</Text>
+          </View>
+          {driver?.licenceNumber && (
+            <View style={styles.phPill}>
+              <Text style={styles.phPillText}>
+                Licence · {driver.licenceNumber}
+              </Text>
+            </View>
+          )}
         </View>
       </View>
 
-      <Text style={styles.sectionLabel}>Personal Details</Text>
-      <View style={styles.groupCard}>
-        <InfoRow
+      <Text style={styles.phSectionHeader}>Personal details</Text>
+      <View style={styles.phCard}>
+        <InfoLine
           styles={styles}
-          icon="🎂"
           label="Date of birth"
           value={formatDob(driver?.dob as unknown as string | undefined)}
+          first
         />
-        <InfoRow
+        <InfoLine
           styles={styles}
-          icon="⚧"
           label="Gender"
-          value={driver?.gender ?? "—"}
-          capitalize
-        />
-        <InfoRow
-          styles={styles}
-          icon="🪪"
-          label="Licence"
-          value={driver?.licenceNumber ?? "—"}
-        />
-        <InfoRow
-          styles={styles}
-          icon="🆔"
-          label="Aadhar"
-          value={driver?.aadharNumber ?? "—"}
-        />
-        <InfoRow
-          styles={styles}
-          icon="🏠"
-          label="Address"
-          value={driver?.address ?? "—"}
-          isLast
+          value={driver?.gender ? capitalise(driver.gender) : "—"}
         />
       </View>
 
-      <Text style={styles.sectionLabel}>Appearance</Text>
-      <View style={styles.groupCard}>
-        <View style={styles.row}>
-          <Text style={styles.rowIcon}>{mode === "dark" ? "🌙" : "☀️"}</Text>
+      <Text style={styles.phSectionHeader}>Documents</Text>
+      <View style={styles.phCard}>
+        <InfoLine
+          styles={styles}
+          label="Licence number"
+          value={driver?.licenceNumber ?? "—"}
+          first
+        />
+        <InfoLine
+          styles={styles}
+          label="Aadhar (last 4)"
+          value={maskedAadhar}
+        />
+      </View>
+
+      <Text style={styles.phSectionHeader}>Contact</Text>
+      <View style={styles.phCard}>
+        <InfoLine styles={styles} label="Mobile" value={driver?.mobile ?? "—"} first />
+        <InfoLine
+          styles={styles}
+          label="Address"
+          value={driver?.address ?? "—"}
+        />
+      </View>
+      <Text style={styles.phHelp}>
+        Need to update any of these? Contact your college admin.
+      </Text>
+
+      <Text style={styles.phSectionHeader}>Appearance</Text>
+      <View style={styles.phCard}>
+        <View style={styles.phToggleRow}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.rowLabel}>Dark mode</Text>
-            <Text style={styles.rowSublabel}>
-              {mode === "dark" ? "On" : "Off"}
+            <Text style={styles.phToggleLabel}>Dark mode</Text>
+            <Text style={styles.phToggleHelp}>
+              {mode === "dark" ? "Currently on" : "Currently off"}
             </Text>
           </View>
           <Switch
@@ -523,55 +546,44 @@ function ProfileView({
         </View>
       </View>
 
-      <Text style={styles.sectionLabel}>Account</Text>
-      <View style={styles.groupCard}>
+      <View style={{ marginTop: 24, marginBottom: 24 }}>
         <Pressable
           onPress={onLogout}
           style={({ pressed }) => [
-            styles.row,
-            pressed && styles.rowPressed,
+            styles.phLogout,
+            pressed && styles.phLogoutPressed,
           ]}
         >
-          <Text style={styles.rowIcon}>🚪</Text>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.rowLabel, styles.rowLabelRed]}>Logout</Text>
-          </View>
-          <Text style={styles.chevron}>›</Text>
+          <Text style={styles.phLogoutText}>Sign out</Text>
         </Pressable>
       </View>
     </ScrollView>
   );
 }
 
-function InfoRow({
+function initialsOf(name: string | undefined, fallback: string): string {
+  if (!name) return fallback;
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return fallback;
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+function InfoLine({
   styles,
-  icon,
   label,
   value,
-  isLast,
-  capitalize,
+  first,
 }: {
   styles: Styles;
-  icon: string;
   label: string;
   value: string;
-  isLast?: boolean;
-  capitalize?: boolean;
+  first?: boolean;
 }) {
   return (
-    <View style={[styles.row, !isLast && styles.rowDivider]}>
-      <Text style={styles.rowIcon}>{icon}</Text>
-      <View style={{ flex: 1 }}>
-        <Text style={styles.rowSublabel}>{label}</Text>
-        <Text
-          style={[
-            styles.rowLabel,
-            capitalize && { textTransform: "capitalize" },
-          ]}
-        >
-          {value}
-        </Text>
-      </View>
+    <View style={[styles.phInfoRow, !first && styles.phInfoRowDivider]}>
+      <Text style={styles.phInfoLabel}>{label}</Text>
+      <Text style={styles.phInfoValue}>{value}</Text>
     </View>
   );
 }
@@ -777,35 +789,6 @@ function makeStyles(colors: Colors) {
       textAlign: "center",
     },
 
-    profileCard: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 14,
-      backgroundColor: colors.surface,
-      borderRadius: 18,
-      paddingVertical: 16,
-      paddingHorizontal: 16,
-      shadowColor: "#000",
-      shadowOpacity: 0.04,
-      shadowRadius: 8,
-      shadowOffset: { width: 0, height: 2 },
-      elevation: 2,
-    },
-    profileAvatar: {
-      width: 56,
-      height: 56,
-      borderRadius: 999,
-      backgroundColor: colors.accent,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    profileAvatarText: {
-      color: colors.textOnAccent,
-      fontWeight: "800",
-      fontSize: 22,
-    },
-    profileName: { fontSize: 18, fontWeight: "700", color: colors.text },
-    profileRole: { fontSize: 13, color: colors.textMuted, marginTop: 2 },
 
     groupCard: {
       backgroundColor: colors.surface,
@@ -833,9 +816,132 @@ function makeStyles(colors: Colors) {
     rowPressed: { backgroundColor: colors.surfaceMuted },
     rowIcon: { fontSize: 18, width: 24, textAlign: "center" },
     rowLabel: { fontSize: 16, color: colors.text, fontWeight: "700" },
-    rowLabelRed: { color: colors.danger },
     rowSublabel: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
     chevron: { color: colors.textMuted, fontSize: 22, fontWeight: "300" },
+
+    // ─── Profile redesign ──────────────────────────────────────────────
+    phHero: {
+      alignItems: "center",
+      paddingVertical: 28,
+      paddingHorizontal: 20,
+      backgroundColor: colors.surface,
+      borderRadius: 22,
+      shadowColor: "#000",
+      shadowOpacity: 0.06,
+      shadowRadius: 14,
+      shadowOffset: { width: 0, height: 4 },
+      elevation: 3,
+      marginBottom: 18,
+    },
+    phAvatarLg: {
+      width: 88,
+      height: 88,
+      borderRadius: 999,
+      backgroundColor: colors.accent,
+      alignItems: "center",
+      justifyContent: "center",
+      marginBottom: 14,
+      shadowColor: colors.accent,
+      shadowOpacity: 0.35,
+      shadowRadius: 14,
+      shadowOffset: { width: 0, height: 6 },
+      elevation: 4,
+    },
+    phAvatarLgText: {
+      color: colors.textOnAccent,
+      fontSize: 30,
+      fontWeight: "800",
+      letterSpacing: -0.5,
+    },
+    phName: { fontSize: 19, fontWeight: "800", color: colors.text },
+    phSubtitle: { fontSize: 13, color: colors.textMuted, marginTop: 4 },
+    phPillRow: {
+      flexDirection: "row",
+      gap: 8,
+      marginTop: 14,
+      flexWrap: "wrap",
+      justifyContent: "center",
+    },
+    phPill: {
+      paddingHorizontal: 12,
+      paddingVertical: 5,
+      borderRadius: 999,
+      backgroundColor: colors.surfaceMuted,
+    },
+    phPillText: { fontSize: 12, fontWeight: "700", color: colors.text },
+    phPillAccent: {
+      paddingHorizontal: 12,
+      paddingVertical: 5,
+      borderRadius: 999,
+      backgroundColor: colors.accentSoft,
+    },
+    phPillAccentText: { fontSize: 12, fontWeight: "700", color: colors.accent },
+    phSectionHeader: {
+      fontSize: 11,
+      fontWeight: "800",
+      color: colors.textMuted,
+      letterSpacing: 1.1,
+      textTransform: "uppercase",
+      marginTop: 18,
+      marginBottom: 10,
+      marginLeft: 4,
+    },
+    phCard: {
+      backgroundColor: colors.surface,
+      borderRadius: 18,
+      overflow: "hidden",
+      shadowColor: "#000",
+      shadowOpacity: 0.04,
+      shadowRadius: 8,
+      shadowOffset: { width: 0, height: 2 },
+      elevation: 2,
+    },
+    phInfoRow: { paddingVertical: 14, paddingHorizontal: 18 },
+    phInfoRowDivider: {
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+    },
+    phInfoLabel: {
+      fontSize: 11,
+      fontWeight: "700",
+      color: colors.textMuted,
+      letterSpacing: 0.5,
+      textTransform: "uppercase",
+      marginBottom: 4,
+    },
+    phInfoValue: { fontSize: 15, fontWeight: "600", color: colors.text },
+    phToggleRow: {
+      paddingVertical: 14,
+      paddingHorizontal: 18,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+    },
+    phToggleLabel: { fontSize: 15, fontWeight: "700", color: colors.text },
+    phToggleHelp: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
+    phHelp: {
+      fontSize: 12,
+      color: colors.textMuted,
+      lineHeight: 17,
+      marginTop: 10,
+      marginHorizontal: 4,
+    },
+    phLogout: {
+      paddingVertical: 14,
+      borderRadius: 14,
+      alignItems: "center",
+      justifyContent: "center",
+      borderWidth: 1,
+      borderColor: colors.danger,
+      backgroundColor: "transparent",
+    },
+    phLogoutPressed: { opacity: 0.55 },
+    phLogoutText: {
+      fontSize: 15,
+      fontWeight: "700",
+      color: colors.danger,
+      letterSpacing: 0.2,
+    },
 
     error: {
       color: colors.danger,
