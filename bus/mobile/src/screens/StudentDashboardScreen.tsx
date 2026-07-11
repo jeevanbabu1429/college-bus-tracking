@@ -39,16 +39,29 @@ function distanceMeters(
   return 2 * R * Math.asin(Math.sqrt(h));
 }
 
-// When the student's own stop is suspended, suggest the nearest open stop.
-// Prefers a real distance (if both have coordinates), else the next open stop
-// in route order.
-function nearestActiveStop(
+// When the student's own stop is suspended, tell them what to do. Two modes:
+//   - "temporary": the admin explicitly set a replacement stop name — show it
+//     verbatim, no distance (it might not even be a real stop on this route).
+//   - "nearest": auto-suggest the closest non-suspended stop on the route.
+//     Prefers a real distance if both have coords, else falls back to route
+//     order.
+type SuspensionHint =
+  | { kind: "temporary"; name: string }
+  | { kind: "nearest"; name: string; distance: number | null };
+
+function suspensionHint(
   stops: BusStop[],
   myStopName: string | null
-): { name: string; distance: number | null } | null {
+): SuspensionHint | null {
   if (!myStopName) return null;
   const mine = stops.find((s) => s.name === myStopName);
   if (!mine || !mine.suspended) return null;
+
+  // Admin explicitly told us where to redirect this stop.
+  const temp = mine.temporaryReplacement?.trim();
+  if (temp) return { kind: "temporary", name: temp };
+
+  // Fall back to computing the nearest open stop on the route.
   const open = stops.filter((s) => !s.suspended && s.name !== myStopName);
   if (open.length === 0) return null;
 
@@ -67,10 +80,10 @@ function nearestActiveStop(
           bestD = d;
         }
       }
-      return { name: best.name, distance: bestD };
+      return { kind: "nearest", name: best.name, distance: bestD };
     }
   }
-  return { name: open[0].name, distance: null };
+  return { kind: "nearest", name: open[0].name, distance: null };
 }
 
 function formatDistance(m: number): string {
@@ -226,7 +239,7 @@ function HomeView({ styles, colors, student, busLocation, onTrackOther }: HomeVi
 
   const myStopName = student?.stop ?? null;
   const myStop = stops.find((s) => s.name === myStopName) ?? null;
-  const suggestion = nearestActiveStop(stops, myStopName);
+  const hint = suspensionHint(stops, myStopName);
 
   const placedStops = useMemo(
     () =>
@@ -499,43 +512,82 @@ function HomeView({ styles, colors, student, busLocation, onTrackOther }: HomeVi
           <Text style={styles.sectionLabel}>Your Stop</Text>
           {student?.stop ? (
             <View>
-              <View
-                style={[
-                  styles.myStopCard,
-                  myStop?.suspended && styles.myStopCardSuspended,
-                ]}
-              >
-                <View style={styles.myStopIcon}>
-                  <Text style={styles.myStopEmoji}>
-                    {myStop?.suspended ? "🚧" : "📍"}
-                  </Text>
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.myStopHint}>
-                    {myStop?.suspended ? "Stop temporarily closed" : "You board at"}
-                  </Text>
-                  <Text
+              {/* When the admin set an explicit temporary stop, promote it to
+                  the primary card — the student needs to know WHERE to board
+                  today, not that their regular stop is closed. */}
+              {myStop?.suspended && hint?.kind === "temporary" ? (
+                <>
+                  <View style={[styles.myStopCard, styles.myStopCardTemp]}>
+                    <View
+                      style={[
+                        styles.myStopIcon,
+                        { backgroundColor: "#c8e6c9" },
+                      ]}
+                    >
+                      <Text style={styles.myStopEmoji}>📍</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.myStopHint, styles.myStopHintTemp]}>
+                        Board here today
+                      </Text>
+                      <Text style={[styles.myStopName, styles.myStopNameTemp]}>
+                        {hint.name}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={styles.tempSubnoteCard}>
+                    <Text style={styles.tempSubnoteText}>
+                      Your regular stop{" "}
+                      <Text style={styles.tempSubnoteStrong}>
+                        {student.stop}
+                      </Text>{" "}
+                      is temporarily closed.
+                    </Text>
+                  </View>
+                </>
+              ) : (
+                <>
+                  <View
                     style={[
-                      styles.myStopName,
-                      myStop?.suspended && styles.myStopNameSuspended,
+                      styles.myStopCard,
+                      myStop?.suspended && styles.myStopCardSuspended,
                     ]}
                   >
-                    {student.stop}
-                  </Text>
-                </View>
-              </View>
-              {myStop?.suspended && (
-                <View style={styles.suggestionCard}>
-                  <Text style={styles.suggestionText}>
-                    {suggestion
-                      ? `Nearest open stop: ${suggestion.name}${
-                          suggestion.distance != null
-                            ? ` · ${formatDistance(suggestion.distance)} away`
-                            : ""
-                        }`
-                      : "Please check the notice above for an alternate stop."}
-                  </Text>
-                </View>
+                    <View style={styles.myStopIcon}>
+                      <Text style={styles.myStopEmoji}>
+                        {myStop?.suspended ? "🚧" : "📍"}
+                      </Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.myStopHint}>
+                        {myStop?.suspended
+                          ? "Stop temporarily closed"
+                          : "You board at"}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.myStopName,
+                          myStop?.suspended && styles.myStopNameSuspended,
+                        ]}
+                      >
+                        {student.stop}
+                      </Text>
+                    </View>
+                  </View>
+                  {myStop?.suspended && (
+                    <View style={styles.suggestionCard}>
+                      <Text style={styles.suggestionText}>
+                        {!hint
+                          ? "Please check the notice above for an alternate stop."
+                          : `Nearest open stop: ${hint.name}${
+                              hint.kind === "nearest" && hint.distance != null
+                                ? ` · ${formatDistance(hint.distance)} away`
+                                : ""
+                            }`}
+                      </Text>
+                    </View>
+                  )}
+                </>
               )}
             </View>
           ) : (
@@ -967,6 +1019,28 @@ function makeStyles(colors: Colors) {
 
     myStopCardSuspended: { backgroundColor: "#9aa0a6" },
     myStopNameSuspended: { textDecorationLine: "line-through", color: "#fff" },
+    // Temporary-stop primary card — green-tinted, "board here today" mood.
+    myStopCardTemp: {
+      backgroundColor: "#e6f4ea",
+      borderWidth: 1,
+      borderColor: "#a5d6a7",
+    },
+    myStopHintTemp: { color: "#1b5e20" },
+    myStopNameTemp: { color: "#1b5e20" },
+    // Small subnote under the primary temp card explaining WHY they're being
+    // sent somewhere new. Muted so it doesn't fight the main message.
+    tempSubnoteCard: {
+      marginTop: 8,
+      backgroundColor: colors.surfaceMuted,
+      borderRadius: 14,
+      padding: 12,
+    },
+    tempSubnoteText: {
+      color: colors.textMuted,
+      fontSize: 12,
+      lineHeight: 17,
+    },
+    tempSubnoteStrong: { fontWeight: "700", color: colors.text },
     suggestionCard: {
       marginTop: 8,
       backgroundColor: colors.surfaceMuted,

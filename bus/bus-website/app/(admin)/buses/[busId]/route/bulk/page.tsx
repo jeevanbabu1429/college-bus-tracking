@@ -25,12 +25,13 @@ type ParsedRow = {
   lat: string;
   lng: string;
   suspended: boolean;
+  temporaryReplacement: string;
   error: string | null;
 };
 
 const HEADER_ALIASES: Record<
   string,
-  "name" | "lat" | "lng" | "suspended"
+  "name" | "lat" | "lng" | "suspended" | "temporaryReplacement"
 > = {
   name: "name",
   stopname: "name",
@@ -46,6 +47,11 @@ const HEADER_ALIASES: Record<
   suspended: "suspended",
   "is suspended": "suspended",
   closed: "suspended",
+  temporaryreplacement: "temporaryReplacement",
+  "temporary replacement": "temporaryReplacement",
+  "temporary stop": "temporaryReplacement",
+  temporarystop: "temporaryReplacement",
+  "temp stop": "temporaryReplacement",
 };
 
 function normaliseHeader(h: unknown): string {
@@ -190,12 +196,16 @@ export default function BulkRouteUploadPage({
       const suspended = columnMap.suspended
         ? parseSuspendedCell(entry[columnMap.suspended])
         : false;
+      const temporaryReplacement = columnMap.temporaryReplacement
+        ? String(entry[columnMap.temporaryReplacement] ?? "").trim()
+        : "";
       const draft: ParsedRow = {
         rowNumber: idx + 2,
         name,
         lat,
         lng,
         suspended,
+        temporaryReplacement,
         error: null,
       };
       draft.error = validateRow(draft);
@@ -237,10 +247,10 @@ export default function BulkRouteUploadPage({
 
   function downloadTemplate() {
     const ws = XLSX.utils.json_to_sheet([
-      { stopName: "Main Gate", lat: 13.0827, lng: 80.2707, suspended: false },
-      { stopName: "Library", lat: 13.0832, lng: 80.272, suspended: false },
-      { stopName: "Anna Nagar", lat: "", lng: "", suspended: false },
-      { stopName: "Old Hostel", lat: 13.0901, lng: 80.275, suspended: true },
+      { stopName: "Main Gate", lat: 13.0827, lng: 80.2707, suspended: false, temporaryStop: "" },
+      { stopName: "Library", lat: 13.0832, lng: 80.272, suspended: false, temporaryStop: "" },
+      { stopName: "Anna Nagar", lat: "", lng: "", suspended: false, temporaryStop: "" },
+      { stopName: "Old Hostel", lat: 13.0901, lng: 80.275, suspended: true, temporaryStop: "Corner of Main & 5th" },
     ]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Stops");
@@ -257,11 +267,15 @@ export default function BulkRouteUploadPage({
     try {
       const stops: BusStop[] = valid.map((r) => {
         const hasCoords = r.lat !== "" && r.lng !== "";
+        const temp = r.temporaryReplacement.trim();
         return {
           name: r.name.trim(),
           lat: hasCoords ? round(Number(r.lat)) : null,
           lng: hasCoords ? round(Number(r.lng)) : null,
           suspended: r.suspended,
+          // Only meaningful when suspended — server also enforces this, but
+          // filtering here keeps the payload tidy.
+          temporaryReplacement: r.suspended && temp ? temp : null,
         };
       });
       await collegeBusesApi.setRoute(selected._id, bus._id, {

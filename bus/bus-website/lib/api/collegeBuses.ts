@@ -6,6 +6,7 @@ export type BusStop = {
   lat: number | null;
   lng: number | null;
   suspended: boolean;
+  temporaryReplacement?: string | null;
 };
 
 export type Bus = {

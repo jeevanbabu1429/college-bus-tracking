@@ -48,6 +48,7 @@ export default function SetBusRoutePage({
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [suspendModalIndex, setSuspendModalIndex] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     if (!selected) return;
@@ -104,10 +105,27 @@ export default function SetBusRoutePage({
     setSelectedIndex(null);
   }
 
-  function toggleSuspend(idx: number) {
+  // Resume in-place (called from the "Resume" button on a suspended stop).
+  function resumeStop(idx: number) {
     setStops((prev) =>
-      prev.map((s, i) => (i === idx ? { ...s, suspended: !s.suspended } : s))
+      prev.map((s, i) =>
+        i === idx
+          ? { ...s, suspended: false, temporaryReplacement: null }
+          : s
+      )
     );
+  }
+
+  // Apply a suspension decision made in the modal.
+  function applySuspension(idx: number, temporaryReplacement: string | null) {
+    setStops((prev) =>
+      prev.map((s, i) =>
+        i === idx
+          ? { ...s, suspended: true, temporaryReplacement }
+          : s
+      )
+    );
+    setSuspendModalIndex(null);
   }
 
   const placeSelected = useCallback(
@@ -292,6 +310,16 @@ export default function SetBusRoutePage({
                       Suspended
                     </span>
                   )}
+                  {s.suspended && (
+                    <div
+                      className="muted small"
+                      style={{ marginTop: 4, fontWeight: 500 }}
+                    >
+                      {s.temporaryReplacement
+                        ? `Students will board at "${s.temporaryReplacement}" instead`
+                        : "Students will see the nearest open stop"}
+                    </div>
+                  )}
                 </span>
                 <div style={{ display: "flex", gap: 6 }}>
                   <button
@@ -299,7 +327,8 @@ export default function SetBusRoutePage({
                     className="btn btn-subtle btn-sm"
                     onClick={(e) => {
                       e.stopPropagation();
-                      toggleSuspend(i);
+                      if (s.suspended) resumeStop(i);
+                      else setSuspendModalIndex(i);
                     }}
                   >
                     {s.suspended ? "Resume" : "Suspend"}
@@ -378,7 +407,150 @@ export default function SetBusRoutePage({
           </button>
         </div>
       </div>
+
+      {suspendModalIndex !== null && stops[suspendModalIndex] && (
+        <SuspendStopModal
+          stopName={stops[suspendModalIndex].name}
+          onCancel={() => setSuspendModalIndex(null)}
+          onConfirm={(temp) => applySuspension(suspendModalIndex, temp)}
+        />
+      )}
     </>
+  );
+}
+
+function SuspendStopModal({
+  stopName,
+  onCancel,
+  onConfirm,
+}: {
+  stopName: string;
+  onCancel: () => void;
+  onConfirm: (temporaryReplacement: string | null) => void;
+}) {
+  const [mode, setMode] = useState<"nearest" | "temporary">("nearest");
+  const [tempName, setTempName] = useState("");
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onCancel();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onCancel]);
+
+  function confirm() {
+    if (mode === "nearest") return onConfirm(null);
+    const trimmed = tempName.trim();
+    if (!trimmed) return;
+    onConfirm(trimmed);
+  }
+
+  const canConfirm = mode === "nearest" || tempName.trim().length > 0;
+
+  return (
+    <div className="modal-overlay" onClick={onCancel} role="presentation">
+      <div
+        className="modal"
+        role="dialog"
+        aria-modal="true"
+        onClick={(e) => e.stopPropagation()}
+        style={{ maxWidth: 480 }}
+      >
+        <h2 className="modal-title">Suspend {stopName}?</h2>
+        <p className="modal-text" style={{ marginBottom: 14 }}>
+          Choose what students assigned to this stop should see while it&apos;s
+          closed.
+        </p>
+
+        <label
+          style={{
+            display: "flex",
+            gap: 10,
+            padding: 12,
+            borderRadius: 12,
+            border:
+              mode === "nearest"
+                ? "2px solid var(--accent)"
+                : "1px solid var(--border)",
+            marginBottom: 10,
+            cursor: "pointer",
+          }}
+        >
+          <input
+            type="radio"
+            name="suspend-mode"
+            checked={mode === "nearest"}
+            onChange={() => setMode("nearest")}
+          />
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 14 }}>
+              Show the nearest open stop
+            </div>
+            <div className="muted small" style={{ marginTop: 2 }}>
+              The app automatically picks the closest non-suspended stop by
+              distance (or by route order if coordinates are missing).
+            </div>
+          </div>
+        </label>
+
+        <label
+          style={{
+            display: "flex",
+            gap: 10,
+            padding: 12,
+            borderRadius: 12,
+            border:
+              mode === "temporary"
+                ? "2px solid var(--accent)"
+                : "1px solid var(--border)",
+            cursor: "pointer",
+          }}
+        >
+          <input
+            type="radio"
+            name="suspend-mode"
+            checked={mode === "temporary"}
+            onChange={() => setMode("temporary")}
+          />
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 700, fontSize: 14 }}>
+              Set a temporary replacement stop
+            </div>
+            <div className="muted small" style={{ marginTop: 2 }}>
+              Type the name of a temporary stop. Affected students see this
+              exact name instead of the auto-suggestion.
+            </div>
+            <input
+              className="field-control"
+              placeholder="e.g. Corner of Main & 5th"
+              value={tempName}
+              onChange={(e) => setTempName(e.target.value)}
+              onFocus={() => setMode("temporary")}
+              style={{ marginTop: 8 }}
+            />
+          </div>
+        </label>
+
+        <div className="modal-actions">
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={onCancel}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={confirm}
+            disabled={!canConfirm}
+          >
+            Suspend
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 

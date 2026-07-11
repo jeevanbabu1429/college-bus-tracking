@@ -1,4 +1,5 @@
 import { getCurrentToken } from "../auth/tokenStore";
+import { getCurrentSuperToken } from "../super-auth/superTokenStore";
 
 const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -10,9 +11,13 @@ export class ApiError extends Error {
   }
 }
 
-// Session key used to pass the suspension message to the login page. Read
-// once by the login page then cleared so it doesn't linger for future sessions.
+// Session keys used to pass a message to the login page after an auto-logout.
+// Read once by the login page then cleared so they don't linger.
 export const SUSPENDED_MESSAGE_KEY = "bus.suspendedMessage";
+export const EXPIRED_MESSAGE_KEY = "bus.expiredMessage";
+
+const EXPIRED_MESSAGE =
+  "Your session has expired. Please sign in again.";
 
 // The default `tokenGetter` reads the admin token from tokenStore so every
 // existing caller keeps working. The super admin console overrides this with
@@ -58,6 +63,26 @@ export async function apiFetch<T>(
       window.localStorage.removeItem("bus.authToken");
       window.localStorage.removeItem("bus.authSession");
       window.location.href = "/login";
+    }
+
+    // 401 while we sent a bearer token means the token was rejected —
+    // expired, JWT_SECRET rotated, or otherwise invalid. Boot the user to
+    // the appropriate login screen with a friendly message.
+    if (res.status === 401 && token && typeof window !== "undefined") {
+      try {
+        sessionStorage.setItem(EXPIRED_MESSAGE_KEY, EXPIRED_MESSAGE);
+      } catch {
+        // sessionStorage disabled — proceed anyway
+      }
+      if (tokenGetter === getCurrentToken) {
+        window.localStorage.removeItem("bus.authToken");
+        window.localStorage.removeItem("bus.authSession");
+        window.location.href = "/login";
+      } else if (tokenGetter === getCurrentSuperToken) {
+        window.localStorage.removeItem("bus.superToken");
+        window.localStorage.removeItem("bus.superSession");
+        window.location.href = "/super-admin/login";
+      }
     }
 
     throw new ApiError(res.status, message);

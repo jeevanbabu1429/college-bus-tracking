@@ -5,15 +5,12 @@ import {
   checkCollegeAdminSuspension,
   sendSuspended,
 } from "../lib/suspension.js";
+import { generateOtp } from "../lib/otp.js";
 
 const router = Router();
 
 const OTP_TTL_MS = 5 * 60 * 1000;
 const TOKEN_TTL = "7d";
-
-function generateOtp(): string {
-  return Math.floor(1000 + Math.random() * 9000).toString();
-}
 
 function signToken(payload: { role: "driver"; sub: string }): string {
   const secret = process.env.JWT_SECRET;

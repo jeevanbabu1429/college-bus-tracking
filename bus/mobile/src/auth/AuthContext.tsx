@@ -14,7 +14,7 @@ import { studentAuthApi } from "../api/studentAuth";
 import type { Driver } from "../api/collegeDrivers";
 import type { Student } from "../api/collegeStudents";
 import { setCurrentToken } from "./tokenStore";
-import { setOnSuspended } from "../api/client";
+import { setOnSuspended, setOnUnauthorized } from "../api/client";
 
 const TOKEN_KEY = "bus.authToken";
 const SESSION_KEY = "bus.authSession";
@@ -29,6 +29,7 @@ type AuthState = {
   token: string | null;
   session: Session | null;
   suspendedMessage: string | null;
+  expiredMessage: string | null;
 };
 
 type AuthContextValue = AuthState & {
@@ -43,6 +44,7 @@ type AuthContextValue = AuthState & {
   updateAdmin: (input: RegisterInput) => Promise<Admin>;
   logout: () => Promise<void>;
   clearSuspendedMessage: () => void;
+  clearExpiredMessage: () => void;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -53,6 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     token: null,
     session: null,
     suspendedMessage: null,
+    expiredMessage: null,
   });
 
   useEffect(() => {
@@ -67,15 +70,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         token,
         session: sessionJson ? (JSON.parse(sessionJson) as Session) : null,
         suspendedMessage: null,
+        expiredMessage: null,
       });
     })();
   }, []);
 
-  // Register a global suspension handler that apiFetch calls whenever it
-  // sees a 403 with suspended: true. Clears the session so RootNavigator
-  // flips back to the auth stack; the LoginScreen shows the message.
+  // Register global handlers that apiFetch calls when the session is
+  // invalidated server-side. Both clear the session so RootNavigator flips
+  // back to the auth stack; the LoginScreen shows the appropriate message.
   useEffect(() => {
-    setOnSuspended((message) => {
+    const clearAndSetMessage = (
+      field: "suspendedMessage" | "expiredMessage",
+      message: string
+    ) => {
       Promise.all([
         SecureStore.deleteItemAsync(TOKEN_KEY),
         SecureStore.deleteItemAsync(SESSION_KEY),
@@ -87,10 +94,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         ready: true,
         token: null,
         session: null,
-        suspendedMessage: message,
+        suspendedMessage: field === "suspendedMessage" ? message : null,
+        expiredMessage: field === "expiredMessage" ? message : null,
       });
-    });
-    return () => setOnSuspended(null);
+    };
+    setOnSuspended((m) => clearAndSetMessage("suspendedMessage", m));
+    setOnUnauthorized((m) => clearAndSetMessage("expiredMessage", m));
+    return () => {
+      setOnSuspended(null);
+      setOnUnauthorized(null);
+    };
   }, []);
 
   const persist = useCallback(async (token: string, session: Session) => {
@@ -99,7 +112,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       SecureStore.setItemAsync(SESSION_KEY, JSON.stringify(session)),
     ]);
     setCurrentToken(token);
-    setState({ ready: true, token, session, suspendedMessage: null });
+    setState({
+      ready: true,
+      token,
+      session,
+      suspendedMessage: null,
+      expiredMessage: null,
+    });
   }, []);
 
   const register = useCallback(async (input: RegisterInput) => {
@@ -174,11 +193,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       token: null,
       session: null,
       suspendedMessage: null,
+      expiredMessage: null,
     });
   }, []);
 
   const clearSuspendedMessage = useCallback(() => {
     setState((s) => ({ ...s, suspendedMessage: null }));
+  }, []);
+
+  const clearExpiredMessage = useCallback(() => {
+    setState((s) => ({ ...s, expiredMessage: null }));
   }, []);
 
   const value = useMemo<AuthContextValue>(
@@ -195,6 +219,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       updateAdmin,
       logout,
       clearSuspendedMessage,
+      clearExpiredMessage,
     }),
     [
       state,
@@ -209,6 +234,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       updateAdmin,
       logout,
       clearSuspendedMessage,
+      clearExpiredMessage,
     ]
   );
 

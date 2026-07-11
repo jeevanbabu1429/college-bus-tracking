@@ -1,6 +1,7 @@
 import { useRef, useState, type ReactNode } from "react";
 import {
   ActivityIndicator,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -21,6 +22,7 @@ type Props = {
 
 const ACCENT = "#f5b700";
 const OTP_LENGTH = 4;
+const MOBILE_LENGTH = 10;
 
 export function OtpLoginForm({
   title,
@@ -70,20 +72,26 @@ export function OtpLoginForm({
     }
   }
 
-  async function onVerifyOtp() {
+  // Extracted so both the manual Login tap and the auto-submit path can call
+  // it with a fresh OTP value (avoids the state-timing pitfall).
+  async function submitOtp(value: string) {
     setError(null);
-    if (otp.trim().length !== 4) {
-      setError("Enter the 4-digit OTP");
+    if (value.trim().length !== OTP_LENGTH) {
+      setError(`Enter the ${OTP_LENGTH}-digit OTP`);
       return;
     }
     setBusy(true);
     try {
-      await verifyOtp(mobile.trim(), otp.trim());
+      await verifyOtp(mobile.trim(), value.trim());
     } catch (e) {
       setError((e as Error).message);
     } finally {
       setBusy(false);
     }
+  }
+
+  async function onVerifyOtp() {
+    await submitOtp(otp);
   }
 
   return (
@@ -116,9 +124,14 @@ export function OtpLoginForm({
             <Text style={styles.fieldIcon}>📱</Text>
             <TextInput
               value={mobile}
-              onChangeText={setMobile}
+              onChangeText={(t) => {
+                const digits = t.replace(/\D/g, "").slice(0, MOBILE_LENGTH);
+                setMobile(digits);
+                if (digits.length === MOBILE_LENGTH) Keyboard.dismiss();
+              }}
               editable={step === "mobile"}
               keyboardType="phone-pad"
+              maxLength={MOBILE_LENGTH}
               placeholder="10-digit mobile"
               placeholderTextColor="#bbb"
               style={styles.field}
@@ -151,9 +164,14 @@ export function OtpLoginForm({
                 <TextInput
                   ref={otpInputRef}
                   value={otp}
-                  onChangeText={(t) =>
-                    setOtp(t.replace(/\D/g, "").slice(0, OTP_LENGTH))
-                  }
+                  onChangeText={(t) => {
+                    const digits = t.replace(/\D/g, "").slice(0, OTP_LENGTH);
+                    setOtp(digits);
+                    if (digits.length === OTP_LENGTH) {
+                      Keyboard.dismiss();
+                      if (!busy) submitOtp(digits);
+                    }
+                  }}
                   keyboardType="number-pad"
                   maxLength={OTP_LENGTH}
                   autoFocus

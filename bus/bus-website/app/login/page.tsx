@@ -5,26 +5,36 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../../lib/auth/AuthContext";
 import { OtpLoginForm } from "../../components/OtpLoginForm";
-import { SUSPENDED_MESSAGE_KEY } from "../../lib/api/client";
+import {
+  EXPIRED_MESSAGE_KEY,
+  SUSPENDED_MESSAGE_KEY,
+} from "../../lib/api/client";
 
 export default function LoginPage() {
   const router = useRouter();
   const { ready, token, requestOtp, verifyOtp } = useAuth();
   const [suspendedMessage, setSuspendedMessage] = useState<string | null>(null);
+  const [expiredMessage, setExpiredMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (ready && token) router.replace("/dashboard");
   }, [ready, token, router]);
 
-  // On mount, check whether we were kicked here by a suspension 403. Read
-  // once and clear so a future manual visit to /login doesn't keep showing it.
+  // On mount, check whether we were kicked here by a suspension 403 or a 401
+  // token-expiry. Read once and clear so a future manual visit doesn't keep
+  // showing the banner.
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
-      const msg = sessionStorage.getItem(SUSPENDED_MESSAGE_KEY);
-      if (msg) {
-        setSuspendedMessage(msg);
+      const s = sessionStorage.getItem(SUSPENDED_MESSAGE_KEY);
+      if (s) {
+        setSuspendedMessage(s);
         sessionStorage.removeItem(SUSPENDED_MESSAGE_KEY);
+      }
+      const e = sessionStorage.getItem(EXPIRED_MESSAGE_KEY);
+      if (e) {
+        setExpiredMessage(e);
+        sessionStorage.removeItem(EXPIRED_MESSAGE_KEY);
       }
     } catch {
       // sessionStorage disabled — nothing to show
@@ -53,6 +63,27 @@ export default function LoginPage() {
               Account suspended
             </div>
             {suspendedMessage}
+          </div>
+        )}
+        {!suspendedMessage && expiredMessage && (
+          <div
+            role="status"
+            style={{
+              marginBottom: 16,
+              padding: "14px 16px",
+              borderRadius: 14,
+              background: "#fff4e5",
+              border: "1px solid #f0c98a",
+              color: "#92400e",
+              fontWeight: 600,
+              fontSize: 14,
+              lineHeight: 1.5,
+            }}
+          >
+            <div style={{ fontWeight: 800, marginBottom: 4 }}>
+              Session expired
+            </div>
+            {expiredMessage}
           </div>
         )}
         <OtpLoginForm
