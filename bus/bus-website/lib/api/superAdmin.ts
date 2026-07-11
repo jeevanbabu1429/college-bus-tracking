@@ -122,4 +122,26 @@ export const superAdminApi = {
       `/api/super/colleges/${id}?confirm=${encodeURIComponent(confirmCode)}`,
       { method: "DELETE" }
     ),
+
+  getBanner: () => fetchSuper<Banner | null>("/api/super/banner"),
+  putBanner: (imageDataUrl: string, active: boolean) =>
+    fetchSuper<Banner>("/api/super/banner", {
+      method: "PUT",
+      body: JSON.stringify({ imageDataUrl, active }),
+    }),
+  setBannerActive: (active: boolean) =>
+    fetchSuper<Banner>("/api/super/banner/active", {
+      method: "PATCH",
+      body: JSON.stringify({ active }),
+    }),
+  deleteBanner: () =>
+    fetchSuper<{ ok: true }>("/api/super/banner", { method: "DELETE" }),
+};
+
+export type Banner = {
+  _id: string;
+  imageDataUrl: string;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
 };

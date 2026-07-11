@@ -7,6 +7,7 @@ import { ThemeProvider, useTheme } from "./src/theme/ThemeContext";
 import { RootNavigator } from "./src/navigation/RootNavigator";
 import { useFcmRegistration } from "./src/notifications/useFcmRegistration";
 import { AnimatedSplash } from "./src/components/AnimatedSplash";
+import { BannerModal } from "./src/components/BannerModal";
 
 // Keep the native splash visible until we've drawn the animated one — avoids
 // a flash of blank/white before the Lottie takes over.
@@ -24,6 +25,7 @@ function ThemedRoot() {
     <>
       <StatusBar style={mode === "dark" ? "light" : "dark"} />
       <RootNavigator />
+      {splashDone && <BannerModal />}
       {!splashDone && (
         <AnimatedSplash
           onFinish={() => {

@@ -8,6 +8,7 @@ import { CollegeModel } from "../models/College.js";
 import { BusModel } from "../models/Bus.js";
 import { DriverModel } from "../models/Driver.js";
 import { StudentModel } from "../models/Student.js";
+import { BannerModel } from "../models/Banner.js";
 import { requireSuperAdmin } from "../middleware/superAuth.js";
 import {
   deleteAdminCascade,
@@ -444,5 +445,59 @@ async function countBy(
   ]);
   return new Map(rows.map((r) => [String(r._id), r.count as number]));
 }
+
+// ─── banner ────────────────────────────────────────────────────────────────
+// Singleton — always upserts / reads a single row. No id needed.
+
+router.get("/banner", requireSuperAdmin, async (_req, res) => {
+  const banner = await BannerModel.findOne();
+  if (!banner) {
+    res.json(null);
+    return;
+  }
+  res.json(banner);
+});
+
+// Full replace / create. Body: { imageDataUrl: string, active?: boolean }
+router.put("/banner", requireSuperAdmin, async (req, res) => {
+  const { imageDataUrl, active } = req.body ?? {};
+  if (typeof imageDataUrl !== "string" || !imageDataUrl.startsWith("data:")) {
+    res
+      .status(400)
+      .json({ error: "imageDataUrl (data: URL string) is required" });
+    return;
+  }
+  const nextActive = typeof active === "boolean" ? active : true;
+  const banner = await BannerModel.findOneAndUpdate(
+    {},
+    { imageDataUrl, active: nextActive },
+    { new: true, upsert: true, setDefaultsOnInsert: true }
+  );
+  res.json(banner);
+});
+
+// Toggle only. Body: { active: boolean }
+router.patch("/banner/active", requireSuperAdmin, async (req, res) => {
+  const { active } = req.body ?? {};
+  if (typeof active !== "boolean") {
+    res.status(400).json({ error: "active (boolean) is required" });
+    return;
+  }
+  const banner = await BannerModel.findOneAndUpdate(
+    {},
+    { active },
+    { new: true }
+  );
+  if (!banner) {
+    res.status(404).json({ error: "No banner uploaded yet" });
+    return;
+  }
+  res.json(banner);
+});
+
+router.delete("/banner", requireSuperAdmin, async (_req, res) => {
+  await BannerModel.deleteMany({});
+  res.json({ ok: true });
+});
 
 export default router;

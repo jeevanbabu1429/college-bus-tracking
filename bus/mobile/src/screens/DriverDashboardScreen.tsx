@@ -2,17 +2,41 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
   Switch,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import * as Location from "expo-location";
 import { useAuth } from "../auth/AuthContext";
 import { useTheme, type Colors } from "../theme/ThemeContext";
-import { driverTripApi, type TripStatus } from "../api/driverTrip";
+import {
+  driverTripApi,
+  type CurrentIssue,
+  type IssueType,
+  type TripStatus,
+} from "../api/driverTrip";
+
+const ISSUE_OPTIONS: { type: IssueType; emoji: string; label: string }[] = [
+  { type: "breakdown", emoji: "🚨", label: "Breakdown" },
+  { type: "flat_tyre", emoji: "🛞", label: "Flat tyre" },
+  { type: "refuelling", emoji: "⛽", label: "Refuelling" },
+  { type: "traffic", emoji: "🚦", label: "Traffic delay" },
+  { type: "mechanical", emoji: "🔧", label: "Mechanical" },
+  { type: "weather", emoji: "🌧️", label: "Weather" },
+  { type: "other", emoji: "❓", label: "Other" },
+];
+
+function issueLabel(type: IssueType): string {
+  return ISSUE_OPTIONS.find((o) => o.type === type)?.label ?? type;
+}
+function issueEmoji(type: IssueType): string {
+  return ISSUE_OPTIONS.find((o) => o.type === type)?.emoji ?? "❗";
+}
 
 type Tab = "home" | "profile";
 type Styles = ReturnType<typeof makeStyles>;
@@ -150,6 +174,41 @@ export function DriverDashboardScreen() {
     }
   }, [busy, stopWatching, loadStatus]);
 
+  const [issueModalOpen, setIssueModalOpen] = useState(false);
+  const [issueBusy, setIssueBusy] = useState(false);
+
+  const handleReportIssue = useCallback(
+    async (type: IssueType, message: string) => {
+      setIssueBusy(true);
+      setError(null);
+      try {
+        const res = await driverTripApi.reportIssue(type, message);
+        setStatus((prev) =>
+          prev ? { ...prev, currentIssue: res.currentIssue } : prev
+        );
+        setIssueModalOpen(false);
+      } catch (e) {
+        setError((e as Error).message);
+      } finally {
+        setIssueBusy(false);
+      }
+    },
+    []
+  );
+
+  const handleClearIssue = useCallback(async () => {
+    setIssueBusy(true);
+    setError(null);
+    try {
+      await driverTripApi.clearIssue();
+      setStatus((prev) => (prev ? { ...prev, currentIssue: null } : prev));
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setIssueBusy(false);
+    }
+  }, []);
+
   const onLogout = () =>
     Alert.alert(
       "Logout?",
@@ -191,6 +250,9 @@ export function DriverDashboardScreen() {
           lastSent={lastSent}
           onStart={handleStart}
           onStop={handleStop}
+          onOpenIssue={() => setIssueModalOpen(true)}
+          onClearIssue={handleClearIssue}
+          issueBusy={issueBusy}
         />
       ) : (
         <ProfileView
@@ -230,6 +292,13 @@ export function DriverDashboardScreen() {
           </Text>
         </Pressable>
       </View>
+
+      <IssueReportModal
+        visible={issueModalOpen}
+        busy={issueBusy}
+        onCancel={() => setIssueModalOpen(false)}
+        onReport={handleReportIssue}
+      />
     </View>
   );
 }
@@ -244,6 +313,9 @@ type HomeViewProps = {
   loading: boolean;
   status: TripStatus | null;
   busy: boolean;
+  onOpenIssue: () => void;
+  onClearIssue: () => void;
+  issueBusy: boolean;
   error: string | null;
   lastSent: { lat: number; lng: number; at: number } | null;
   onStart: () => void;
@@ -260,9 +332,13 @@ function HomeView({
   lastSent,
   onStart,
   onStop,
+  onOpenIssue,
+  onClearIssue,
+  issueBusy,
 }: HomeViewProps) {
   const tripActive = status?.tripActive ?? false;
   const bus = status?.bus ?? null;
+  const currentIssue = status?.currentIssue ?? null;
 
   return (
     <ScrollView
@@ -379,6 +455,59 @@ function HomeView({
             )}
           </View>
 
+          <Text style={styles.sectionLabel}>Bus Condition</Text>
+          {currentIssue ? (
+            <View style={styles.issueActiveCard}>
+              <View style={styles.issueHeaderRow}>
+                <Text style={styles.issueEmoji}>
+                  {issueEmoji(currentIssue.type)}
+                </Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.issueTypeLabel}>
+                    {issueLabel(currentIssue.type)}
+                  </Text>
+                  <Text style={styles.issueAgo}>
+                    Reported{" "}
+                    {formatAgo(new Date(currentIssue.reportedAt).getTime())}
+                  </Text>
+                </View>
+              </View>
+              {currentIssue.message ? (
+                <Text style={styles.issueMessage}>{currentIssue.message}</Text>
+              ) : null}
+              <Pressable
+                onPress={onClearIssue}
+                disabled={issueBusy}
+                style={({ pressed }) => [
+                  styles.issueClearBtn,
+                  pressed && { opacity: 0.85 },
+                  issueBusy && { opacity: 0.6 },
+                ]}
+              >
+                <Text style={styles.issueClearText}>
+                  {issueBusy ? "Clearing…" : "Mark resolved"}
+                </Text>
+              </Pressable>
+            </View>
+          ) : (
+            <Pressable
+              onPress={onOpenIssue}
+              style={({ pressed }) => [
+                styles.issueReportBtn,
+                pressed && { opacity: 0.9 },
+              ]}
+            >
+              <Text style={styles.issueReportEmoji}>🚨</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.issueReportTitle}>Report an issue</Text>
+                <Text style={styles.issueReportSub}>
+                  Breakdown, flat tyre, refuelling, etc.
+                </Text>
+              </View>
+              <Text style={styles.chevron}></Text>
+            </Pressable>
+          )}
+
           <Text style={styles.sectionLabel}>Route stops</Text>
           {bus.stops.length > 0 ? (
             <View style={styles.stopsCard}>
@@ -423,6 +552,239 @@ function HomeView({
     </ScrollView>
   );
 }
+
+// Human-friendly relative time. Handles negatives + huge deltas.
+function formatAgo(reportedMs: number): string {
+  const diff = Math.max(0, Date.now() - reportedMs);
+  const s = Math.round(diff / 1000);
+  if (s < 60) return `${s}s ago`;
+  const m = Math.round(s / 60);
+  if (m < 60) return `${m} min ago`;
+  const h = Math.round(m / 60);
+  return `${h}h ago`;
+}
+
+function IssueReportModal({
+  visible,
+  busy,
+  onCancel,
+  onReport,
+}: {
+  visible: boolean;
+  busy: boolean;
+  onCancel: () => void;
+  onReport: (type: IssueType, message: string) => Promise<void>;
+}) {
+  const [selected, setSelected] = useState<IssueType | null>(null);
+  const [message, setMessage] = useState("");
+
+  // Reset state when the modal closes.
+  useEffect(() => {
+    if (!visible) {
+      setSelected(null);
+      setMessage("");
+    }
+  }, [visible]);
+
+  const canReport = selected !== null && (selected !== "other" || message.trim().length > 0);
+
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={onCancel}
+      statusBarTranslucent
+    >
+      <View style={reportStyles.backdrop}>
+        <View style={reportStyles.sheet}>
+          <View style={reportStyles.handle} />
+          <Text style={reportStyles.title}>Report an issue</Text>
+          <Text style={reportStyles.subtitle}>
+            Let your students know what&apos;s going on with the bus.
+          </Text>
+
+          <View style={reportStyles.grid}>
+            {ISSUE_OPTIONS.map((opt) => {
+              const isSelected = selected === opt.type;
+              return (
+                <Pressable
+                  key={opt.type}
+                  onPress={() => setSelected(opt.type)}
+                  style={({ pressed }) => [
+                    reportStyles.option,
+                    isSelected && reportStyles.optionSelected,
+                    pressed && { opacity: 0.85 },
+                  ]}
+                >
+                  <Text style={reportStyles.optionEmoji}>{opt.emoji}</Text>
+                  <Text
+                    style={[
+                      reportStyles.optionLabel,
+                      isSelected && reportStyles.optionLabelSelected,
+                    ]}
+                  >
+                    {opt.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          <Text style={reportStyles.messageLabel}>
+            Add a note{" "}
+            {selected === "other" ? (
+              <Text style={reportStyles.messageRequired}>(required)</Text>
+            ) : (
+              <Text style={reportStyles.messageOptional}>(optional)</Text>
+            )}
+          </Text>
+          <TextInput
+            style={reportStyles.messageInput}
+            value={message}
+            onChangeText={setMessage}
+            placeholder="e.g. Back in 10 minutes"
+            placeholderTextColor="#999"
+            multiline
+            maxLength={240}
+            editable={!busy}
+          />
+
+          <View style={reportStyles.actions}>
+            <Pressable
+              onPress={onCancel}
+              disabled={busy}
+              style={({ pressed }) => [
+                reportStyles.cancelBtn,
+                pressed && { opacity: 0.85 },
+              ]}
+            >
+              <Text style={reportStyles.cancelText}>Cancel</Text>
+            </Pressable>
+            <Pressable
+              onPress={() =>
+                selected && onReport(selected, message.trim())
+              }
+              disabled={!canReport || busy}
+              style={({ pressed }) => [
+                reportStyles.submitBtn,
+                (!canReport || busy) && { opacity: 0.5 },
+                pressed && { opacity: 0.85 },
+              ]}
+            >
+              <Text style={reportStyles.submitText}>
+                {busy ? "Reporting…" : "Report issue"}
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+const reportStyles = StyleSheet.create({
+  backdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "flex-end",
+  },
+  sheet: {
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    padding: 22,
+    paddingBottom: 30,
+  },
+  handle: {
+    width: 44,
+    height: 4,
+    backgroundColor: "#ccc",
+    borderRadius: 2,
+    alignSelf: "center",
+    marginBottom: 14,
+  },
+  title: { fontSize: 20, fontWeight: "800", color: "#111" },
+  subtitle: {
+    fontSize: 13,
+    color: "#666",
+    marginTop: 4,
+    marginBottom: 18,
+    lineHeight: 18,
+  },
+  grid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    marginBottom: 18,
+  },
+  option: {
+    width: "31%",
+    aspectRatio: 1,
+    borderRadius: 16,
+    backgroundColor: "#f5f5f7",
+    borderWidth: 1.5,
+    borderColor: "transparent",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 6,
+  },
+  optionSelected: {
+    backgroundColor: "#fff4e5",
+    borderColor: "#f5b700",
+  },
+  optionEmoji: { fontSize: 28, marginBottom: 4 },
+  optionLabel: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#333",
+    textAlign: "center",
+  },
+  optionLabelSelected: { color: "#111" },
+  messageLabel: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#333",
+    marginBottom: 6,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  messageRequired: { color: "#c62828", fontWeight: "700" },
+  messageOptional: { color: "#999", fontWeight: "500" },
+  messageInput: {
+    borderWidth: 1,
+    borderColor: "#e5e5e5",
+    backgroundColor: "#fafafa",
+    borderRadius: 12,
+    padding: 12,
+    fontSize: 14,
+    color: "#111",
+    minHeight: 70,
+    maxHeight: 100,
+    textAlignVertical: "top",
+    marginBottom: 18,
+  },
+  actions: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  cancelBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: "center",
+    backgroundColor: "#f5f5f7",
+  },
+  cancelText: { fontSize: 14, fontWeight: "700", color: "#333" },
+  submitBtn: {
+    flex: 1.6,
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: "center",
+    backgroundColor: "#c62828",
+  },
+  submitText: { fontSize: 14, fontWeight: "800", color: "#fff" },
+});
 
 type ProfileViewProps = {
   styles: Styles;
@@ -700,6 +1062,75 @@ function makeStyles(colors: Colors) {
       fontSize: 13,
       lineHeight: 18,
       fontWeight: "600",
+    },
+
+    // ─── Bus condition (issue reporting) ─────────────────────────
+    issueReportBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 14,
+      padding: 16,
+      borderRadius: 16,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    issueReportEmoji: { fontSize: 26 },
+    issueReportTitle: {
+      fontSize: 15,
+      fontWeight: "800",
+      color: colors.text,
+    },
+    issueReportSub: {
+      fontSize: 12,
+      color: colors.textMuted,
+      marginTop: 2,
+    },
+
+    issueActiveCard: {
+      backgroundColor: "#fdecec",
+      borderWidth: 1,
+      borderColor: "#f5c2c2",
+      borderRadius: 16,
+      padding: 16,
+    },
+    issueHeaderRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+    },
+    issueEmoji: { fontSize: 32 },
+    issueTypeLabel: {
+      fontSize: 16,
+      fontWeight: "800",
+      color: "#8f1d1d",
+    },
+    issueAgo: {
+      fontSize: 12,
+      color: "#8f1d1d",
+      opacity: 0.75,
+      marginTop: 2,
+      fontWeight: "600",
+    },
+    issueMessage: {
+      marginTop: 10,
+      fontSize: 13,
+      color: "#8f1d1d",
+      fontWeight: "600",
+      lineHeight: 18,
+    },
+    issueClearBtn: {
+      marginTop: 14,
+      backgroundColor: "#8f1d1d",
+      paddingVertical: 12,
+      borderRadius: 12,
+      alignItems: "center",
+    },
+    issueClearText: {
+      color: "#fff",
+      fontWeight: "800",
+      fontSize: 14,
+      letterSpacing: 0.3,
     },
 
     sectionLabel: {
