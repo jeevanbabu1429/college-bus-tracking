@@ -63,6 +63,8 @@ export function LoginScreen({ navigation, route }: Props) {
     studentVerifyOtp,
     suspendedMessage,
     clearSuspendedMessage,
+    expiredMessage,
+    clearExpiredMessage,
   } = useAuth();
   const [role, setRole] = useState<Role | null>(route.params?.role ?? null);
 
@@ -82,6 +84,19 @@ export function LoginScreen({ navigation, route }: Props) {
               hitSlop={10}
             >
               <Text style={styles.suspendedDismissText}>Dismiss</Text>
+            </Pressable>
+          </View>
+        )}
+        {!suspendedMessage && expiredMessage && (
+          <View style={styles.expiredBanner}>
+            <Text style={styles.expiredTitle}>Session expired</Text>
+            <Text style={styles.expiredBody}>{expiredMessage}</Text>
+            <Pressable
+              onPress={clearExpiredMessage}
+              style={styles.expiredDismiss}
+              hitSlop={10}
+            >
+              <Text style={styles.expiredDismissText}>Dismiss</Text>
             </Pressable>
           </View>
         )}
@@ -218,6 +233,33 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "700",
     color: "#8f1d1d",
+    textDecorationLine: "underline",
+  },
+  expiredBanner: {
+    marginBottom: 24,
+    padding: 16,
+    borderRadius: 14,
+    backgroundColor: "#fff4e5",
+    borderWidth: 1,
+    borderColor: "#f0c98a",
+  },
+  expiredTitle: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: "#92400e",
+    marginBottom: 6,
+  },
+  expiredBody: {
+    fontSize: 13,
+    color: "#92400e",
+    fontWeight: "600",
+    lineHeight: 19,
+  },
+  expiredDismiss: { marginTop: 10, alignSelf: "flex-start" },
+  expiredDismissText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#92400e",
     textDecorationLine: "underline",
   },
 });

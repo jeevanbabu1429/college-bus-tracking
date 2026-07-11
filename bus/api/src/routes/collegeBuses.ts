@@ -419,6 +419,7 @@ router.put("/:busId/route", async (req, res) => {
     lat: number | null;
     lng: number | null;
     suspended: boolean;
+    temporaryReplacement: string | null;
   }[] = [];
   for (const raw of stops) {
     const isObj = raw && typeof raw === "object";
@@ -427,11 +428,20 @@ router.put("/:busId/route", async (req, res) => {
     const trimmed = name.trim();
     if (seen.has(trimmed)) continue;
     seen.add(trimmed);
+    const suspended = isObj && raw.suspended === true;
+    const rawTemp =
+      isObj && typeof raw.temporaryReplacement === "string"
+        ? raw.temporaryReplacement.trim()
+        : null;
+    // Only preserve a temporary replacement while suspended is true —
+    // storing one on a non-suspended stop would just be dead metadata.
+    const temporaryReplacement = suspended && rawTemp ? rawTemp : null;
     normalizedStops.push({
       name: trimmed,
       lat: isObj && typeof raw.lat === "number" ? raw.lat : null,
       lng: isObj && typeof raw.lng === "number" ? raw.lng : null,
-      suspended: isObj && raw.suspended === true,
+      suspended,
+      temporaryReplacement,
     });
   }
 
@@ -462,6 +472,14 @@ router.put("/:busId/route", async (req, res) => {
   const removedStops = [...prevNames].filter((n) => !newSuspended.has(n) && !stopNames.includes(n));
   const noticeChanged = (typeof notice === "string" ? notice.trim() : prevNotice) !== prevNotice;
 
+  // Map each newly-suspended stop to its temporary-replacement name (if any)
+  // so the notification body can name it directly instead of pointing at the
+  // in-app nearest-open-stop hint.
+  const tempByStop = new Map<string, string | null>();
+  for (const s of normalizedStops) {
+    if (s.suspended) tempByStop.set(s.name, s.temporaryReplacement);
+  }
+
   if (noticeChanged || newlySuspended.length || newlyResumed.length || removedStops.length) {
     notifyBusUpdate(bus._id.toString(), bus.busNumber, {
       noticeChanged,
@@ -469,6 +487,7 @@ router.put("/:busId/route", async (req, res) => {
       newlySuspended,
       newlyResumed,
       removedStops,
+      tempByStop,
     });
   }
 
@@ -484,6 +503,7 @@ function notifyBusUpdate(
     newlySuspended: string[];
     newlyResumed: string[];
     removedStops: string[];
+    tempByStop: Map<string, string | null>;
   }
 ) {
   (async () => {
@@ -504,12 +524,22 @@ function notifyBusUpdate(
     for (const stop of changes.newlySuspended) {
       const affected = students.filter((s) => s.stop === stop).map((s) => s._id);
       if (affected.length === 0) continue;
+      const temp = changes.tempByStop.get(stop) ?? null;
+      const body = temp
+        ? `${stop} is temporarily suspended on bus ${busNumber}. Board at "${temp}" instead.`
+        : `Your stop on bus ${busNumber} is temporarily suspended. Check the app for the nearest open stop.`;
       sendPushSafe(
         { role: "students", ids: affected },
         {
           title: `${stop} suspended`,
-          body: `Your stop on bus ${busNumber} is temporarily suspended. Check the route notice for details.`,
-          data: { kind: "stop-suspended", busId, stop, url: "/" },
+          body,
+          data: {
+            kind: "stop-suspended",
+            busId,
+            stop,
+            temporaryReplacement: temp ?? "",
+            url: "/",
+          },
         }
       );
     }

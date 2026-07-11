@@ -8,16 +8,23 @@ export class ApiError extends Error {
   }
 }
 
-// Module-level handler set by AuthProvider on mount. When apiFetch sees a
-// suspension 403 it calls this to clear the session so the RootNavigator
-// swaps back to the auth stack. Kept as a plain callback to avoid pulling
-// React state into a non-component module.
-type SuspendedHandler = (message: string) => void;
-let onSuspendedHandler: SuspendedHandler | null = null;
+// Module-level handlers set by AuthProvider on mount. Both are called by
+// apiFetch to clear the session so the RootNavigator swaps back to the auth
+// stack. Kept as plain callbacks to avoid pulling React state into a
+// non-component module.
+type MessageHandler = (message: string) => void;
+let onSuspendedHandler: MessageHandler | null = null;
+let onUnauthorizedHandler: MessageHandler | null = null;
 
-export function setOnSuspended(fn: SuspendedHandler | null): void {
+export function setOnSuspended(fn: MessageHandler | null): void {
   onSuspendedHandler = fn;
 }
+
+export function setOnUnauthorized(fn: MessageHandler | null): void {
+  onUnauthorizedHandler = fn;
+}
+
+const EXPIRED_MESSAGE = "Your session has expired. Please sign in again.";
 
 export async function apiFetch<T>(
   path: string,
@@ -44,6 +51,10 @@ export async function apiFetch<T>(
 
     if (res.status === 403 && body?.suspended === true && onSuspendedHandler) {
       onSuspendedHandler(message);
+    } else if (res.status === 401 && token && onUnauthorizedHandler) {
+      // 401 while we sent a bearer token means the token was rejected —
+      // expired, JWT_SECRET rotated, or otherwise invalid.
+      onUnauthorizedHandler(EXPIRED_MESSAGE);
     }
 
     throw new ApiError(res.status, message);

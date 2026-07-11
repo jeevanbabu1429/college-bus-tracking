@@ -75,7 +75,8 @@ export function useFcmRegistration() {
 
   // Foreground messages — no OS banner, so surface them ourselves.
   useEffect(() => {
-    const unsub = onForegroundMessage((msg) => {
+    const unsub = onForegroundMessage((raw) => {
+      const msg = raw as { notification?: { title?: string; body?: string } };
       const title = msg.notification?.title ?? "Notification";
       const body = msg.notification?.body ?? "";
       Alert.alert(title, body);

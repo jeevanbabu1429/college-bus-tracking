@@ -4,13 +4,17 @@ import { Schema, model, Types, type InferSchemaType } from "mongoose";
 // Student.stop. lat/lng are optional (older routes have none) and power the
 // map + nearest-active-stop suggestion. `suspended` marks a stop as
 // temporarily closed (e.g. road work) without removing it — so student
-// assignments are preserved and restored when it reopens.
+// assignments are preserved and restored when it reopens. When suspended,
+// the admin can optionally set a `temporaryReplacement` name — a plain string
+// shown to affected students in place of the automatic nearest-open-stop
+// suggestion. Only meaningful when suspended === true; otherwise ignored.
 const stopSchema = new Schema(
   {
     name: { type: String, required: true, trim: true },
     lat: { type: Number, default: null },
     lng: { type: Number, default: null },
     suspended: { type: Boolean, default: false },
+    temporaryReplacement: { type: String, default: null, trim: true },
   },
   { _id: false }
 );

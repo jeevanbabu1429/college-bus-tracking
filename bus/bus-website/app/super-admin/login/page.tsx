@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSuperAuth } from "../../../lib/super-auth/SuperAuthContext";
+import { EXPIRED_MESSAGE_KEY } from "../../../lib/api/client";
 
 export default function SuperAdminLoginPage() {
   const router = useRouter();
@@ -11,10 +12,24 @@ export default function SuperAdminLoginPage() {
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [expiredMessage, setExpiredMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (ready && token) router.replace("/super-admin/dashboard");
   }, [ready, token, router]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const e = sessionStorage.getItem(EXPIRED_MESSAGE_KEY);
+      if (e) {
+        setExpiredMessage(e);
+        sessionStorage.removeItem(EXPIRED_MESSAGE_KEY);
+      }
+    } catch {
+      // sessionStorage disabled
+    }
+  }, []);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -93,6 +108,27 @@ export default function SuperAdminLoginPage() {
           Product-owner console. Sign in with email &amp; password.
         </p>
 
+        {expiredMessage && (
+          <div
+            role="status"
+            style={{
+              marginBottom: 16,
+              padding: "12px 14px",
+              borderRadius: 12,
+              background: "#fff4e5",
+              border: "1px solid #f0c98a",
+              color: "#92400e",
+              fontWeight: 600,
+              fontSize: 13,
+              lineHeight: 1.5,
+            }}
+          >
+            <div style={{ fontWeight: 800, marginBottom: 2 }}>
+              Session expired
+            </div>
+            {expiredMessage}
+          </div>
+        )}
         <form onSubmit={onSubmit}>
           <div className="field">
             <label className="field-label" htmlFor="super-email">
