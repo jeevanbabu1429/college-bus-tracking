@@ -197,12 +197,22 @@ router.get("/bus-location", requireStudent, async (req, res) => {
     return;
   }
   if (!student.bus) {
-    res.json({ bus: null, tripActive: false, currentLocation: null });
+    res.json({
+      bus: null,
+      tripActive: false,
+      currentLocation: null,
+      currentIssue: null,
+    });
     return;
   }
   const bus = await BusModel.findById(student.bus);
   if (!bus) {
-    res.json({ bus: null, tripActive: false, currentLocation: null });
+    res.json({
+      bus: null,
+      tripActive: false,
+      currentLocation: null,
+      currentIssue: null,
+    });
     return;
   }
   const driver = bus.driver ? await DriverModel.findById(bus.driver) : null;
@@ -217,6 +227,7 @@ router.get("/bus-location", requireStudent, async (req, res) => {
     },
     tripActive: driver?.tripActive ?? false,
     currentLocation: driver?.currentLocation ?? null,
+    currentIssue: driver?.currentIssue ?? null,
   });
 });
 

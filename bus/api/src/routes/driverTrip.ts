@@ -68,7 +68,63 @@ router.get("/status", async (req, res) => {
       : null,
     tripActive: driver.tripActive ?? false,
     currentLocation: driver.currentLocation ?? null,
+    currentIssue: driver.currentIssue ?? null,
   });
+});
+
+const ISSUE_TYPES = new Set([
+  "breakdown",
+  "flat_tyre",
+  "refuelling",
+  "traffic",
+  "mechanical",
+  "weather",
+  "other",
+]);
+
+router.post("/issue", async (req, res) => {
+  const driverId = (req as unknown as { driverId: string }).driverId;
+  const { type, message } = req.body ?? {};
+  if (typeof type !== "string" || !ISSUE_TYPES.has(type)) {
+    res.status(400).json({
+      error: "type must be one of breakdown, flat_tyre, refuelling, traffic, mechanical, weather, other",
+    });
+    return;
+  }
+  const trimmedMessage =
+    typeof message === "string" ? message.trim().slice(0, 240) : "";
+  const driver = await DriverModel.findByIdAndUpdate(
+    driverId,
+    {
+      $set: {
+        currentIssue: {
+          type,
+          message: trimmedMessage,
+          reportedAt: new Date(),
+        },
+      },
+    },
+    { new: true }
+  );
+  if (!driver) {
+    res.status(404).json({ error: "Driver not found" });
+    return;
+  }
+  res.json({ ok: true, currentIssue: driver.currentIssue ?? null });
+});
+
+router.delete("/issue", async (req, res) => {
+  const driverId = (req as unknown as { driverId: string }).driverId;
+  const driver = await DriverModel.findByIdAndUpdate(
+    driverId,
+    { $set: { currentIssue: null } },
+    { new: true }
+  );
+  if (!driver) {
+    res.status(404).json({ error: "Driver not found" });
+    return;
+  }
+  res.json({ ok: true });
 });
 
 router.post("/start", async (req, res) => {

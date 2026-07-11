@@ -1,6 +1,7 @@
 import { apiFetch } from "./client";
 import type { Student } from "./collegeStudents";
 import type { BusStop } from "./collegeBuses";
+import type { CurrentIssue } from "./driverTrip";
 
 export type BusLocation = {
   bus: {
@@ -13,6 +14,7 @@ export type BusLocation = {
   } | null;
   tripActive: boolean;
   currentLocation: { lat: number; lng: number; updatedAt: string } | null;
+  currentIssue: CurrentIssue;
 };
 
 export type LiveBusItem = {

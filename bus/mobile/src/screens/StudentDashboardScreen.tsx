@@ -227,6 +227,19 @@ type HomeViewProps = {
   onTrackOther: () => void;
 };
 
+const ISSUE_META: Record<
+  string,
+  { emoji: string; label: string; hint: string }
+> = {
+  breakdown: { emoji: "🚨", label: "Bus breakdown", hint: "The bus can't move right now." },
+  flat_tyre: { emoji: "🛞", label: "Flat tyre", hint: "The driver is changing a tyre." },
+  refuelling: { emoji: "⛽", label: "Refuelling", hint: "The bus is at a petrol station." },
+  traffic: { emoji: "🚦", label: "Traffic delay", hint: "Expect a slower trip today." },
+  mechanical: { emoji: "🔧", label: "Mechanical issue", hint: "The driver is checking the bus." },
+  weather: { emoji: "🌧️", label: "Weather delay", hint: "The bus is slowed by weather." },
+  other: { emoji: "❗", label: "Issue reported", hint: "See the driver's note below." },
+};
+
 function HomeView({ styles, colors, student, busLocation, onTrackOther }: HomeViewProps) {
   const bus = student?.bus ?? null;
   // Prefer fresh data from the live poll (notice/suspension can change during
@@ -236,6 +249,8 @@ function HomeView({ styles, colors, student, busLocation, onTrackOther }: HomeVi
   const notice = liveBus?.notice ?? bus?.notice ?? "";
   const tripActive = busLocation?.tripActive ?? false;
   const liveLoc = busLocation?.currentLocation ?? null;
+  const currentIssue = busLocation?.currentIssue ?? null;
+  const issueMeta = currentIssue ? ISSUE_META[currentIssue.type] : null;
 
   const myStopName = student?.stop ?? null;
   const myStop = stops.find((s) => s.name === myStopName) ?? null;
@@ -400,6 +415,26 @@ function HomeView({ styles, colors, student, busLocation, onTrackOther }: HomeVi
         <View style={styles.noticeCard}>
           <Text style={styles.noticeIcon}>⚠️</Text>
           <Text style={styles.noticeText}>{notice}</Text>
+        </View>
+      ) : null}
+
+      {bus && currentIssue && issueMeta ? (
+        <View style={styles.driverIssueCard}>
+          <View style={styles.driverIssueHeader}>
+            <Text style={styles.driverIssueEmoji}>{issueMeta.emoji}</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.driverIssueLabel}>Driver alert</Text>
+              <Text style={styles.driverIssueTitle}>{issueMeta.label}</Text>
+            </View>
+          </View>
+          <Text style={styles.driverIssueHint}>{issueMeta.hint}</Text>
+          {currentIssue.message ? (
+            <View style={styles.driverIssueQuote}>
+              <Text style={styles.driverIssueQuoteText}>
+                “{currentIssue.message}”
+              </Text>
+            </View>
+          ) : null}
         </View>
       ) : null}
 
@@ -980,6 +1015,56 @@ function makeStyles(colors: Colors) {
       padding: 14,
       marginTop: 16,
     },
+
+    // ─── Driver-reported issue alert ─────────────────────────────
+    driverIssueCard: {
+      backgroundColor: "#fdecec",
+      borderWidth: 1,
+      borderColor: "#f5c2c2",
+      borderRadius: 16,
+      padding: 16,
+      marginTop: 12,
+    },
+    driverIssueHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+    },
+    driverIssueEmoji: { fontSize: 32 },
+    driverIssueLabel: {
+      fontSize: 11,
+      fontWeight: "800",
+      color: "#8f1d1d",
+      letterSpacing: 1,
+      textTransform: "uppercase",
+    },
+    driverIssueTitle: {
+      fontSize: 17,
+      fontWeight: "800",
+      color: "#8f1d1d",
+      marginTop: 2,
+    },
+    driverIssueHint: {
+      marginTop: 8,
+      fontSize: 13,
+      fontWeight: "600",
+      color: "#8f1d1d",
+      lineHeight: 18,
+    },
+    driverIssueQuote: {
+      marginTop: 10,
+      paddingLeft: 10,
+      borderLeftWidth: 3,
+      borderLeftColor: "#8f1d1d",
+    },
+    driverIssueQuoteText: {
+      fontSize: 13,
+      fontStyle: "italic",
+      color: "#8f1d1d",
+      fontWeight: "500",
+      lineHeight: 18,
+    },
+
     trackOtherCard: {
       flexDirection: "row",
       alignItems: "center",

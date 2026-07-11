@@ -16,10 +16,26 @@ export type TripLocation = {
   updatedAt: string;
 } | null;
 
+export type IssueType =
+  | "breakdown"
+  | "flat_tyre"
+  | "refuelling"
+  | "traffic"
+  | "mechanical"
+  | "weather"
+  | "other";
+
+export type CurrentIssue = {
+  type: IssueType;
+  message: string;
+  reportedAt: string;
+} | null;
+
 export type TripStatus = {
   bus: TripBus;
   tripActive: boolean;
   currentLocation: TripLocation;
+  currentIssue: CurrentIssue;
 };
 
 export const driverTripApi = {
@@ -33,4 +49,14 @@ export const driverTripApi = {
       method: "POST",
       body: JSON.stringify({ lat, lng }),
     }),
+  reportIssue: (type: IssueType, message?: string) =>
+    apiFetch<{ ok: true; currentIssue: CurrentIssue }>(
+      "/api/driver/trip/issue",
+      {
+        method: "POST",
+        body: JSON.stringify({ type, message: message ?? "" }),
+      }
+    ),
+  clearIssue: () =>
+    apiFetch<{ ok: true }>("/api/driver/trip/issue", { method: "DELETE" }),
 };

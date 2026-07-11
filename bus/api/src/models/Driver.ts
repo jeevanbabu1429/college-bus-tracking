@@ -46,6 +46,32 @@ const driverSchema = new Schema(
       ),
       default: null,
     },
+    // Driver-reported bus condition. Cleared explicitly by the driver via
+    // DELETE /api/driver/trip/issue. Not auto-cleared on trip stop — the
+    // driver decides when the situation is resolved.
+    currentIssue: {
+      type: new Schema(
+        {
+          type: {
+            type: String,
+            required: true,
+            enum: [
+              "breakdown",
+              "flat_tyre",
+              "refuelling",
+              "traffic",
+              "mechanical",
+              "weather",
+              "other",
+            ],
+          },
+          message: { type: String, default: "", trim: true },
+          reportedAt: { type: Date, required: true },
+        },
+        { _id: false }
+      ),
+      default: null,
+    },
   },
   { timestamps: true }
 );

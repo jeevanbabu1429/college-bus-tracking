@@ -12,12 +12,15 @@ import collegeDriversRouter from "./routes/collegeDrivers.js";
 import collegeStudentsRouter from "./routes/collegeStudents.js";
 import notificationsRouter from "./routes/notifications.js";
 import superAdminRouter from "./routes/superAdmin.js";
+import bannerRouter from "./routes/banner.js";
 import { getFirebaseApp } from "./services/firebase.js";
 import { seedSuperAdmin } from "./seed.js";
 
 const app = express();
 app.use(cors());
-app.use(express.json());
+// Bumped from the default 100 KB so the super admin can upload banner
+// posters up to ~7 MB after base64 inflation.
+app.use(express.json({ limit: "10mb" }));
 
 app.get("/health", (_req, res) => {
   res.json({ status: "ok" });
@@ -33,6 +36,7 @@ app.use("/api/colleges/:collegeId/drivers", collegeDriversRouter);
 app.use("/api/colleges/:collegeId/students", collegeStudentsRouter);
 app.use("/api/notifications", notificationsRouter);
 app.use("/api/super", superAdminRouter);
+app.use("/api/banner", bannerRouter);
 
 const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
   console.error(err);
