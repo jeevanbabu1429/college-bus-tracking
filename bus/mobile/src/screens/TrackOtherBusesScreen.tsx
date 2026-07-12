@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
+  Linking,
   Pressable,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
@@ -23,7 +26,25 @@ export function TrackOtherBusesScreen() {
 
   const [items, setItems] = useState<LiveBusItem[] | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [query, setQuery] = useState("");
   const inFlight = useRef(false);
+
+  // Client-side filter. Case-insensitive substring match across bus number,
+  // plate, driver name, and route — the fields a student is most likely to
+  // remember about a specific bus.
+  const filtered = useMemo(() => {
+    if (!items) return null;
+    const q = query.trim().toLowerCase();
+    if (!q) return items;
+    return items.filter((it) => {
+      return (
+        it.bus.busNumber.toLowerCase().includes(q) ||
+        it.bus.plateNumber.toLowerCase().includes(q) ||
+        it.driver.name.toLowerCase().includes(q) ||
+        (it.bus.route ?? "").toLowerCase().includes(q)
+      );
+    });
+  }, [items, query]);
 
   const load = useCallback(async () => {
     if (inFlight.current) return;
@@ -61,11 +82,41 @@ export function TrackOtherBusesScreen() {
               ? "Loading…"
               : items.length === 0
               ? "No buses on a trip right now"
+              : query.trim()
+              ? `${filtered?.length ?? 0} of ${items.length} match`
               : `${items.length} live bus${items.length === 1 ? "" : "es"}`}
           </Text>
         </View>
         <View style={{ width: 44 }} />
       </View>
+
+      {/* Search input — only meaningful when there's something to filter. */}
+      {items && items.length > 0 && (
+        <View style={styles.searchWrap}>
+          <View style={styles.searchBox}>
+            <Text style={styles.searchIcon}>🔍</Text>
+            <TextInput
+              value={query}
+              onChangeText={setQuery}
+              placeholder="Search bus number, driver, or route"
+              placeholderTextColor={colors.textMuted}
+              style={styles.searchInput}
+              autoCapitalize="none"
+              autoCorrect={false}
+              returnKeyType="search"
+            />
+            {query.length > 0 && (
+              <Pressable
+                onPress={() => setQuery("")}
+                hitSlop={10}
+                style={styles.searchClear}
+              >
+                <Text style={styles.searchClearText}>×</Text>
+              </Pressable>
+            )}
+          </View>
+        </View>
+      )}
 
       {items === null ? (
         <View style={styles.center}>
@@ -80,11 +131,28 @@ export function TrackOtherBusesScreen() {
             appear here. Pull to refresh.
           </Text>
         </View>
+      ) : filtered && filtered.length === 0 ? (
+        <View style={styles.center}>
+          <Text style={styles.emojiBig}>🔎</Text>
+          <Text style={styles.emptyTitle}>No matches</Text>
+          <Text style={styles.emptyBody}>
+            No live bus matches &ldquo;{query.trim()}&rdquo;. Try a different
+            bus number, driver name, or route.
+          </Text>
+          <Pressable
+            onPress={() => setQuery("")}
+            style={styles.clearFilterBtn}
+            hitSlop={8}
+          >
+            <Text style={styles.clearFilterText}>Clear search</Text>
+          </Pressable>
+        </View>
       ) : (
         <FlatList
-          data={items}
+          data={filtered ?? []}
           keyExtractor={(it) => it.bus._id}
           contentContainerStyle={styles.listPad}
+          keyboardShouldPersistTaps="handled"
           refreshing={refreshing}
           onRefresh={async () => {
             setRefreshing(true);
@@ -150,7 +218,25 @@ export function TrackOtherBusesScreen() {
                     </Text>
                   )}
                 </View>
-                <Text style={styles.chevron}>›</Text>
+                {item.driver.mobile ? (
+                  <Pressable
+                    onPress={(e) => {
+                      // Prevent the row's onPress from navigating to the map.
+                      e.stopPropagation();
+                      callDriver(item.driver.name, item.driver.mobile);
+                    }}
+                    style={({ pressed }) => [
+                      styles.callBtn,
+                      pressed && styles.callBtnPressed,
+                    ]}
+                    android_ripple={{ color: "#ffffff44" }}
+                    hitSlop={6}
+                  >
+                    <Text style={styles.callIcon}>📞</Text>
+                  </Pressable>
+                ) : (
+                  <Text style={styles.chevron}>›</Text>
+                )}
               </Pressable>
             );
           }}
@@ -162,6 +248,25 @@ export function TrackOtherBusesScreen() {
 
 function secondsAgo(iso: string): number {
   return Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1000));
+}
+
+function callDriver(name: string, mobile: string): void {
+  const digits = mobile.replace(/\D/g, "");
+  if (!digits) return;
+  const url = `tel:${digits}`;
+  Linking.canOpenURL(url)
+    .then((can) => {
+      if (can) return Linking.openURL(url);
+      // Emulators or tablets without a dialer — show the number so the
+      // student can copy or read it manually.
+      Alert.alert("Can't open dialer", `Call ${name} on ${mobile}?`);
+    })
+    .catch(() => {
+      Alert.alert(
+        "Couldn't start the call",
+        `Please dial ${mobile} manually.`
+      );
+    });
 }
 
 function makeStyles(colors: Colors) {
@@ -248,5 +353,75 @@ function makeStyles(colors: Colors) {
     pillTextLive: { color: "#2e7d32" },
     pillTextNoFix: { color: colors.textMuted },
     chevron: { fontSize: 22, color: colors.textMuted, marginLeft: 4 },
+    callBtn: {
+      width: 42,
+      height: 42,
+      borderRadius: 21,
+      backgroundColor: "#2e7d32",
+      alignItems: "center",
+      justifyContent: "center",
+      shadowColor: "#2e7d32",
+      shadowOpacity: 0.35,
+      shadowRadius: 6,
+      shadowOffset: { width: 0, height: 3 },
+      elevation: 3,
+      marginLeft: 4,
+    },
+    callBtnPressed: { opacity: 0.85, transform: [{ scale: 0.94 }] },
+    callIcon: { fontSize: 18 },
+
+    // ─── Search box ──────────────────────────────────────────────
+    searchWrap: {
+      paddingHorizontal: 16,
+      paddingTop: 12,
+      paddingBottom: 4,
+      backgroundColor: colors.background,
+    },
+    searchBox: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      backgroundColor: colors.surface,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: colors.border,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+    },
+    searchIcon: { fontSize: 15 },
+    searchInput: {
+      flex: 1,
+      fontSize: 14,
+      color: colors.text,
+      padding: 0,
+      fontWeight: "500",
+    },
+    searchClear: {
+      width: 22,
+      height: 22,
+      borderRadius: 11,
+      backgroundColor: colors.surfaceMuted,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    searchClearText: {
+      fontSize: 16,
+      color: colors.text,
+      fontWeight: "700",
+      lineHeight: 18,
+    },
+    clearFilterBtn: {
+      marginTop: 16,
+      paddingHorizontal: 18,
+      paddingVertical: 10,
+      backgroundColor: colors.accent,
+      borderRadius: 999,
+    },
+    clearFilterText: {
+      color: colors.textOnAccent,
+      fontSize: 13,
+      fontWeight: "800",
+      letterSpacing: 0.4,
+    },
   });
 }

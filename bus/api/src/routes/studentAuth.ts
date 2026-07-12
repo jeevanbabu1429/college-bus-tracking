@@ -148,7 +148,7 @@ router.get("/live-buses", requireStudent, async (req, res) => {
     college: student.college,
     tripActive: true,
   })
-    .select("name currentLocation tripActive")
+    .select("name mobile currentLocation tripActive")
     .lean();
   if (activeDrivers.length === 0) {
     res.json([]);
@@ -179,6 +179,7 @@ router.get("/live-buses", requireStudent, async (req, res) => {
         },
         driver: {
           name: driver.name,
+          mobile: driver.mobile,
           tripActive: driver.tripActive,
           currentLocation: driver.currentLocation ?? null,
         },
@@ -199,6 +200,7 @@ router.get("/bus-location", requireStudent, async (req, res) => {
   if (!student.bus) {
     res.json({
       bus: null,
+      driver: null,
       tripActive: false,
       currentLocation: null,
       currentIssue: null,
@@ -209,6 +211,7 @@ router.get("/bus-location", requireStudent, async (req, res) => {
   if (!bus) {
     res.json({
       bus: null,
+      driver: null,
       tripActive: false,
       currentLocation: null,
       currentIssue: null,
@@ -225,6 +228,11 @@ router.get("/bus-location", requireStudent, async (req, res) => {
       stops: bus.stops,
       notice: bus.notice,
     },
+    // Public-facing driver info (no otp, no licence/aadhar). Mobile is
+    // included so the student can dial from the app.
+    driver: driver
+      ? { name: driver.name, mobile: driver.mobile }
+      : null,
     tripActive: driver?.tripActive ?? false,
     currentLocation: driver?.currentLocation ?? null,
     currentIssue: driver?.currentIssue ?? null,
