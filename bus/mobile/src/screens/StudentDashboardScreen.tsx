@@ -2,6 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Animated,
+  Easing,
+  Linking,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -85,6 +88,115 @@ function suspensionHint(
   }
   return { kind: "nearest", name: open[0].name, distance: null };
 }
+
+// Green pulsing "Online" pill when the driver has an active trip, muted
+// static "Offline" pill otherwise. The pulse is an infinite scale+opacity
+// loop on a halo View using the native driver, so it's cheap even under load.
+function OnlineIndicator({ active }: { active: boolean }) {
+  const pulse = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (!active) {
+      pulse.setValue(0);
+      return;
+    }
+    const anim = Animated.loop(
+      Animated.timing(pulse, {
+        toValue: 1,
+        duration: 1600,
+        easing: Easing.out(Easing.ease),
+        useNativeDriver: true,
+      })
+    );
+    anim.start();
+    return () => anim.stop();
+  }, [active, pulse]);
+
+  const haloScale = pulse.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.6, 2.4],
+  });
+  const haloOpacity = pulse.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.55, 0],
+  });
+
+  return (
+    <View style={indicatorStyles.pill(active)}>
+      <View style={indicatorStyles.dotWrap}>
+        {active && (
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              indicatorStyles.halo,
+              {
+                opacity: haloOpacity,
+                transform: [{ scale: haloScale }],
+              },
+            ]}
+          />
+        )}
+        <View
+          style={[
+            indicatorStyles.dot,
+            active ? indicatorStyles.dotOn : indicatorStyles.dotOff,
+          ]}
+        />
+      </View>
+      <Text
+        style={[
+          indicatorStyles.text,
+          active ? indicatorStyles.textOn : indicatorStyles.textOff,
+        ]}
+      >
+        {active ? "Online" : "Offline"}
+      </Text>
+    </View>
+  );
+}
+
+const indicatorStyles = {
+  pill: (active: boolean) => ({
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    gap: 8,
+    paddingLeft: 8,
+    paddingRight: 12,
+    paddingVertical: 5,
+    borderRadius: 999,
+    backgroundColor: active ? "rgba(46,125,50,0.15)" : "rgba(255,255,255,0.08)",
+    borderWidth: 1,
+    borderColor: active ? "rgba(46,125,50,0.55)" : "rgba(255,255,255,0.12)",
+  }),
+  dotWrap: {
+    width: 12,
+    height: 12,
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
+    position: "relative" as const,
+  },
+  halo: {
+    position: "absolute" as const,
+    width: 12,
+    height: 12,
+    borderRadius: 999,
+    backgroundColor: "#4caf50",
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 999,
+  },
+  dotOn: { backgroundColor: "#4caf50" },
+  dotOff: { backgroundColor: "#8a8f9c" },
+  text: {
+    fontSize: 12,
+    fontWeight: "800" as const,
+    letterSpacing: 0.6,
+  },
+  textOn: { color: "#4caf50" },
+  textOff: { color: "#a0a4b1" },
+};
 
 function formatDistance(m: number): string {
   return m >= 1000 ? `${(m / 1000).toFixed(1)} km` : `${Math.round(m)} m`;
@@ -251,6 +363,30 @@ function HomeView({ styles, colors, student, busLocation, onTrackOther }: HomeVi
   const liveLoc = busLocation?.currentLocation ?? null;
   const currentIssue = busLocation?.currentIssue ?? null;
   const issueMeta = currentIssue ? ISSUE_META[currentIssue.type] : null;
+  const driverInfo = busLocation?.driver ?? null;
+
+  const onCallDriver = useCallback(() => {
+    if (!driverInfo?.mobile) return;
+    const digits = driverInfo.mobile.replace(/\D/g, "");
+    if (!digits) return;
+    const url = `tel:${digits}`;
+    Linking.canOpenURL(url)
+      .then((can) => {
+        if (can) return Linking.openURL(url);
+        // Android emulators & tablets without a dialer just fail silently —
+        // surface the number so the student can copy it manually.
+        Alert.alert(
+          "Can't open dialer",
+          `Call ${driverInfo.name} on ${driverInfo.mobile}?`
+        );
+      })
+      .catch(() => {
+        Alert.alert(
+          "Couldn't start the call",
+          `Please dial ${driverInfo.mobile} manually.`
+        );
+      });
+  }, [driverInfo]);
 
   const myStopName = student?.stop ?? null;
   const myStop = stops.find((s) => s.name === myStopName) ?? null;
@@ -339,27 +475,7 @@ function HomeView({ styles, colors, student, busLocation, onTrackOther }: HomeVi
         <View style={styles.busCard}>
           <View style={styles.busHeaderRow}>
             <Text style={styles.busLabel}>Your Bus</Text>
-            <View
-              style={[
-                styles.statusPill,
-                tripActive && styles.statusPillActive,
-              ]}
-            >
-              <View
-                style={[
-                  styles.statusDot,
-                  tripActive && styles.statusDotActive,
-                ]}
-              />
-              <Text
-                style={[
-                  styles.statusText,
-                  tripActive && styles.statusTextActive,
-                ]}
-              >
-                {tripActive ? "On trip" : "Idle"}
-              </Text>
-            </View>
+            <OnlineIndicator active={tripActive} />
           </View>
           <Text style={styles.busNumber}>Bus {bus.busNumber}</Text>
           <Text style={styles.busPlate}>{bus.plateNumber}</Text>
@@ -381,6 +497,33 @@ function HomeView({ styles, colors, student, busLocation, onTrackOther }: HomeVi
               </Text>
             </View>
           </View>
+
+          {driverInfo && driverInfo.mobile ? (
+            <View style={styles.busDriverRow}>
+              <View style={styles.busDriverInfo}>
+                <View style={styles.busDriverIconBox}>
+                  <Text style={styles.busDriverIcon}>🧑</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.busDriverLabel}>Driver</Text>
+                  <Text style={styles.busDriverName} numberOfLines={1}>
+                    {driverInfo.name}
+                  </Text>
+                </View>
+              </View>
+              <Pressable
+                onPress={onCallDriver}
+                style={({ pressed }) => [
+                  styles.busCallBtn,
+                  pressed && styles.busCallBtnPressed,
+                ]}
+                android_ripple={{ color: "#f5b70044" }}
+              >
+                <Text style={styles.busCallIcon}>📞</Text>
+                <Text style={styles.busCallText}>Call</Text>
+              </Pressable>
+            </View>
+          ) : null}
         </View>
       ) : (
         <View style={styles.emptyCard}>
@@ -916,6 +1059,69 @@ function makeStyles(colors: Colors) {
       width: 1,
       height: 28,
       backgroundColor: "rgba(255,255,255,0.08)",
+    },
+
+    // ─── Driver + Call button row on the bus card ────────────────
+    busDriverRow: {
+      marginTop: 16,
+      paddingTop: 14,
+      borderTopWidth: 1,
+      borderTopColor: "rgba(255,255,255,0.08)",
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 10,
+    },
+    busDriverInfo: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+      flex: 1,
+      minWidth: 0,
+    },
+    busDriverIconBox: {
+      width: 36,
+      height: 36,
+      borderRadius: 999,
+      backgroundColor: "rgba(255,255,255,0.12)",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    busDriverIcon: { fontSize: 18 },
+    busDriverLabel: {
+      color: "rgba(255,255,255,0.65)",
+      fontSize: 10,
+      fontWeight: "800",
+      letterSpacing: 1,
+      textTransform: "uppercase",
+    },
+    busDriverName: {
+      color: "#fff",
+      fontSize: 14,
+      fontWeight: "800",
+      marginTop: 2,
+    },
+    busCallBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      backgroundColor: "#2e7d32",
+      paddingHorizontal: 14,
+      paddingVertical: 9,
+      borderRadius: 999,
+      shadowColor: "#2e7d32",
+      shadowOpacity: 0.35,
+      shadowRadius: 8,
+      shadowOffset: { width: 0, height: 3 },
+      elevation: 3,
+    },
+    busCallBtnPressed: { opacity: 0.85, transform: [{ scale: 0.98 }] },
+    busCallIcon: { fontSize: 14 },
+    busCallText: {
+      color: "#fff",
+      fontSize: 13,
+      fontWeight: "800",
+      letterSpacing: 0.4,
     },
 
     sectionLabel: {

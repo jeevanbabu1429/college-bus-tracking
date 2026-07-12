@@ -12,6 +12,7 @@ export type BusLocation = {
     stops: BusStop[];
     notice: string;
   } | null;
+  driver: { name: string; mobile: string } | null;
   tripActive: boolean;
   currentLocation: { lat: number; lng: number; updatedAt: string } | null;
   currentIssue: CurrentIssue;
@@ -28,6 +29,7 @@ export type LiveBusItem = {
   };
   driver: {
     name: string;
+    mobile: string;
     tripActive: boolean;
     currentLocation: { lat: number; lng: number; updatedAt: string } | null;
   };
