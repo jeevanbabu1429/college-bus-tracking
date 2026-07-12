@@ -35,6 +35,15 @@ const driverSchema = new Schema(
     otpExpiresAt: { type: Date, default: null },
     tripActive: { type: Boolean, default: false },
     fcmTokens: { type: [String], default: [] },
+    // Students already pushed the "bus arriving soon" alert during the
+    // current trip. Cleared on every /trip/start and /trip/stop so each
+    // trip starts fresh. Prevents re-notifying the same student while the
+    // bus circles their stop's approach zone.
+    notifiedStudentIds: {
+      type: [Schema.Types.ObjectId],
+      ref: "Student",
+      default: [],
+    },
     currentLocation: {
       type: new Schema(
         {
