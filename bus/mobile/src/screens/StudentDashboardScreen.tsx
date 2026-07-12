@@ -22,6 +22,9 @@ import type { BusStop } from "../api/collegeBuses";
 import type { StudentStackParamList } from "../navigation/types";
 
 const POLL_INTERVAL_MS = 5000;
+// Matches ARRIVING_SOON_METERS in bus/api/src/routes/driverTrip.ts so the
+// in-app banner and the push notification light up on the same trigger.
+const ARRIVING_SOON_METERS = 300;
 type Tab = "home" | "profile";
 type Styles = ReturnType<typeof makeStyles>;
 
@@ -364,6 +367,23 @@ function HomeView({ styles, colors, student, busLocation, onTrackOther }: HomeVi
   const currentIssue = busLocation?.currentIssue ?? null;
   const issueMeta = currentIssue ? ISSUE_META[currentIssue.type] : null;
   const driverInfo = busLocation?.driver ?? null;
+  const myStopName = student?.stop ?? null;
+
+  // "Arriving soon" — matches the server-side proximity check.
+  // Distance from bus to the stop *before* the student's stop.
+  const arrivingSoon = useMemo(() => {
+    if (!tripActive || !liveLoc || !myStopName) return null;
+    const idx = stops.findIndex((s) => s.name === myStopName);
+    if (idx <= 0) return null;
+    const prev = stops[idx - 1];
+    if (typeof prev.lat !== "number" || typeof prev.lng !== "number") return null;
+    const d = distanceMeters(
+      { lat: liveLoc.lat, lng: liveLoc.lng },
+      { lat: prev.lat, lng: prev.lng }
+    );
+    if (d > ARRIVING_SOON_METERS) return null;
+    return { prevStop: prev.name, distance: d };
+  }, [tripActive, liveLoc, myStopName, stops]);
 
   const onCallDriver = useCallback(() => {
     if (!driverInfo?.mobile) return;
@@ -388,7 +408,6 @@ function HomeView({ styles, colors, student, busLocation, onTrackOther }: HomeVi
       });
   }, [driverInfo]);
 
-  const myStopName = student?.stop ?? null;
   const myStop = stops.find((s) => s.name === myStopName) ?? null;
   const hint = suspensionHint(stops, myStopName);
 
@@ -558,6 +577,27 @@ function HomeView({ styles, colors, student, busLocation, onTrackOther }: HomeVi
         <View style={styles.noticeCard}>
           <Text style={styles.noticeIcon}>⚠️</Text>
           <Text style={styles.noticeText}>{notice}</Text>
+        </View>
+      ) : null}
+
+      {bus && arrivingSoon ? (
+        <View style={styles.arrivingCard}>
+          <View style={styles.arrivingHeader}>
+            <Text style={styles.arrivingEmoji}>🚌</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.arrivingLabel}>Arriving soon</Text>
+              <Text style={styles.arrivingTitle}>
+                Get ready to board at {myStopName}
+              </Text>
+            </View>
+          </View>
+          <Text style={styles.arrivingBody}>
+            Your bus is near{" "}
+            <Text style={styles.arrivingStrong}>{arrivingSoon.prevStop}</Text>
+            {" — "}
+            {formatDistance(arrivingSoon.distance)} away from the previous
+            stop.
+          </Text>
         </View>
       ) : null}
 
@@ -1221,6 +1261,43 @@ function makeStyles(colors: Colors) {
       padding: 14,
       marginTop: 16,
     },
+
+    // ─── Arriving soon banner ────────────────────────────────────
+    arrivingCard: {
+      backgroundColor: "#fff8df",
+      borderWidth: 1,
+      borderColor: "#f5b700",
+      borderRadius: 16,
+      padding: 16,
+      marginTop: 12,
+    },
+    arrivingHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+    },
+    arrivingEmoji: { fontSize: 30 },
+    arrivingLabel: {
+      fontSize: 11,
+      fontWeight: "800",
+      color: "#8a6d00",
+      letterSpacing: 1,
+      textTransform: "uppercase",
+    },
+    arrivingTitle: {
+      fontSize: 16,
+      fontWeight: "800",
+      color: "#3d2f00",
+      marginTop: 2,
+    },
+    arrivingBody: {
+      marginTop: 8,
+      fontSize: 13,
+      color: "#3d2f00",
+      lineHeight: 18,
+      fontWeight: "600",
+    },
+    arrivingStrong: { fontWeight: "900", color: "#3d2f00" },
 
     // ─── Driver-reported issue alert ─────────────────────────────
     driverIssueCard: {

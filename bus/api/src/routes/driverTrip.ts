@@ -131,7 +131,8 @@ router.post("/start", async (req, res) => {
   const driverId = (req as unknown as { driverId: string }).driverId;
   const driver = await DriverModel.findByIdAndUpdate(
     driverId,
-    { $set: { tripActive: true } },
+    // Also wipe the arriving-soon dedup list so every trip starts fresh.
+    { $set: { tripActive: true, notifiedStudentIds: [] } },
     { new: true }
   );
   if (!driver) {
@@ -146,7 +147,7 @@ router.post("/stop", async (req, res) => {
   const driverId = (req as unknown as { driverId: string }).driverId;
   const driver = await DriverModel.findByIdAndUpdate(
     driverId,
-    { $set: { tripActive: false } },
+    { $set: { tripActive: false, notifiedStudentIds: [] } },
     { new: true }
   );
   if (!driver) {
@@ -194,7 +195,112 @@ router.post("/location", async (req, res) => {
   }
   driver.currentLocation = { lat, lng, updatedAt: new Date() };
   await driver.save();
+
+  // Fire the "arriving soon" push if the bus has just entered the approach
+  // zone of the stop right before any un-notified student's stop.
+  notifyArrivingSoon(driver._id.toString(), lat, lng).catch((err) =>
+    console.error("[fcm] arriving-soon check failed:", err)
+  );
+
   res.json({ ok: true });
 });
+
+// Fire-once-per-trip proximity push. Runs after every /trip/location save,
+// but only sends when a student's "previous stop" is within
+// ARRIVING_SOON_METERS of the current bus location AND that student wasn't
+// already notified this trip.
+const ARRIVING_SOON_METERS = 300;
+
+function haversine(
+  lat1: number,
+  lng1: number,
+  lat2: number,
+  lng2: number
+): number {
+  const R = 6371000;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+
+async function notifyArrivingSoon(
+  driverId: string,
+  lat: number,
+  lng: number
+): Promise<void> {
+  const bus = await BusModel.findOne({ driver: driverId })
+    .select("_id busNumber stops")
+    .lean();
+  if (!bus || bus.stops.length < 2) return;
+
+  // Reload the *fresh* notifiedStudentIds — the caller's `driver` object was
+  // saved before the array might've been mutated by a concurrent request.
+  const dr = await DriverModel.findById(driverId)
+    .select("notifiedStudentIds")
+    .lean();
+  const alreadyNotified = new Set(
+    (dr?.notifiedStudentIds ?? []).map((id) => String(id))
+  );
+
+  const students = await StudentModel.find({
+    bus: bus._id,
+    stop: { $ne: null },
+  })
+    .select("_id stop")
+    .lean();
+
+  const stopIndexByName = new Map<string, number>();
+  bus.stops.forEach((s, i) => stopIndexByName.set(s.name, i));
+
+  const toNotify: { studentId: string; prevStop: string; myStop: string }[] = [];
+
+  for (const student of students) {
+    if (!student.stop) continue;
+    if (alreadyNotified.has(String(student._id))) continue;
+    const idx = stopIndexByName.get(student.stop);
+    // idx === 0 → student is on the FIRST stop, no "previous" exists.
+    // idx === undefined → stop was removed since; skip.
+    if (idx === undefined || idx <= 0) continue;
+    const prev = bus.stops[idx - 1];
+    if (typeof prev.lat !== "number" || typeof prev.lng !== "number") continue;
+    const d = haversine(lat, lng, prev.lat, prev.lng);
+    if (d > ARRIVING_SOON_METERS) continue;
+    toNotify.push({
+      studentId: String(student._id),
+      prevStop: prev.name,
+      myStop: student.stop,
+    });
+  }
+
+  if (toNotify.length === 0) return;
+
+  // Reserve first, send after — prevents duplicate pushes if two /location
+  // requests race each other on the same driver.
+  await DriverModel.updateOne(
+    { _id: driverId },
+    { $addToSet: { notifiedStudentIds: { $each: toNotify.map((n) => n.studentId) } } }
+  );
+
+  for (const n of toNotify) {
+    sendPushSafe(
+      { role: "student", id: n.studentId },
+      {
+        title: "Bus arriving soon",
+        body: `Your bus is near ${n.prevStop} — one stop before ${n.myStop}. Get ready to board.`,
+        data: {
+          kind: "bus-approaching",
+          busId: bus._id.toString(),
+          stop: n.myStop,
+          url: "/",
+        },
+      }
+    );
+  }
+}
 
 export default router;
