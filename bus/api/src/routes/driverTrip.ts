@@ -9,6 +9,7 @@ import {
   checkCollegeAdminSuspension,
   sendSuspended,
 } from "../lib/suspension.js";
+import { haversineMeters } from "../lib/geo.js";
 
 const router = Router();
 
@@ -211,23 +212,6 @@ router.post("/location", async (req, res) => {
 // already notified this trip.
 const ARRIVING_SOON_METERS = 300;
 
-function haversine(
-  lat1: number,
-  lng1: number,
-  lat2: number,
-  lng2: number
-): number {
-  const R = 6371000;
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLng = ((lng2 - lng1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLng / 2) ** 2;
-  return 2 * R * Math.asin(Math.sqrt(a));
-}
-
 async function notifyArrivingSoon(
   driverId: string,
   lat: number,
@@ -268,7 +252,7 @@ async function notifyArrivingSoon(
     if (idx === undefined || idx <= 0) continue;
     const prev = bus.stops[idx - 1];
     if (typeof prev.lat !== "number" || typeof prev.lng !== "number") continue;
-    const d = haversine(lat, lng, prev.lat, prev.lng);
+    const d = haversineMeters(lat, lng, prev.lat, prev.lng);
     if (d > ARRIVING_SOON_METERS) continue;
     toNotify.push({
       studentId: String(student._id),

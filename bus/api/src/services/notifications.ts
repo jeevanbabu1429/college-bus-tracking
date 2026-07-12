@@ -36,10 +36,27 @@ export async function sendPush(
   const messaging = admin.messaging(app);
   const data = normalizeData(payload.data);
 
+  // Custom ringtone. On Android the sound is bound to the notification
+  // channel — the "bus-alerts" channel is created client-side in
+  // MainApplication.kt with res/raw/bus_ringtone.mp3. On iOS the file
+  // must be bundled with the app (bus_ringtone.mp3 in the Xcode target).
   const response = await messaging.sendEachForMulticast({
     tokens,
     notification: { title: payload.title, body: payload.body },
     data,
+    android: {
+      notification: {
+        channelId: "bus-alerts",
+        sound: "bus_ringtone",
+      },
+    },
+    apns: {
+      payload: {
+        aps: {
+          sound: "bus_ringtone.mp3",
+        },
+      },
+    },
     webpush: {
       notification: { title: payload.title, body: payload.body, icon: "/favicon.ico" },
       fcmOptions: data.url ? { link: data.url } : undefined,
