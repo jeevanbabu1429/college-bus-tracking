@@ -7,6 +7,37 @@ const router = Router({ mergeParams: true });
 
 const GENDERS = ["male", "female", "other"];
 
+// Roughly 300 KB of decoded image. The website downscales to a 256px square
+// before sending, which lands well under this — the cap is a backstop against
+// a client that doesn't.
+const MAX_IMAGE_CHARS = 400_000;
+const IMAGE_DATA_URL_RE = /^data:image\/(png|jpeg|jpg|webp|gif);base64,[A-Za-z0-9+/=]+$/;
+
+type ImageResult =
+  | { ok: true; value: string | null }
+  | { ok: false; error: string };
+
+// The photo is optional: absent/null/"" all mean "no photo". Anything else has
+// to be a base64 image data URL within the size cap.
+function normaliseDriverImage(value: unknown): ImageResult {
+  if (value === undefined || value === null || value === "") {
+    return { ok: true, value: null };
+  }
+  if (typeof value !== "string") {
+    return { ok: false, error: "image must be a data URL string" };
+  }
+  if (value.length > MAX_IMAGE_CHARS) {
+    return { ok: false, error: "image is too large — please use a smaller photo" };
+  }
+  if (!IMAGE_DATA_URL_RE.test(value)) {
+    return {
+      ok: false,
+      error: "image must be a base64 data URL (png, jpeg, webp or gif)",
+    };
+  }
+  return { ok: true, value };
+}
+
 router.get("/", async (req, res) => {
   const { collegeId } = req.params as { collegeId: string };
   if (!isValidObjectId(collegeId)) {
@@ -40,6 +71,7 @@ router.post("/", async (req, res) => {
     aadharNumber,
     mobile,
     address,
+    image,
   } = req.body ?? {};
 
   if (
@@ -62,6 +94,11 @@ router.post("/", async (req, res) => {
     res.status(400).json({ error: "Aadhar must be 12 digits" });
     return;
   }
+  const photo = normaliseDriverImage(image);
+  if (!photo.ok) {
+    res.status(400).json({ error: photo.error });
+    return;
+  }
 
   try {
     const driver = await DriverModel.create({
@@ -73,6 +110,7 @@ router.post("/", async (req, res) => {
       aadharNumber,
       mobile,
       address,
+      image: photo.value,
     });
     res.status(201).json(driver);
   } catch (err) {
@@ -241,6 +279,7 @@ router.put("/:driverId", async (req, res) => {
     aadharNumber,
     mobile,
     address,
+    image,
   } = req.body ?? {};
 
   if (
@@ -263,8 +302,22 @@ router.put("/:driverId", async (req, res) => {
     res.status(400).json({ error: "Aadhar must be 12 digits" });
     return;
   }
+  const photo = normaliseDriverImage(image);
+  if (!photo.ok) {
+    res.status(400).json({ error: photo.error });
+    return;
+  }
 
-  driver.set({ name, dob, gender, licenceNumber, aadharNumber, mobile, address });
+  driver.set({
+    name,
+    dob,
+    gender,
+    licenceNumber,
+    aadharNumber,
+    mobile,
+    address,
+    image: photo.value,
+  });
 
   try {
     await driver.save();

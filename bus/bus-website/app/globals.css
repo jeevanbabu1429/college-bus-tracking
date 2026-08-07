@@ -250,6 +250,8 @@ input, select, textarea { font: inherit; color: inherit; }
   margin-top: 10px;
 }
 
+.sidebar-footer .sidebar-link { margin-bottom: 8px; }
+
 .sidebar-college {
   background: #ffffff;
   border: 1px solid var(--border);
@@ -661,7 +663,8 @@ input, select, textarea { font: inherit; color: inherit; }
   letter-spacing: 0;
   text-transform: none;
 }
-.field-label .required { color: var(--danger); margin-left: 2px; }
+/* Standalone so it also works in a "fields marked * are required" legend. */
+.required { color: var(--danger); margin-left: 2px; font-weight: 700; }
 .field-help {
   font-size: 12px;
   color: var(--text-muted);
@@ -711,6 +714,101 @@ select.field-control {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 18px 22px;
+}
+
+/* ---- Inline field validation ---- */
+
+.field-error {
+  font-size: 12px;
+  font-weight: 600;
+  color: #b91c1c;
+  line-height: 1.4;
+}
+
+.field-control[aria-invalid="true"] {
+  border-color: var(--danger);
+}
+.field-control[aria-invalid="true"]:hover:not(:disabled, :focus) {
+  border-color: var(--danger);
+}
+.field-control[aria-invalid="true"]:focus {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 3px var(--danger-soft);
+}
+
+.chip-row[data-invalid="true"] .chip:not(.chip-active) {
+  border-color: var(--danger);
+}
+
+/* ---- Photo picker (optional avatar upload) ---- */
+
+.photo-field {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.photo-preview {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.photo-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.photo-preview-empty {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-faint);
+  letter-spacing: -0.02em;
+}
+.photo-field-body { min-width: 0; }
+.photo-field-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* ---- Small avatar inside a table row ---- */
+
+.row-with-avatar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.row-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+  border: 1px solid var(--border);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.row-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 /* ===========================================================
@@ -1031,7 +1129,16 @@ select.field-control {
   background: var(--bg-page);
 }
 .auth-side { display: none; }
-.auth-form-wrap { width: 100%; display: flex; justify-content: center; }
+/* Column so the alert banners and the support block stack under the card
+   instead of lining up beside it. */
+.auth-form-wrap {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.auth-form-wrap > * { width: 100%; max-width: 420px; }
 
 .auth-card {
   background: #ffffff;
@@ -1109,6 +1216,124 @@ select.field-control {
   flex: 1;
   height: 1px;
   background: var(--border);
+}
+
+/* ---- Support contact strip under the auth card ---- */
+
+.support-contact {
+  margin-top: 18px;
+  text-align: center;
+}
+.support-contact-label {
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+.support-contact-links {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 4px 10px;
+}
+.support-contact-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-soft);
+  transition: background .12s, color .12s;
+  word-break: break-word;
+}
+.support-contact-link:hover {
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+}
+.support-contact-link svg { color: var(--text-faint); flex-shrink: 0; }
+.support-contact-link:hover svg { color: var(--accent-hover); }
+
+/* ---- Export report dialog ---- */
+
+.export-includes {
+  list-style: none;
+  display: grid;
+  gap: 7px;
+  padding: 14px;
+  border-radius: 12px;
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+}
+.export-includes li {
+  position: relative;
+  padding-left: 18px;
+  font-size: 12.5px;
+  color: var(--text-soft);
+  line-height: 1.45;
+}
+.export-includes li::before {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 7px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.export-formats {
+  display: flex;
+  gap: 10px;
+  margin-top: 18px;
+}
+.export-formats .btn { flex: 1; }
+
+/* ---- Support dialog rows ---- */
+
+.support-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  transition: border-color .12s, background .12s;
+}
+.support-row + .support-row { margin-top: 10px; }
+.support-row:hover { border-color: var(--accent); background: var(--accent-soft); }
+.support-row-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.support-row:hover .support-row-icon { background: #ffffff; }
+.support-row-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.support-row-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+.support-row-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  word-break: break-word;
 }
 
 /* ===========================================================
@@ -1287,6 +1512,220 @@ select.field-control {
   background: var(--danger-soft);
 }
 .row-error td { color: #991b1b; }
+
+/* ===========================================================
+   Live driver tracking map
+   =========================================================== */
+
+.tracker-map-wrap { position: relative; }
+
+.tracker-map {
+  height: 520px;
+  width: 100%;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  box-shadow: 0 1px 2px rgba(20, 16, 8, 0.03);
+}
+
+/* ---- Vehicle marker: number pill above a bus glyph ---- */
+
+.tracker-marker {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: #1f2333;              /* the bus body — overridden when selected */
+  cursor: pointer;
+}
+.tracker-marker-label {
+  position: relative;
+  background: #1a1d29;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  padding: 6px 11px;
+  border-radius: 999px;
+  white-space: nowrap;
+  max-width: 76px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.35);
+}
+/* Little tail pointing down at the vehicle. */
+.tracker-marker-label::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -3px;
+  width: 8px;
+  height: 8px;
+  background: inherit;
+  border-radius: 1px;
+  transform: translateX(-50%) rotate(45deg);
+}
+.tracker-marker-vehicle {
+  display: block;
+  margin-top: 4px;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.35));
+  transition: transform .12s ease;
+}
+.tracker-marker:hover .tracker-marker-vehicle { transform: scale(1.06); }
+
+.tracker-marker.is-selected { color: var(--accent); }
+.tracker-marker.is-selected .tracker-marker-label {
+  background: var(--accent);
+  box-shadow: 0 3px 10px rgba(180, 70, 30, 0.5);
+}
+
+.tracker-flag { line-height: 0; filter: drop-shadow(0 2px 3px rgba(0,0,0,.3)); }
+
+/* ---- Tooltip ---- */
+
+.leaflet-tooltip.tracker-tooltip {
+  background: #1a1d29;
+  color: #ffffff;
+  border: none;
+  border-radius: 10px;
+  padding: 7px 11px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28);
+}
+.leaflet-tooltip.tracker-tooltip::before { border-top-color: #1a1d29; }
+.tracker-tooltip-sub { opacity: 0.7; font-weight: 500; }
+
+/* ---- Zoom control ---- */
+
+.leaflet-control-zoom {
+  border: none !important;
+  border-radius: 12px !important;
+  overflow: hidden;
+  box-shadow: 0 6px 18px rgba(20, 16, 8, 0.22) !important;
+}
+.leaflet-control-zoom a {
+  width: 34px !important;
+  height: 34px !important;
+  line-height: 32px !important;
+  background: #ffffff !important;
+  color: var(--text) !important;
+  font-size: 19px !important;
+  font-weight: 600 !important;
+  border-bottom: 1px solid var(--border) !important;
+}
+.leaflet-control-zoom a:last-child { border-bottom: none !important; }
+.leaflet-control-zoom a:hover {
+  background: var(--surface-muted) !important;
+  color: var(--accent-hover) !important;
+}
+
+/* ---- Floating driver card ---- */
+
+.tracker-card {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  z-index: 900;
+  width: 224px;
+  padding: 20px 18px 18px;
+  background: #ffffff;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 14px 36px rgba(20, 16, 8, 0.24);
+  text-align: center;
+  animation: modal-pop 0.16s ease-out;
+}
+.tracker-card-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-faint);
+  transition: background .12s, color .12s;
+}
+.tracker-card-close:hover { background: var(--surface-muted); color: var(--text); }
+
+.tracker-card-avatar {
+  width: 62px;
+  height: 62px;
+  border-radius: 50%;
+  margin: 0 auto 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent);
+  color: #ffffff;
+  font-size: 21px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  box-shadow: 0 0 0 4px var(--accent-soft);
+}
+.tracker-card-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.3;
+}
+.tracker-card-meta {
+  margin-top: 3px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.tracker-card-route {
+  margin-top: 6px;
+  font-size: 11.5px;
+  color: var(--text-faint);
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.tracker-card-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+}
+.tracker-action {
+  flex: 1;
+  height: 40px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  transition: background .12s, box-shadow .12s, transform .12s;
+}
+.tracker-action:hover { transform: translateY(-1px); }
+.tracker-action-call {
+  background: #22c55e;
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.35);
+}
+.tracker-action-call:hover { background: #16a34a; }
+.tracker-action-focus {
+  background: var(--accent);
+  box-shadow: 0 4px 12px rgba(180, 70, 30, 0.3);
+}
+.tracker-action-focus:hover { background: var(--accent-hover); }
+.tracker-action.is-disabled {
+  background: var(--border-strong);
+  box-shadow: none;
+  cursor: not-allowed;
+  transform: none;
+}
+
+@media (max-width: 700px) {
+  .tracker-map { height: 420px; }
+  .tracker-card { width: 190px; top: 10px; left: 10px; padding: 16px 14px 14px; }
+}
 
 /* ===========================================================
    Responsive

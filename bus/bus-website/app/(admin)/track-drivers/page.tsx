@@ -21,7 +21,7 @@ const DriverTrackingMap = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="center" style={{ height: 480 }}>
+      <div className="center" style={{ height: 520 }}>
         <span className="spinner" />
       </div>
     ),
@@ -75,11 +75,26 @@ export default function TrackDriversPage() {
       .map((i) => ({
         id: i.bus._id,
         busNumber: i.bus.busNumber,
+        plateNumber: i.bus.plateNumber,
         driverName: i.driver.name,
+        driverMobile: i.driver.mobile,
+        route: i.bus.route,
         lat: i.driver.currentLocation!.lat,
         lng: i.driver.currentLocation!.lng,
         updatedAt: i.driver.currentLocation!.updatedAt,
         selected: i.bus._id === selectedId,
+        // Only stops that were actually placed on the map can be drawn.
+        stops: i.bus.stops
+          .filter(
+            (s): s is typeof s & { lat: number; lng: number } =>
+              typeof s.lat === "number" && typeof s.lng === "number"
+          )
+          .map((s) => ({
+            name: s.name,
+            lat: s.lat,
+            lng: s.lng,
+            suspended: s.suspended,
+          })),
       }));
   }, [items, selectedId]);
 
@@ -258,6 +273,10 @@ export default function TrackDriversPage() {
             onSelect={(id) => {
               setSelectedId(id);
               setFollowAll(false);
+            }}
+            onClear={() => {
+              setSelectedId(null);
+              setFollowAll(true);
             }}
           />
           {selectedId !== null && (

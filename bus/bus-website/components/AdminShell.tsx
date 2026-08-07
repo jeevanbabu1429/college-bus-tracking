@@ -12,7 +12,9 @@ import {
   IconBadge,
   IconUsers,
   IconLogout,
+  IconHelp,
 } from "./icons";
+import { SupportModal } from "./SupportButton";
 
 type NavItem = {
   href: string;
@@ -78,6 +80,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
   const { ready, token, session, logout } = useAuth();
   const { colleges, selectedId, selectCollege } = useColleges();
   const [confirmLogout, setConfirmLogout] = useState(false);
+  const [supportOpen, setSupportOpen] = useState(false);
 
   useEffect(() => {
     if (ready && !token) router.replace("/login");
@@ -164,6 +167,16 @@ export function AdminShell({ children }: { children: ReactNode }) {
         <div className="sidebar-spacer" />
 
         <div className="sidebar-footer">
+          <button
+            type="button"
+            className="sidebar-link"
+            onClick={() => setSupportOpen(true)}
+            title="Contact support"
+          >
+            <IconHelp />
+            <span>Support</span>
+          </button>
+
           {colleges && colleges.length > 0 && (
             <label className="sidebar-college">
               <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
@@ -260,6 +273,8 @@ export function AdminShell({ children }: { children: ReactNode }) {
           </div>
         </div>
       )}
+
+      {supportOpen && <SupportModal onClose={() => setSupportOpen(false)} />}
     </div>
   );
 }

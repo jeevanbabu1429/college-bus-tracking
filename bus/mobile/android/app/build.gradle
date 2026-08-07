@@ -1,6 +1,7 @@
 apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
+apply plugin: "com.google.gms.google-services"
 
 def projectRoot = rootDir.getAbsoluteFile().getParentFile().getAbsolutePath()
 
@@ -87,9 +88,9 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace "com.bus"
+    namespace "com.yourcollege.bustracking"
     defaultConfig {
-        applicationId "com.bus"
+        applicationId "com.yourcollege.bustracking"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
@@ -119,6 +120,19 @@ android {
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
             def enablePngCrunchInRelease = findProperty('android.enablePngCrunchInReleaseBuilds') ?: 'true'
             crunchPngs enablePngCrunchInRelease.toBoolean()
+        }
+    }
+    // Windows MAX_PATH workaround. CMake bakes each source file's full path
+    // into its object file path, so the default staging dir (app/.cxx) pushes
+    // deeply-nested C++ sources — react-native-safe-area-context is the worst
+    // — past the 260-char limit and ninja fails with
+    // "Filename longer than 260 characters". Staging from a short root keeps
+    // the longest path around 248. Harmless on macOS/Linux, which ignore it.
+    if (System.getProperty('os.name').toLowerCase().contains('windows')) {
+        externalNativeBuild {
+            cmake {
+                buildStagingDirectory = file('C:/cx')
+            }
         }
     }
     packagingOptions {

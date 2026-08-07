@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The dev API is served over plain HTTP at http://89.116.134.28:3030 (no domain,
+  so no TLS certificate). Android 9+ blocks cleartext by default, which would
+  make every request fail in a release build.
+
+  Cleartext is allowed ONLY for that host rather than app-wide, so all other
+  traffic still requires HTTPS. When the API moves to a real domain with TLS,
+  delete this file and the android:networkSecurityConfig attribute in
+  AndroidManifest.xml.
+-->
+<network-security-config>
+  <domain-config cleartextTrafficPermitted="true">
+    <domain includeSubdomains="false">89.116.134.28</domain>
+  </domain-config>
+</network-security-config>

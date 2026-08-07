@@ -9,6 +9,8 @@ import {
 } from "../../../lib/api/collegeStudents";
 import { NoCollege } from "../../../components/NoCollege";
 import { IconPlus, IconUpload } from "../../../components/icons";
+import { ExportReportButton } from "../../../components/ExportReportButton";
+import { buildStudentsReport } from "../../../lib/export/collegeReport";
 
 export default function StudentsPage() {
   const { selected } = useColleges();
@@ -53,6 +55,20 @@ export default function StudentsPage() {
           </p>
         </div>
         <div className="page-actions">
+          <ExportReportButton
+            title="Download students"
+            description={
+              <>
+                Every student enrolled at <strong>{selected.name}</strong>.
+              </>
+            }
+            includes={[
+              "Name, roll number, gender and date of birth",
+              "Mobile and address",
+              "Assigned bus and stop",
+            ]}
+            build={() => buildStudentsReport(selected)}
+          />
           <Link href="/assign-students" className="btn btn-secondary">
             Assign seats
           </Link>

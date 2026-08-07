@@ -7,6 +7,7 @@ import type {
   StudentInput,
 } from "../lib/api/collegeStudents";
 import type { Bus } from "../lib/api/collegeBuses";
+import { RequiredLegend, RequiredMark } from "./RequiredMark";
 
 const GENDERS: Gender[] = ["male", "female", "other"];
 
@@ -103,9 +104,14 @@ export function StudentForm({
 
   return (
     <form className="card" onSubmit={handleSubmit} style={{ maxWidth: 780 }}>
+      <RequiredLegend />
+
       <div className="form-grid">
         <div className="field" style={{ marginBottom: 0 }}>
-          <label className="field-label">Name</label>
+          <label className="field-label">
+            Name
+            <RequiredMark />
+          </label>
           <input
             className="field-control"
             value={name}
@@ -114,7 +120,10 @@ export function StudentForm({
           />
         </div>
         <div className="field" style={{ marginBottom: 0 }}>
-          <label className="field-label">Roll number</label>
+          <label className="field-label">
+            Roll number
+            <RequiredMark />
+          </label>
           <input
             className="field-control"
             value={rollNumber}
@@ -123,7 +132,10 @@ export function StudentForm({
           />
         </div>
         <div className="field" style={{ marginBottom: 0 }}>
-          <label className="field-label">Date of birth</label>
+          <label className="field-label">
+            Date of birth
+            <RequiredMark />
+          </label>
           <input
             className="field-control"
             type="date"
@@ -133,7 +145,10 @@ export function StudentForm({
           />
         </div>
         <div className="field" style={{ marginBottom: 0 }}>
-          <label className="field-label">Mobile</label>
+          <label className="field-label">
+            Mobile
+            <RequiredMark />
+          </label>
           <input
             className="field-control"
             value={mobile}
@@ -145,8 +160,11 @@ export function StudentForm({
       </div>
 
       <div className="field" style={{ marginTop: 14, marginBottom: 0 }}>
-        <label className="field-label">Gender</label>
-        <div className="chip-row">
+        <label className="field-label">
+          Gender
+          <RequiredMark />
+        </label>
+        <div className="chip-row" aria-required="true">
           {GENDERS.map((g) => (
             <button
               key={g}
@@ -162,7 +180,10 @@ export function StudentForm({
       </div>
 
       <div className="field" style={{ marginTop: 14, marginBottom: 0 }}>
-        <label className="field-label">Address</label>
+        <label className="field-label">
+          Address
+          <RequiredMark />
+        </label>
         <textarea
           className="field-control"
           rows={2}

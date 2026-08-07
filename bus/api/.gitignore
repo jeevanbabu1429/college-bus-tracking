@@ -2,3 +2,9 @@ node_modules/
 dist/
 .env
 firebase-service-account.json
+
+# deploy secrets + build artifacts
+deploy/.env.dev
+deploy/.env.production
+.deploy-stage/
+bus-api*.tar.gz

@@ -5,6 +5,17 @@ import { useEffect } from "react";
 import { useAuth } from "../../../lib/auth/AuthContext";
 import { useColleges } from "../../../lib/college/CollegeContext";
 import { NoCollege } from "../../../components/NoCollege";
+import { ExportReportButton } from "../../../components/ExportReportButton";
+import { buildCollegeReport } from "../../../lib/export/collegeReport";
+
+const FULL_REPORT_INCLUDES = [
+  "Summary — counts for buses, drivers and students",
+  "Buses — plate, capacity, route, stops and driver",
+  "Drivers — contact, licence, Aadhar and assigned bus",
+  "Students — roll, contact, bus and stop",
+  "Bus and driver assignments, including anyone unassigned",
+  "Bus and student assignments, with per-bus occupancy",
+];
 import {
   IconBus,
   IconBadge,
@@ -108,6 +119,18 @@ export default function DashboardPage() {
           </div>
         </div>
         <div className="page-actions">
+          <ExportReportButton
+            label="Download report"
+            title="Download report"
+            description={
+              <>
+                Everything on record for <strong>{selected.name}</strong>, as of
+                right now.
+              </>
+            }
+            includes={FULL_REPORT_INCLUDES}
+            build={() => buildCollegeReport(selected)}
+          />
           <Link href="/colleges" className="btn btn-secondary">
             <IconBuilding size={14} /> Change college
           </Link>

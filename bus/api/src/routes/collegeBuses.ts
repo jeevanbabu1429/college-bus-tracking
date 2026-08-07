@@ -8,7 +8,9 @@ import { sendPushSafe } from "../services/notifications.js";
 
 const router = Router({ mergeParams: true });
 
-const DRIVER_PROJECTION = "-otp -otpExpiresAt";
+// `image` is a base64 data URL — excluded here so bus payloads (fetched on
+// several screens) don't carry photos nobody renders.
+const DRIVER_PROJECTION = "-otp -otpExpiresAt -image";
 
 router.get("/", async (req, res) => {
   const { collegeId } = req.params as { collegeId: string };
