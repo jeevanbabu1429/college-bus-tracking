@@ -12,6 +12,8 @@ export type Driver = {
   aadharNumber: string;
   mobile: string;
   address: string;
+  /** Optional profile photo as a data URL. Null when none was uploaded. */
+  image?: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -24,6 +26,7 @@ export type DriverInput = {
   aadharNumber: string;
   mobile: string;
   address: string;
+  image?: string | null;
 };
 
 export type BulkFailedDriverRow = {

@@ -5,6 +5,10 @@ import { useState } from "react";
 import { useColleges } from "../../../../lib/college/CollegeContext";
 import { collegeBusesApi } from "../../../../lib/api/collegeBuses";
 import { NoCollege } from "../../../../components/NoCollege";
+import {
+  RequiredLegend,
+  RequiredMark,
+} from "../../../../components/RequiredMark";
 
 export default function NewBusPage() {
   const router = useRouter();
@@ -55,9 +59,14 @@ export default function NewBusPage() {
       </div>
 
       <form className="card" onSubmit={onSubmit} style={{ maxWidth: 720 }}>
+        <RequiredLegend />
+
         <div className="form-grid">
           <div className="field" style={{ marginBottom: 0 }}>
-            <label className="field-label">Bus number</label>
+            <label className="field-label">
+              Bus number
+              <RequiredMark />
+            </label>
             <input
               className="field-control"
               value={busNumber}
@@ -67,7 +76,10 @@ export default function NewBusPage() {
             />
           </div>
           <div className="field" style={{ marginBottom: 0 }}>
-            <label className="field-label">Plate number</label>
+            <label className="field-label">
+              Plate number
+              <RequiredMark />
+            </label>
             <input
               className="field-control"
               value={plateNumber}
@@ -77,7 +89,10 @@ export default function NewBusPage() {
             />
           </div>
           <div className="field" style={{ marginBottom: 0 }}>
-            <label className="field-label">Capacity</label>
+            <label className="field-label">
+              Capacity
+              <RequiredMark />
+            </label>
             <input
               className="field-control"
               type="number"

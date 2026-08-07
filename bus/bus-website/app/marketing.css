@@ -1,0 +1,173 @@
+/* ===========================================================
+   Public marketing site (BusTrack) — Tailwind layer.
+
+   Everything here is scoped to the `.mkt` wrapper that
+   app/(marketing)/layout.tsx puts around the page. Tailwind runs with
+   preflight disabled and `important: '.mkt'` (see tailwind.config.ts), so
+   nothing in this file can reach the admin console in app/globals.css.
+   =========================================================== */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* -----------------------------------------------------------
+   Scoped reset — the parts of Tailwind's preflight the marketing
+   pages actually rely on. globals.css already zeroes margins and
+   padding and neutralises <a> and <button>, so this only covers
+   what it leaves behind.
+   ----------------------------------------------------------- */
+
+/* globals.css insets every page by 20px for the rounded admin shell.
+   The marketing site is full-bleed. */
+body:has(.mkt) {
+  padding: 0;
+}
+
+html:has(.mkt) {
+  scroll-behavior: smooth;
+}
+
+.mkt {
+  min-height: 100vh;
+  font-family: var(--font-display), system-ui, -apple-system, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  color: #3a3528;
+  background: #ebe4d5;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.mkt h1,
+.mkt h2,
+.mkt h3,
+.mkt h4,
+.mkt h5,
+.mkt h6 {
+  font-size: inherit;
+  font-weight: inherit;
+}
+
+.mkt ul,
+.mkt ol {
+  list-style: none;
+}
+
+/* Lucide renders inline <svg>; block removes the baseline gap. */
+.mkt svg {
+  display: block;
+}
+
+.mkt img,
+.mkt video {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+.mkt code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.mkt strong,
+.mkt b {
+  font-weight: 700;
+}
+
+.mkt ::selection {
+  background: #ffa884;
+  color: #3a3528;
+}
+
+.mkt hr {
+  border: 0;
+  border-top: 1px solid #ddd2bc;
+}
+
+/* Page scrollbar, only while a marketing page is mounted. */
+html:has(.mkt)::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+html:has(.mkt)::-webkit-scrollbar-track {
+  background: #f0e9d8;
+}
+html:has(.mkt)::-webkit-scrollbar-thumb {
+  background: #c4b69a;
+  border-radius: 9999px;
+  border: 2px solid #f0e9d8;
+}
+html:has(.mkt)::-webkit-scrollbar-thumb:hover {
+  background: #ff8a5b;
+}
+
+/* Written with an explicit `.mkt` ancestor rather than @layer components,
+   because Tailwind's `important` option only rewrites the utilities layer. */
+.mkt .container-x {
+  @apply mx-auto w-full max-w-7xl px-5 sm:px-6 lg:px-8;
+}
+
+/* Section anchor offset so the sticky header doesn't cover headings */
+.mkt .anchor-offset {
+  scroll-margin-top: 6rem;
+}
+
+@layer utilities {
+  /* Reveal-on-scroll — see lib/marketing/useScrollReveal.ts */
+  .reveal {
+    opacity: 0;
+    transform: translateY(30px);
+    transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1),
+      transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+    will-change: opacity, transform;
+  }
+  .reveal.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .reveal-delay-1 { transition-delay: 0.08s; }
+  .reveal-delay-2 { transition-delay: 0.16s; }
+  .reveal-delay-3 { transition-delay: 0.24s; }
+  .reveal-delay-4 { transition-delay: 0.32s; }
+  .reveal-delay-5 { transition-delay: 0.40s; }
+  .reveal-delay-6 { transition-delay: 0.48s; }
+
+  .bg-grid {
+    background-image:
+      linear-gradient(to right, rgba(255, 138, 91, 0.07) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255, 138, 91, 0.07) 1px, transparent 1px);
+    background-size: 44px 44px;
+  }
+
+  .bg-dots {
+    background-image: radial-gradient(rgba(255, 138, 91, 0.18) 1px, transparent 1px);
+    background-size: 22px 22px;
+  }
+
+  .mask-fade-b {
+    -webkit-mask-image: linear-gradient(to bottom, black 60%, transparent 100%);
+    mask-image: linear-gradient(to bottom, black 60%, transparent 100%);
+  }
+}
+
+/* Respect reduced-motion: kill the entrance animations, keep the content. */
+@media (prefers-reduced-motion: reduce) {
+  .mkt *,
+  .mkt *::before,
+  .mkt *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .mkt .reveal {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  html:has(.mkt) {
+    scroll-behavior: auto;
+  }
+}

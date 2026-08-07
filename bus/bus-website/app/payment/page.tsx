@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "../../lib/auth/AuthContext";
 import type { Gender } from "../../lib/api/auth";
 import { IconCheck } from "../../components/icons";
+import { SupportContact } from "../../components/SupportContact";
 
 const PRICE = 90;
 
@@ -92,6 +93,7 @@ function PaymentInner() {
               Go to sign in
             </button>
           </div>
+          <SupportContact label="Questions about your account? Contact support" />
         </main>
       </div>
     );
@@ -223,6 +225,7 @@ function PaymentInner() {
             By paying you agree to the terms of service.
           </p>
         </div>
+        <SupportContact label="Problem with payment? Contact support" />
       </main>
     </div>
   );

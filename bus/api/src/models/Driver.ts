@@ -31,6 +31,11 @@ const driverSchema = new Schema(
     },
     mobile: { type: String, required: true, unique: true, trim: true },
     address: { type: String, required: true, trim: true },
+    // Optional profile photo, stored as a base64 data URL like the banner so we
+    // don't need blob storage. The website downscales to a small square before
+    // upload; `normaliseDriverImage` caps the size server-side too. Excluded
+    // from the bus populate so bus payloads stay lean.
+    image: { type: String, default: null },
     otp: { type: String, default: null },
     otpExpiresAt: { type: Date, default: null },
     tripActive: { type: Boolean, default: false },

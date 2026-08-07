@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../../lib/auth/AuthContext";
 import { OtpLoginForm } from "../../components/OtpLoginForm";
+import { SupportContact } from "../../components/SupportContact";
 import {
   EXPIRED_MESSAGE_KEY,
   SUSPENDED_MESSAGE_KEY,
@@ -100,6 +101,12 @@ export default function LoginPage() {
             </span>
           }
         />
+        <SupportContact />
+        <p className="small muted" style={{ textAlign: "center", marginTop: 14 }}>
+          <Link href="/" className="auth-link">
+            &larr; Back to the BusTrack site
+          </Link>
+        </p>
       </main>
     </div>
   );

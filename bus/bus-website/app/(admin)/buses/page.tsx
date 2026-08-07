@@ -6,6 +6,8 @@ import { useColleges } from "../../../lib/college/CollegeContext";
 import { collegeBusesApi, type Bus } from "../../../lib/api/collegeBuses";
 import { NoCollege } from "../../../components/NoCollege";
 import { IconPlus, IconUpload } from "../../../components/icons";
+import { ExportReportButton } from "../../../components/ExportReportButton";
+import { buildBusesReport } from "../../../lib/export/collegeReport";
 
 export default function BusesPage() {
   const { selected } = useColleges();
@@ -39,6 +41,20 @@ export default function BusesPage() {
           </p>
         </div>
         <div className="page-actions">
+          <ExportReportButton
+            title="Download buses"
+            description={
+              <>
+                Every bus registered for <strong>{selected.name}</strong>, with
+                its route.
+              </>
+            }
+            includes={[
+              "Buses — plate, capacity, route, stop count, driver and notice",
+              "Bus stops — every stop in order, with coordinates and status",
+            ]}
+            build={() => buildBusesReport(selected)}
+          />
           <Link href="/assign-drivers" className="btn btn-secondary">
             Assign drivers
           </Link>

@@ -9,6 +9,15 @@ import {
 } from "../../../lib/api/collegeDrivers";
 import { NoCollege } from "../../../components/NoCollege";
 import { IconPlus, IconUpload } from "../../../components/icons";
+import { ExportReportButton } from "../../../components/ExportReportButton";
+import { buildDriversReport } from "../../../lib/export/collegeReport";
+
+function driverInitials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "D";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
 
 export default function DriversPage() {
   const { selected } = useColleges();
@@ -53,6 +62,20 @@ export default function DriversPage() {
           </p>
         </div>
         <div className="page-actions">
+          <ExportReportButton
+            title="Download drivers"
+            description={
+              <>
+                Every driver registered for <strong>{selected.name}</strong>.
+              </>
+            }
+            includes={[
+              "Name, gender and date of birth",
+              "Mobile, licence number and Aadhar number",
+              "Address and currently assigned bus",
+            ]}
+            build={() => buildDriversReport(selected)}
+          />
           <Link href="/drivers/bulk" className="btn btn-secondary">
             <IconUpload size={14} /> Bulk upload
           </Link>
@@ -112,12 +135,24 @@ export default function DriversPage() {
               {filtered.map((d) => (
                 <tr key={d._id}>
                   <td>
-                    <span className="table-name">{d.name}</span>
-                    <div
-                      className="small muted"
-                      style={{ marginTop: 2, textTransform: "capitalize" }}
-                    >
-                      {d.gender}
+                    <div className="row-with-avatar">
+                      <span className="row-avatar">
+                        {d.image ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={d.image} alt="" />
+                        ) : (
+                          driverInitials(d.name)
+                        )}
+                      </span>
+                      <span style={{ minWidth: 0 }}>
+                        <span className="table-name">{d.name}</span>
+                        <div
+                          className="small muted"
+                          style={{ marginTop: 2, textTransform: "capitalize" }}
+                        >
+                          {d.gender}
+                        </div>
+                      </span>
                     </div>
                   </td>
                   <td>{d.mobile}</td>

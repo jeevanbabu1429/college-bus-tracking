@@ -11,6 +11,7 @@ type Props = {
 };
 
 const OTP_LENGTH = 4;
+const MOBILE_LENGTH = 10;
 
 export function OtpLoginForm({
   title,
@@ -30,8 +31,8 @@ export function OtpLoginForm({
   async function onRequestOtp() {
     setError(null);
     setInfo(null);
-    if (!mobile.trim()) {
-      setError("Enter your mobile number");
+    if (mobile.length !== MOBILE_LENGTH) {
+      setError(`Enter a valid ${MOBILE_LENGTH}-digit mobile number`);
       return;
     }
     setBusy(true);
@@ -92,10 +93,14 @@ export function OtpLoginForm({
         <input
           className="field-control"
           value={mobile}
-          onChange={(e) => setMobile(e.target.value)}
+          onChange={(e) =>
+            setMobile(e.target.value.replace(/\D/g, "").slice(0, MOBILE_LENGTH))
+          }
           disabled={step !== "mobile"}
           inputMode="tel"
-          placeholder="Enter your 10-digit mobile"
+          autoComplete="tel"
+          maxLength={MOBILE_LENGTH}
+          placeholder={`Enter your ${MOBILE_LENGTH}-digit mobile`}
         />
       </div>
 
