@@ -11,6 +11,9 @@ export type Admin = {
   mobile: string;
   email: string;
   suspended?: boolean;
+  /** False until the super admin verifies a new signup. */
+  approved?: boolean;
+  approvedAt?: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -24,8 +27,10 @@ export type RegisterInput = {
 };
 
 export const authApi = {
+  // Registration signs the admin in immediately — they land on a dashboard
+  // that stays inert until verification comes through.
   register: (input: RegisterInput) =>
-    apiFetch<{ admin: Admin }>("/api/auth/register", {
+    apiFetch<{ token: string; admin: Admin }>("/api/auth/register", {
       method: "POST",
       body: JSON.stringify(input),
     }),
@@ -39,6 +44,7 @@ export const authApi = {
       method: "POST",
       body: JSON.stringify({ mobile, otp }),
     }),
+  me: () => apiFetch<{ admin: Admin }>("/api/auth/me"),
   updateMe: (input: RegisterInput) =>
     apiFetch<{ admin: Admin }>("/api/auth/me", {
       method: "PUT",

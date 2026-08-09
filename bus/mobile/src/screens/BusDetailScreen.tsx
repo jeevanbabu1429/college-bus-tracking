@@ -11,6 +11,8 @@ import { useFocusEffect } from "@react-navigation/native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { collegeBusesApi, type Bus } from "../api/collegeBuses";
 import { useTheme, type Colors } from "../theme/ThemeContext";
+import { driverPhotoSource } from "../api/driverAuth";
+import { Avatar } from "../components/Avatar";
 import type { AppStackParamList } from "../navigation/types";
 
 type Props = NativeStackScreenProps<AppStackParamList, "BusDetail">;
@@ -150,11 +152,14 @@ export function BusDetailScreen({ navigation, route }: Props) {
                   })
                 }
               >
-                <View style={styles.driverAvatar}>
-                  <Text style={styles.driverAvatarText}>
-                    {bus.driver.name.charAt(0).toUpperCase()}
-                  </Text>
-                </View>
+                <Avatar
+                  colors={colors}
+                  name={bus.driver.name}
+                  fallback="D"
+                  size={48}
+                  source={driverPhotoSource(bus.driver._id)}
+                  style={styles.driverAvatar}
+                />
                 <View style={{ flex: 1 }}>
                   <Text style={styles.driverName}>{bus.driver.name}</Text>
                   <Text style={styles.driverMeta}>Tap to change driver</Text>
@@ -403,11 +408,6 @@ function makeStyles(colors: Colors) {
       backgroundColor: colors.accent,
       alignItems: "center",
       justifyContent: "center",
-    },
-    driverAvatarText: {
-      color: colors.textOnAccent,
-      fontWeight: "800",
-      fontSize: 18,
     },
     driverName: { fontSize: 16, fontWeight: "700", color: colors.text },
     driverMeta: { fontSize: 12, color: colors.textMuted, marginTop: 2 },

@@ -14,6 +14,7 @@ import DateTimePicker, {
   type DateTimePickerEvent,
 } from "@react-native-community/datetimepicker";
 import { useTheme } from "../theme/ThemeContext";
+import { useAuth } from "../auth/AuthContext";
 import type { Gender } from "../api/auth";
 import type { AuthStackParamList } from "../navigation/types";
 
@@ -36,7 +37,9 @@ export function RegisterScreen({ navigation }: Props) {
   const [mobile, setMobile] = useState("");
   const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const { register } = useAuth();
 
   const onDobChange = (event: DateTimePickerEvent, selected?: Date) => {
     if (Platform.OS !== "ios") setPickerOpen(false);
@@ -49,21 +52,31 @@ export function RegisterScreen({ navigation }: Props) {
     }
   };
 
-  function onSubmit() {
+  async function onSubmit() {
     setError(null);
     if (!name.trim()) return setError("Name is required");
     if (!gender) return setError("Select a gender");
     if (!isValidDob(dob)) return setError("DOB must be YYYY-MM-DD");
     if (!mobile.trim()) return setError("Mobile is required");
     if (!email.trim()) return setError("Email is required");
+    if (busy) return;
 
-    navigation.navigate("Payment", {
-      name: name.trim(),
-      gender,
-      dob,
-      mobile: mobile.trim(),
-      email: email.trim(),
-    });
+    setBusy(true);
+    try {
+      // Signs the admin in, which flips RootNavigator to the admin stack —
+      // where MainScreen shows the pending-verification notice until the
+      // super admin approves them.
+      await register({
+        name: name.trim(),
+        gender,
+        dob,
+        mobile: mobile.trim(),
+        email: email.trim(),
+      });
+    } catch (e) {
+      setError((e as Error).message);
+      setBusy(false);
+    }
   }
 
   return (
@@ -198,8 +211,11 @@ export function RegisterScreen({ navigation }: Props) {
               pressed && styles.primaryPressed,
             ]}
             onPress={onSubmit}
+            disabled={busy}
           >
-            <Text style={styles.primaryText}>Continue to payment</Text>
+            <Text style={styles.primaryText}>
+              {busy ? "Creating your account…" : "Create account"}
+            </Text>
           </Pressable>
 
           <Pressable

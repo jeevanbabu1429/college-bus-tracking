@@ -2,6 +2,23 @@ import { getCurrentToken } from "../auth/tokenStore";
 
 const baseUrl = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:4000";
 
+// Some resources are loaded by the platform rather than by fetch — notably
+// <Image>, which needs a URL plus the bearer header instead of a JSON body.
+export function apiUrl(path: string): string {
+  return `${baseUrl}${path}`;
+}
+
+// Source object for an authenticated remote image. Returns null when there is
+// no session, so callers fall back to initials instead of firing a doomed
+// request.
+export function authedImageSource(
+  path: string
+): { uri: string; headers: Record<string, string> } | null {
+  const token = getCurrentToken();
+  if (!token) return null;
+  return { uri: apiUrl(path), headers: { Authorization: `Bearer ${token}` } };
+}
+
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
     super(message);

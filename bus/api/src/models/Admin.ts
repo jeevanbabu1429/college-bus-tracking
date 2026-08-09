@@ -25,6 +25,17 @@ const adminSchema = new Schema(
     // via /api/super/admins/:id/suspended. When true, the admin can't log in
     // and neither can any driver/student under any of their colleges.
     suspended: { type: Boolean, default: false },
+    // New signups land unapproved and can sign in but do nothing until the
+    // super admin verifies them (PATCH /api/super/admins/:id/approved).
+    //
+    // Read the check as `approved === false`, never `!approved`: admins that
+    // existed before this field was introduced have no value at all, and a
+    // missing value means "legacy, already trusted". That keeps every current
+    // customer working without a migration, while every new registration
+    // writes an explicit false. scripts/backfillAdminApproval.ts normalises
+    // the old rows when you want them tidy.
+    approved: { type: Boolean, default: false },
+    approvedAt: { type: Date, default: null },
   },
   { timestamps: true }
 );

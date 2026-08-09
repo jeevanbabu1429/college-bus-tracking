@@ -8,6 +8,10 @@ import {
   sendSuspended,
 } from "../lib/suspension.js";
 import { generateOtp } from "../lib/otp.js";
+import {
+  checkAdminApproval,
+  sendPendingApproval,
+} from "../lib/approval.js";
 
 const router = Router();
 
@@ -29,6 +33,10 @@ function publicAdmin(admin: InstanceType<typeof AdminModel>) {
     dob: admin.dob,
     mobile: admin.mobile,
     email: admin.email,
+    // `!== false` mirrors the model comment: legacy admins have no stored
+    // value and are treated as already approved.
+    approved: admin.approved !== false,
+    approvedAt: admin.approvedAt ?? null,
     createdAt: admin.get("createdAt"),
     updatedAt: admin.get("updatedAt"),
   };
@@ -62,9 +70,18 @@ router.post("/register", async (req, res) => {
     dob,
     mobile,
     email,
+    // Explicit, not left to the schema default — the difference between a
+    // stored false and a missing value is what distinguishes a new signup
+    // from a legacy admin. See models/Admin.ts.
+    approved: false,
   });
 
-  res.status(201).json({ admin: publicAdmin(admin) });
+  // Auto-login: the registration flow drops the admin on their dashboard,
+  // where the pending-verification notice is shown and every control is
+  // disabled until approval lands.
+  const token = signToken({ adminId: admin.adminId, sub: admin.id });
+
+  res.status(201).json({ token, admin: publicAdmin(admin) });
 });
 
 router.post("/request-otp", async (req, res) => {
@@ -133,7 +150,9 @@ router.post("/verify-otp", async (req, res) => {
   res.json({ token, admin: publicAdmin(admin) });
 });
 
-const requireAdmin: RequestHandler = async (req, res, next) => {
+// Verifies the token and the suspension state, but NOT approval — used by the
+// endpoints a pending admin still needs.
+const requireAdminToken: RequestHandler = async (req, res, next) => {
   const header = req.headers.authorization;
   if (!header?.startsWith("Bearer ")) {
     res.status(401).json({ error: "Missing bearer token" });
@@ -162,7 +181,32 @@ const requireAdmin: RequestHandler = async (req, res, next) => {
   next();
 };
 
-router.put("/me", requireAdmin, async (req, res) => {
+// Everything an unverified admin must not be able to do.
+const requireApprovedAdmin: RequestHandler = (req, res, next) => {
+  requireAdminToken(req, res, async () => {
+    const adminSubId = (req as unknown as { adminSubId: string }).adminSubId;
+    const pending = await checkAdminApproval(adminSubId);
+    if (pending) {
+      sendPendingApproval(res, pending);
+      return;
+    }
+    next();
+  });
+};
+
+// Polled by the pending dashboard so approval is picked up without forcing a
+// re-login, and used after any profile edit to refresh the cached session.
+router.get("/me", requireAdminToken, async (req, res) => {
+  const adminSubId = (req as unknown as { adminSubId: string }).adminSubId;
+  const admin = await AdminModel.findById(adminSubId);
+  if (!admin) {
+    res.status(404).json({ error: "Admin not found" });
+    return;
+  }
+  res.json({ admin: publicAdmin(admin) });
+});
+
+router.put("/me", requireApprovedAdmin, async (req, res) => {
   const adminSubId = (req as unknown as { adminSubId: string }).adminSubId;
   const { name, gender, dob, mobile, email } = req.body ?? {};
   if (!name || !gender || !dob || !mobile || !email) {

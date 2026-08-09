@@ -29,6 +29,7 @@ type AuthState = {
 
 type AuthContextValue = AuthState & {
   register: (input: RegisterInput) => Promise<Admin>;
+  refreshAdmin: () => Promise<Admin | null>;
   requestOtp: (mobile: string) => Promise<void>;
   verifyOtp: (mobile: string, otp: string) => Promise<void>;
   updateAdmin: (input: RegisterInput) => Promise<Admin>;
@@ -56,8 +57,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const register = useCallback(async (input: RegisterInput) => {
-    const { admin } = await authApi.register(input);
+    // Auto-login: persist exactly like verifyOtp so the caller can navigate
+    // straight to the dashboard.
+    const { token, admin } = await authApi.register(input);
+    const session: AdminSession = { role: "admin", admin };
+    persistTokenAndSession(token, session);
+    setCurrentToken(token);
+    setState({ ready: true, token, session });
     return admin;
+  }, []);
+
+  // Re-reads the admin from the API and updates the cached session. The
+  // pending-verification screen polls this so approval is picked up without
+  // making the admin sign out and back in.
+  const refreshAdmin = useCallback(async () => {
+    try {
+      const { admin } = await authApi.me();
+      const session: AdminSession = { role: "admin", admin };
+      persistSession(session);
+      setState((s) => ({ ...s, session }));
+      return admin;
+    } catch {
+      // Transient failure — keep the session we already have.
+      return null;
+    }
   }, []);
 
   const requestOtp = useCallback(async (mobile: string) => {
@@ -90,12 +113,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     () => ({
       ...state,
       register,
+      refreshAdmin,
       requestOtp,
       verifyOtp,
       updateAdmin,
       logout,
     }),
-    [state, register, requestOtp, verifyOtp, updateAdmin, logout]
+    [state, register, refreshAdmin, requestOtp, verifyOtp, updateAdmin, logout]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -12,6 +12,8 @@ export type Driver = {
   aadharNumber: string;
   mobile: string;
   address: string;
+  /** Optional profile photo as a data URL. Null when none was uploaded. */
+  image?: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -24,6 +26,11 @@ export type DriverInput = {
   aadharNumber: string;
   mobile: string;
   address: string;
+  /**
+   * Omit the field entirely to leave an existing photo untouched; send null to
+   * clear it. The API distinguishes the two — see parseImageField there.
+   */
+  image?: string | null;
 };
 
 export const collegeDriversApi = {

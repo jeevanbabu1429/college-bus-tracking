@@ -34,6 +34,7 @@ type AuthState = {
 
 type AuthContextValue = AuthState & {
   register: (input: RegisterInput) => Promise<Admin>;
+  refreshAdmin: () => Promise<Admin | null>;
   adminRequestOtp: (mobile: string) => Promise<void>;
   adminVerifyOtp: (mobile: string, otp: string) => Promise<void>;
   driverRequestOtp: (mobile: string) => Promise<void>;
@@ -121,9 +122,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  const register = useCallback(async (input: RegisterInput) => {
-    const { admin } = await authApi.register(input);
-    return admin;
+  const register = useCallback(
+    async (input: RegisterInput) => {
+      // Auto-login: persisting here is what flips RootNavigator over to the
+      // admin stack, where the pending-verification screen is shown.
+      const { token, admin } = await authApi.register(input);
+      await persist(token, { role: "admin", admin });
+      return admin;
+    },
+    [persist]
+  );
+
+  // Re-reads the admin and updates the cached session. The pending screen
+  // polls this so approval lands without a sign out / sign in cycle.
+  const refreshAdmin = useCallback(async () => {
+    try {
+      const { admin } = await authApi.me();
+      const next: Session = { role: "admin", admin };
+      await SecureStore.setItemAsync(SESSION_KEY, JSON.stringify(next));
+      setState((s) => ({ ...s, session: next }));
+      return admin;
+    } catch {
+      // Transient failure — keep the session we already have.
+      return null;
+    }
   }, []);
 
   const adminRequestOtp = useCallback(async (mobile: string) => {
@@ -209,6 +231,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     () => ({
       ...state,
       register,
+      refreshAdmin,
       adminRequestOtp,
       adminVerifyOtp,
       driverRequestOtp,
@@ -224,6 +247,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [
       state,
       register,
+      refreshAdmin,
       adminRequestOtp,
       adminVerifyOtp,
       driverRequestOtp,

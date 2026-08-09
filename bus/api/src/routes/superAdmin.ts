@@ -14,6 +14,7 @@ import {
   deleteAdminCascade,
   deleteCollegeCascade,
 } from "../lib/cascades.js";
+import { sendPushSafe } from "../services/notifications.js";
 
 const router = Router();
 
@@ -296,6 +297,48 @@ router.patch("/admins/:id/suspended", requireSuperAdmin, async (req, res) => {
   if (!admin) {
     res.status(404).json({ error: "Admin not found" });
     return;
+  }
+  res.json(admin);
+});
+
+// Verification toggle for a new signup. Until this flips true the admin can
+// sign in and see their dashboard but cannot act — see lib/approval.ts.
+router.patch("/admins/:id/approved", requireSuperAdmin, async (req, res) => {
+  const { id } = req.params;
+  if (!isValidObjectId(id)) {
+    res.status(400).json({ error: "Invalid id" });
+    return;
+  }
+  const { approved } = req.body ?? {};
+  if (typeof approved !== "boolean") {
+    res.status(400).json({ error: "approved (boolean) is required" });
+    return;
+  }
+  const before = await AdminModel.findById(id).select("approved").lean();
+  if (!before) {
+    res.status(404).json({ error: "Admin not found" });
+    return;
+  }
+  const admin = await AdminModel.findByIdAndUpdate(
+    id,
+    { approved, approvedAt: approved ? new Date() : null },
+    { new: true }
+  ).select("-otp -otpExpiresAt");
+  if (!admin) {
+    res.status(404).json({ error: "Admin not found" });
+    return;
+  }
+  // Only announce a real transition into approved — re-saving an already
+  // approved admin should not re-notify them.
+  if (approved && before.approved === false) {
+    sendPushSafe(
+      { role: "admin", id: admin._id },
+      {
+        title: "Account verified",
+        body: "Your account has been verified. You can start setting up your colleges and buses.",
+        data: { kind: "admin-approved", url: "/dashboard" },
+      }
+    );
   }
   res.json(admin);
 });

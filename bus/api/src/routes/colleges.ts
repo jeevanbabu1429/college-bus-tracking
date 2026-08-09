@@ -9,6 +9,10 @@ import {
   checkAdminSuspension,
   sendSuspended,
 } from "../lib/suspension.js";
+import {
+  checkAdminApproval,
+  sendPendingApproval,
+} from "../lib/approval.js";
 
 const router = Router();
 
@@ -35,6 +39,14 @@ const requireAdmin: RequestHandler = async (req, res, next) => {
   const suspensionMsg = await checkAdminSuspension(payload.sub, "admin");
   if (suspensionMsg) {
     sendSuspended(res, suspensionMsg);
+    return;
+  }
+  // This router is mounted on the "/api/colleges" prefix, so this middleware
+  // also runs for /api/colleges/:id/buses, /drivers and /students — blocking
+  // here covers the whole admin surface in one place.
+  const pendingMsg = await checkAdminApproval(payload.sub);
+  if (pendingMsg) {
+    sendPendingApproval(res, pendingMsg);
     return;
   }
   (req as unknown as { adminSubId: string }).adminSubId = payload.sub;

@@ -11,6 +11,7 @@ import collegeStudentsRouter from "./routes/collegeStudents.js";
 import notificationsRouter from "./routes/notifications.js";
 import superAdminRouter from "./routes/superAdmin.js";
 import bannerRouter from "./routes/banner.js";
+import driverPhotoRouter from "./routes/driverPhoto.js";
 
 // Pure app factory — no DB connect, no listen. `index.ts` wires
 // connectDB + seed + listen around it; the test suite imports it
@@ -35,6 +36,7 @@ export function createApp(): Express {
   app.use("/api/notifications", notificationsRouter);
   app.use("/api/super", superAdminRouter);
   app.use("/api/banner", bannerRouter);
+  app.use("/api/drivers", driverPhotoRouter);
 
   const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
     console.error(err);

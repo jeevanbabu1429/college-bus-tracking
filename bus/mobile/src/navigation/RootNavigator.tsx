@@ -4,7 +4,6 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { useAuth } from "../auth/AuthContext";
 import { LoginScreen } from "../screens/LoginScreen";
 import { RegisterScreen } from "../screens/RegisterScreen";
-import { PaymentScreen } from "../screens/PaymentScreen";
 import { MainScreen } from "../screens/MainScreen";
 import { AddCollegeScreen } from "../screens/AddCollegeScreen";
 import { EditCollegeScreen } from "../screens/EditCollegeScreen";
@@ -27,6 +26,7 @@ import { DriverDashboardScreen } from "../screens/DriverDashboardScreen";
 import { StudentDashboardScreen } from "../screens/StudentDashboardScreen";
 import { TrackOtherBusesScreen } from "../screens/TrackOtherBusesScreen";
 import { TrackOtherBusMapScreen } from "../screens/TrackOtherBusMapScreen";
+import { PendingApprovalScreen } from "../screens/PendingApprovalScreen";
 import { CollegeProvider } from "../college/CollegeContext";
 import type {
   AppStackParamList,
@@ -45,7 +45,6 @@ function AuthNavigator() {
     <AuthStack.Navigator screenOptions={{ headerShown: false }}>
       <AuthStack.Screen name="Login" component={LoginScreen} />
       <AuthStack.Screen name="Register" component={RegisterScreen} />
-      <AuthStack.Screen name="Payment" component={PaymentScreen} />
     </AuthStack.Navigator>
   );
 }
@@ -134,6 +133,17 @@ export function RootNavigator() {
         <AuthNavigator />
       </NavigationContainer>
     );
+  }
+
+  // Gate the whole admin stack, not just its first screen, so no route is
+  // reachable before the super admin verifies the account. Rendered outside
+  // NavigationContainer entirely — the screen needs no navigation, and giving
+  // the container a non-navigator child is asking for trouble.
+  //
+  // `=== false` rather than `!approved`: admins predating the field have no
+  // stored value and are already trusted.
+  if (session.role === "admin" && session.admin.approved === false) {
+    return <PendingApprovalScreen />;
   }
 
   return (
