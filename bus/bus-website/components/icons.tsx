@@ -234,6 +234,19 @@ export function IconMail(props: IconProps) {
   );
 }
 
+// Two arrows passing in opposite directions — used for the Switch drivers nav
+// item, where the defining action is moving a driver between buses.
+export function IconSwap(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M16 3l4 4-4 4" />
+      <path d="M20 7H4" />
+      <path d="M8 21l-4-4 4-4" />
+      <path d="M4 17h16" />
+    </Svg>
+  );
+}
+
 export function IconTarget(props: IconProps) {
   return (
     <Svg {...props}>

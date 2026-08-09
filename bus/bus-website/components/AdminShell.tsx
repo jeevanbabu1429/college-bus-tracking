@@ -13,6 +13,7 @@ import {
   IconUsers,
   IconLogout,
   IconHelp,
+  IconSwap,
 } from "./icons";
 import { SupportModal } from "./SupportButton";
 import { PendingApproval } from "./PendingApproval";
@@ -28,6 +29,7 @@ const NAV: NavItem[] = [
   { href: "/colleges", label: "Colleges", Icon: IconBuilding },
   { href: "/buses", label: "Buses", Icon: IconBus },
   { href: "/drivers", label: "Drivers", Icon: IconBadge },
+  { href: "/switch-drivers", label: "Switch drivers", Icon: IconSwap },
   { href: "/students", label: "Students", Icon: IconUsers },
 ];
 
@@ -36,6 +38,7 @@ const PAGE_TITLES: Record<string, string> = {
   colleges: "Colleges",
   buses: "Buses",
   drivers: "Drivers",
+  "switch-drivers": "Switch drivers",
   students: "Students",
   "assign-drivers": "Assign drivers",
   "assign-students": "Assign students",

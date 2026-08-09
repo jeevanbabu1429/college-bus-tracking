@@ -376,6 +376,107 @@ router.post("/driver-assignments", async (req, res) => {
   res.status(200).json({ applied, failed });
 });
 
+// Move a driver onto a bus in one request, handling the two-sided bookkeeping
+// the plain PUT /:busId/driver cannot.
+//
+// `Bus.driver` carries a partial unique index, so a driver already sitting on
+// another bus makes a naive assign fail with a duplicate key error — which is
+// why the assign-drivers page has to grey those drivers out. Here both sides
+// are cleared before either is set, so the write order never collides.
+//
+// When the destination bus already has a driver:
+//   * the moved driver came from another bus -> the two SWAP places
+//   * the moved driver came from the pool     -> the sitting driver is freed
+//
+// Body: { driverId, toBusId }. A null toBusId just unassigns the driver.
+router.post("/reassign-driver", async (req, res) => {
+  const { collegeId } = req.params as { collegeId: string };
+  if (!isValidObjectId(collegeId)) {
+    res.status(400).json({ error: "Invalid college id" });
+    return;
+  }
+
+  const { driverId, toBusId } = (req.body ?? {}) as {
+    driverId?: unknown;
+    toBusId?: unknown;
+  };
+
+  if (typeof driverId !== "string" || !isValidObjectId(driverId)) {
+    res.status(400).json({ error: "driverId is required" });
+    return;
+  }
+  const targetId =
+    toBusId === null || toBusId === undefined || toBusId === ""
+      ? null
+      : toBusId;
+  if (targetId !== null && (typeof targetId !== "string" || !isValidObjectId(targetId))) {
+    res.status(400).json({ error: "toBusId must be a bus id or null" });
+    return;
+  }
+
+  const driver = await DriverModel.findOne({
+    _id: driverId,
+    college: collegeId,
+  }).select("_id name");
+  if (!driver) {
+    res.status(404).json({ error: "Driver not found in this college" });
+    return;
+  }
+
+  const fromBus = await BusModel.findOne({
+    college: collegeId,
+    driver: driver._id,
+  });
+  const toBus = targetId
+    ? await BusModel.findOne({ _id: targetId, college: collegeId })
+    : null;
+  if (targetId && !toBus) {
+    res.status(404).json({ error: "Bus not found in this college" });
+    return;
+  }
+
+  // Already where it was asked to go — nothing to write.
+  if (toBus && fromBus && toBus._id.equals(fromBus._id)) {
+    const same = await toBus.populate("driver", DRIVER_PROJECTION);
+    res.json({ buses: [same] });
+    return;
+  }
+
+  const displacedId = toBus?.driver ?? null;
+  const touched: string[] = [];
+
+  // Release both sides first. Assigning before releasing would momentarily
+  // put the same driver on two buses and trip the unique index.
+  if (fromBus) {
+    fromBus.driver = null;
+    await fromBus.save();
+    touched.push(fromBus._id.toString());
+  }
+  if (toBus && displacedId) {
+    toBus.driver = null;
+    await toBus.save();
+  }
+
+  if (toBus) {
+    toBus.driver = driver._id;
+    await toBus.save();
+    touched.push(toBus._id.toString());
+
+    // Swap only makes sense when the moved driver vacated a bus; otherwise
+    // the displaced driver simply returns to the unassigned pool.
+    if (displacedId && fromBus) {
+      fromBus.driver = displacedId;
+      await fromBus.save();
+    }
+  }
+
+  const buses = await BusModel.find({ _id: { $in: touched } })
+    .populate("driver", DRIVER_PROJECTION)
+    .sort({ busNumber: 1 });
+
+  res.json({ buses });
+});
+
 router.put("/:busId/route", async (req, res) => {
   const { collegeId, busId } = req.params as {
     collegeId: string;
