@@ -111,7 +111,17 @@ input, select, textarea { font: inherit; color: inherit; }
   min-height: calc(100vh - 40px);
   background: var(--bg-shell);
   border-radius: var(--shell-radius);
+  /* Both declarations are load-bearing. The shell needs to clip its children
+     to the rounded corners, but `overflow: hidden` also makes this element a
+     scroll container — and that silently defeats `position: sticky` on the
+     sidebar below, so the sidebar scrolled away with the page.
+
+     `overflow: clip` clips identically without creating a scroll container,
+     so the sidebar sticks to the viewport as intended. `hidden` stays first
+     as the fallback for browsers that don't support `clip` (pre-Safari 16);
+     there the sidebar scrolls, which is the old behaviour, not a break. */
   overflow: hidden;
+  overflow: clip;
   box-shadow: var(--shell-shadow);
 }
 
@@ -1810,4 +1820,102 @@ select.field-control {
 @keyframes modal-pop {
   from { opacity: 0; transform: translateY(8px) scale(0.98); }
   to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ── Pending verification ──────────────────────────────────────────────────
+   Shown in place of the whole admin console while a new signup is awaiting
+   super-admin verification. Deliberately offers no route into the app. */
+.pending-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  padding: 32px 20px;
+  background: var(--bg);
+}
+.pending-card {
+  width: 100%;
+  max-width: 480px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 36px 32px;
+  text-align: center;
+  box-shadow: 0 12px 32px rgb(15 23 42 / 6%);
+}
+.pending-icon {
+  width: 62px;
+  height: 62px;
+  border-radius: 999px;
+  margin: 0 auto 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+.pending-title {
+  font-size: 21px;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0 0 12px;
+  letter-spacing: -0.02em;
+}
+.pending-text {
+  font-size: 14.5px;
+  line-height: 1.65;
+  color: var(--text-muted);
+  margin: 0;
+}
+.pending-text strong { color: var(--text); font-weight: 600; }
+.pending-meta {
+  margin-top: 22px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: var(--surface-muted);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.pending-meta-label { font-size: 12.5px; color: var(--text-muted); }
+.pending-meta-value {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: 0.02em;
+}
+.pending-status {
+  margin-top: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+.pending-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--text-muted);
+  opacity: 0.5;
+  flex: none;
+}
+.pending-dot-active {
+  background: var(--success, #10b981);
+  opacity: 1;
+  animation: pending-pulse 1.1s ease-in-out infinite;
+}
+@keyframes pending-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.25; }
+}
+.pending-signout {
+  margin-top: 26px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }

@@ -7,6 +7,7 @@ import {
   type AdminWithCounts,
 } from "../../../../lib/api/superAdmin";
 import { SuspensionToggle } from "./SuspensionToggle";
+import { ApprovalControl } from "./ApprovalControl";
 
 export default function SuperAdminAdminsPage() {
   const [admins, setAdmins] = useState<AdminWithCounts[] | null>(null);
@@ -79,6 +80,7 @@ export default function SuperAdminAdminsPage() {
                 <th>Colleges</th>
                 <th>Buses</th>
                 <th>Students</th>
+                <th>Verification</th>
                 <th>Active</th>
                 <th></th>
               </tr>
@@ -101,6 +103,14 @@ export default function SuperAdminAdminsPage() {
                           Suspended
                         </span>
                       )}
+                      {a.approved === false && (
+                        <span
+                          className="pill pill-warning"
+                          style={{ marginLeft: 6 }}
+                        >
+                          Awaiting verification
+                        </span>
+                      )}
                     </div>
                   </td>
                   <td style={{ wordBreak: "break-all" }}>{a.email}</td>
@@ -108,6 +118,21 @@ export default function SuperAdminAdminsPage() {
                   <td>{a.counts.colleges}</td>
                   <td>{a.counts.buses}</td>
                   <td>{a.counts.students}</td>
+                  <td>
+                    <ApprovalControl
+                      adminId={a._id}
+                      approved={a.approved}
+                      onChange={(next) =>
+                        setAdmins((prev) =>
+                          prev
+                            ? prev.map((x) =>
+                                x._id === a._id ? { ...x, approved: next } : x
+                              )
+                            : prev
+                        )
+                      }
+                    />
+                  </td>
                   <td>
                     <SuspensionToggle
                       adminId={a._id}

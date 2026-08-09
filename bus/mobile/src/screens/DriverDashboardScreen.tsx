@@ -20,6 +20,10 @@ import {
   type IssueType,
   type TripStatus,
 } from "../api/driverTrip";
+import { driverAuthApi } from "../api/driverAuth";
+import { pickSquareAvatar } from "../lib/images";
+import { Avatar } from "../components/Avatar";
+import { Toast } from "../components/Toast";
 
 const ISSUE_OPTIONS: { type: IssueType; emoji: string; label: string }[] = [
   { type: "breakdown", emoji: "🚨", label: "Breakdown" },
@@ -174,6 +178,81 @@ export function DriverDashboardScreen() {
     }
   }, [busy, stopWatching, loadStatus]);
 
+  // The photo is fetched at runtime rather than read off the session: the
+  // session blob is persisted to SecureStore, whose Android backend is
+  // unreliable above ~2 KB, and a base64 photo is far larger than that.
+  const [photo, setPhoto] = useState<string | null>(null);
+  const [photoBusy, setPhotoBusy] = useState(false);
+  // Carries a monotonic id, not just the text: setting the same string twice
+  // would be a no-op state update, so a second "Profile photo updated" would
+  // ride out the first toast's timer instead of restarting it.
+  const [toast, setToast] = useState<{ text: string; id: number } | null>(null);
+  const toastId = useRef(0);
+  const showToast = useCallback((text: string) => {
+    toastId.current += 1;
+    setToast({ text, id: toastId.current });
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    driverAuthApi
+      .me()
+      .then((profile) => {
+        if (!cancelled) setPhoto(profile.image ?? null);
+      })
+      .catch(() => {
+        // The photo is cosmetic — a failure here must not block the dashboard.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const handleChangePhoto = useCallback(async () => {
+    if (photoBusy) return;
+    setPhotoBusy(true);
+    try {
+      const picked = await pickSquareAvatar();
+      // null means the user backed out of the picker — not an error.
+      if (picked) {
+        const res = await driverAuthApi.updatePhoto(picked);
+        setPhoto(res.image);
+        showToast("Profile photo updated");
+      }
+    } catch (e) {
+      Alert.alert("Could not update photo", (e as Error).message);
+    } finally {
+      setPhotoBusy(false);
+    }
+  }, [photoBusy, showToast]);
+
+  const handleRemovePhoto = useCallback(() => {
+    if (photoBusy) return;
+    Alert.alert(
+      "Remove photo?",
+      "Your profile will show your initials instead.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Remove",
+          style: "destructive",
+          onPress: async () => {
+            setPhotoBusy(true);
+            try {
+              const res = await driverAuthApi.updatePhoto(null);
+              setPhoto(res.image);
+              showToast("Profile photo removed");
+            } catch (e) {
+              Alert.alert("Could not remove photo", (e as Error).message);
+            } finally {
+              setPhotoBusy(false);
+            }
+          },
+        },
+      ]
+    );
+  }, [photoBusy, showToast]);
+
   const [issueModalOpen, setIssueModalOpen] = useState(false);
   const [issueBusy, setIssueBusy] = useState(false);
 
@@ -261,6 +340,10 @@ export function DriverDashboardScreen() {
           mode={mode}
           setMode={setMode}
           driver={driver}
+          photo={photo}
+          photoBusy={photoBusy}
+          onChangePhoto={handleChangePhoto}
+          onRemovePhoto={handleRemovePhoto}
           onLogout={onLogout}
         />
       )}
@@ -298,6 +381,13 @@ export function DriverDashboardScreen() {
         busy={issueBusy}
         onCancel={() => setIssueModalOpen(false)}
         onReport={handleReportIssue}
+      />
+
+      <Toast
+        key={toast?.id}
+        colors={colors}
+        message={toast?.text ?? null}
+        onHide={() => setToast(null)}
       />
     </View>
   );
@@ -792,6 +882,10 @@ type ProfileViewProps = {
   mode: "light" | "dark";
   setMode: (m: "light" | "dark") => Promise<void>;
   driver: Driver | null;
+  photo: string | null;
+  photoBusy: boolean;
+  onChangePhoto: () => void;
+  onRemovePhoto: () => void;
   onLogout: () => void;
 };
 
@@ -801,6 +895,10 @@ function ProfileView({
   mode,
   setMode,
   driver,
+  photo,
+  photoBusy,
+  onChangePhoto,
+  onRemovePhoto,
   onLogout,
 }: ProfileViewProps) {
   const formatDob = (value: string | undefined) => {
@@ -828,8 +926,35 @@ function ProfileView({
       showsVerticalScrollIndicator={false}
     >
       <View style={styles.phHero}>
-        <View style={styles.phAvatarLg}>
-          <Text style={styles.phAvatarLgText}>{initialsOf(driver?.name, "D")}</Text>
+        <Avatar
+          colors={colors}
+          name={driver?.name}
+          fallback="D"
+          size={88}
+          dataUrl={photo}
+          style={styles.phAvatarLg}
+        />
+        <View style={styles.phPhotoActions}>
+          <Pressable
+            onPress={onChangePhoto}
+            disabled={photoBusy}
+            style={[styles.phPhotoBtn, photoBusy && styles.phPhotoBtnDisabled]}
+          >
+            {photoBusy ? (
+              <ActivityIndicator size="small" color={colors.text} />
+            ) : (
+              <Text style={styles.phPhotoBtnText}>
+                {photo ? "Change photo" : "Add photo"}
+              </Text>
+            )}
+          </Pressable>
+          {photo && !photoBusy && (
+            <Pressable onPress={onRemovePhoto} style={styles.phPhotoBtn}>
+              <Text style={[styles.phPhotoBtnText, styles.phPhotoBtnDanger]}>
+                Remove
+              </Text>
+            </Pressable>
+          )}
         </View>
         <Text style={styles.phName}>{driver?.name ?? "Driver"}</Text>
         <Text style={styles.phSubtitle}>{driver?.mobile ?? "—"}</Text>
@@ -921,14 +1046,6 @@ function ProfileView({
       </View>
     </ScrollView>
   );
-}
-
-function initialsOf(name: string | undefined, fallback: string): string {
-  if (!name) return fallback;
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return fallback;
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
 function InfoLine({
@@ -1278,12 +1395,25 @@ function makeStyles(colors: Colors) {
       shadowOffset: { width: 0, height: 6 },
       elevation: 4,
     },
-    phAvatarLgText: {
-      color: colors.textOnAccent,
-      fontSize: 30,
-      fontWeight: "800",
-      letterSpacing: -0.5,
+    phPhotoActions: {
+      flexDirection: "row",
+      gap: 8,
+      marginTop: -6,
+      marginBottom: 12,
     },
+    phPhotoBtn: {
+      paddingHorizontal: 14,
+      paddingVertical: 7,
+      borderRadius: 999,
+      backgroundColor: colors.surfaceContrast,
+      minWidth: 88,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    phPhotoBtnDisabled: { opacity: 0.6 },
+    phPhotoBtnText: { fontSize: 12, fontWeight: "700", color: colors.text },
+    phPhotoBtnDanger: { color: colors.danger },
+
     phName: { fontSize: 19, fontWeight: "800", color: colors.text },
     phSubtitle: { fontSize: 13, color: colors.textMuted, marginTop: 4 },
     phPillRow: {

@@ -12,6 +12,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { collegeDriversApi, type Driver } from "../api/collegeDrivers";
 import { useTheme, type Colors } from "../theme/ThemeContext";
+import { Avatar } from "../components/Avatar";
 import type { AppStackParamList } from "../navigation/types";
 
 type Props = NativeStackScreenProps<AppStackParamList, "ViewDrivers">;
@@ -142,11 +143,14 @@ export function ViewDriversScreen({ navigation, route }: Props) {
                 })
               }
             >
-              <View style={styles.avatar}>
-                <Text style={styles.avatarText}>
-                  {item.name.charAt(0).toUpperCase()}
-                </Text>
-              </View>
+              <Avatar
+                colors={colors}
+                name={item.name}
+                fallback="D"
+                size={52}
+                dataUrl={item.image}
+                style={styles.avatar}
+              />
               <View style={{ flex: 1 }}>
                 <View style={styles.cardHeader}>
                   <Text style={styles.driverName} numberOfLines={1}>
@@ -325,11 +329,6 @@ function makeStyles(colors: Colors) {
       backgroundColor: colors.accent,
       alignItems: "center",
       justifyContent: "center",
-    },
-    avatarText: {
-      color: colors.textOnAccent,
-      fontWeight: "800",
-      fontSize: 20,
     },
     cardHeader: {
       flexDirection: "row",

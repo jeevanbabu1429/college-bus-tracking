@@ -178,6 +178,7 @@ router.get("/live-buses", requireStudent, async (req, res) => {
           notice: bus.notice,
         },
         driver: {
+          _id: driver._id,
           name: driver.name,
           mobile: driver.mobile,
           tripActive: driver.tripActive,
@@ -218,7 +219,15 @@ router.get("/bus-location", requireStudent, async (req, res) => {
     });
     return;
   }
-  const driver = bus.driver ? await DriverModel.findById(bus.driver) : null;
+  // `image` is deliberately not selected — this endpoint is polled every few
+  // seconds by the student dashboard. The photo is fetched separately (and
+  // cached) from GET /api/drivers/:driverId/photo, which is why the driver's
+  // id is included below.
+  const driver = bus.driver
+    ? await DriverModel.findById(bus.driver)
+        .select("name mobile tripActive currentLocation currentIssue")
+        .lean()
+    : null;
   res.json({
     bus: {
       _id: bus._id,
@@ -231,7 +240,7 @@ router.get("/bus-location", requireStudent, async (req, res) => {
     // Public-facing driver info (no otp, no licence/aadhar). Mobile is
     // included so the student can dial from the app.
     driver: driver
-      ? { name: driver.name, mobile: driver.mobile }
+      ? { _id: driver._id, name: driver.name, mobile: driver.mobile }
       : null,
     tripActive: driver?.tripActive ?? false,
     currentLocation: driver?.currentLocation ?? null,

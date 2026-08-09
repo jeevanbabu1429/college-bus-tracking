@@ -18,6 +18,9 @@ import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from "react-native-maps";
 import { useAuth } from "../auth/AuthContext";
 import { useTheme, type Colors } from "../theme/ThemeContext";
 import { studentAuthApi, type BusLocation } from "../api/studentAuth";
+import { driverPhotoSource } from "../api/driverAuth";
+import { Avatar } from "../components/Avatar";
+import { PhotoViewerModal } from "../components/PhotoViewerModal";
 import type { BusStop } from "../api/collegeBuses";
 import type { StudentStackParamList } from "../navigation/types";
 
@@ -356,6 +359,11 @@ const ISSUE_META: Record<
 };
 
 function HomeView({ styles, colors, student, busLocation, onTrackOther }: HomeViewProps) {
+  // Tapping the driver's avatar opens it full-screen — a 36px circle is enough
+  // to recognise a familiar face, not an unfamiliar one. Gated on the photo
+  // actually being there so tapping the emoji fallback does nothing.
+  const [driverPhotoOpen, setDriverPhotoOpen] = useState(false);
+  const [driverHasPhoto, setDriverHasPhoto] = useState(false);
   const bus = student?.bus ?? null;
   // Prefer fresh data from the live poll (notice/suspension can change during
   // the day) and fall back to the session copy.
@@ -485,391 +493,427 @@ function HomeView({ styles, colors, student, busLocation, onTrackOther }: HomeVi
     : null;
 
   return (
-    <ScrollView
-      style={styles.body}
-      contentContainerStyle={styles.bodyContent}
-      showsVerticalScrollIndicator={false}
-    >
-      {bus ? (
-        <View style={styles.busCard}>
-          <View style={styles.busHeaderRow}>
-            <Text style={styles.busLabel}>Your Bus</Text>
-            <OnlineIndicator active={tripActive} />
-          </View>
-          <Text style={styles.busNumber}>Bus {bus.busNumber}</Text>
-          <Text style={styles.busPlate}>{bus.plateNumber}</Text>
-          <View style={styles.busMetaRow}>
-            <View style={styles.busMetaCell}>
-              <Text style={styles.busMetaLabel}>Capacity</Text>
-              <Text style={styles.busMetaValue}>{bus.capacity}</Text>
-            </View>
-            <View style={styles.busMetaDivider} />
-            <View style={styles.busMetaCell}>
-              <Text style={styles.busMetaLabel}>Stops</Text>
-              <Text style={styles.busMetaValue}>{stops.length}</Text>
-            </View>
-            <View style={styles.busMetaDivider} />
-            <View style={styles.busMetaCell}>
-              <Text style={styles.busMetaLabel}>Route</Text>
-              <Text style={styles.busMetaValueSmall} numberOfLines={1}>
-                {bus.route || "—"}
-              </Text>
-            </View>
-          </View>
-
-          {driverInfo && driverInfo.mobile ? (
-            <View style={styles.busDriverRow}>
-              <View style={styles.busDriverInfo}>
-                <View style={styles.busDriverIconBox}>
-                  <Text style={styles.busDriverIcon}>🧑</Text>
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.busDriverLabel}>Driver</Text>
-                  <Text style={styles.busDriverName} numberOfLines={1}>
-                    {driverInfo.name}
-                  </Text>
-                </View>
-              </View>
-              <Pressable
-                onPress={onCallDriver}
-                style={({ pressed }) => [
-                  styles.busCallBtn,
-                  pressed && styles.busCallBtnPressed,
-                ]}
-                android_ripple={{ color: "#f5b70044" }}
-              >
-                <Text style={styles.busCallIcon}>📞</Text>
-                <Text style={styles.busCallText}>Call</Text>
-              </Pressable>
-            </View>
-          ) : null}
-        </View>
-      ) : (
-        <View style={styles.emptyCard}>
-          <Text style={styles.emptyTitle}>No bus assigned</Text>
-          <Text style={styles.emptyBody}>
-            You haven't been assigned to a bus yet. Please check with your
-            college admin.
-          </Text>
-        </View>
-      )}
-
-      <Pressable
-        onPress={onTrackOther}
-        style={({ pressed }) => [
-          styles.trackOtherCard,
-          pressed && styles.trackOtherCardPressed,
-        ]}
+    <>
+      <ScrollView
+        style={styles.body}
+        contentContainerStyle={styles.bodyContent}
+        showsVerticalScrollIndicator={false}
       >
-        <View style={styles.trackOtherIconBox}>
-          <Text style={styles.trackOtherEmoji}>🚌</Text>
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.trackOtherTitle}>Track other bus</Text>
-          <Text style={styles.trackOtherSub}>
-            See every bus in your college that&rsquo;s on a trip right now
-          </Text>
-        </View>
-        <Text style={styles.trackOtherChevron}>›</Text>
-      </Pressable>
-
-      {bus && notice ? (
-        <View style={styles.noticeCard}>
-          <Text style={styles.noticeIcon}>⚠️</Text>
-          <Text style={styles.noticeText}>{notice}</Text>
-        </View>
-      ) : null}
-
-      {bus && arrivingSoon ? (
-        <View style={styles.arrivingCard}>
-          <View style={styles.arrivingHeader}>
-            <Text style={styles.arrivingEmoji}>🚌</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.arrivingLabel}>Arriving soon</Text>
-              <Text style={styles.arrivingTitle}>
-                Get ready to board at {myStopName}
-              </Text>
+        {bus ? (
+          <View style={styles.busCard}>
+            <View style={styles.busHeaderRow}>
+              <Text style={styles.busLabel}>Your Bus</Text>
+              <OnlineIndicator active={tripActive} />
             </View>
-          </View>
-          <Text style={styles.arrivingBody}>
-            Your bus is near{" "}
-            <Text style={styles.arrivingStrong}>{arrivingSoon.prevStop}</Text>
-            {" — "}
-            {formatDistance(arrivingSoon.distance)} away from the previous
-            stop.
-          </Text>
-        </View>
-      ) : null}
-
-      {bus && currentIssue && issueMeta ? (
-        <View style={styles.driverIssueCard}>
-          <View style={styles.driverIssueHeader}>
-            <Text style={styles.driverIssueEmoji}>{issueMeta.emoji}</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.driverIssueLabel}>Driver alert</Text>
-              <Text style={styles.driverIssueTitle}>{issueMeta.label}</Text>
-            </View>
-          </View>
-          <Text style={styles.driverIssueHint}>{issueMeta.hint}</Text>
-          {currentIssue.message ? (
-            <View style={styles.driverIssueQuote}>
-              <Text style={styles.driverIssueQuoteText}>
-                “{currentIssue.message}”
-              </Text>
-            </View>
-          ) : null}
-        </View>
-      ) : null}
-
-      {bus && (
-        <>
-          <Text style={styles.sectionLabel}>Live Bus Location</Text>
-          {mapCenter ? (
-            <View style={styles.mapCard}>
-              <MapView
-                ref={mapRef}
-                provider={PROVIDER_GOOGLE}
-                style={styles.map}
-                initialRegion={{
-                  latitude: mapCenter.lat,
-                  longitude: mapCenter.lng,
-                  latitudeDelta: 0.02,
-                  longitudeDelta: 0.02,
-                }}
-              >
-                {placedStops.length >= 2 && (
-                  <Polyline
-                    coordinates={placedStops.map((s) => ({
-                      latitude: s.lat,
-                      longitude: s.lng,
-                    }))}
-                    strokeColor={colors.accent}
-                    strokeWidth={3}
-                  />
-                )}
-                {placedStops.map((s) => (
-                  <Marker
-                    key={s.name}
-                    coordinate={{ latitude: s.lat, longitude: s.lng }}
-                    title={s.name + (s.suspended ? " (suspended)" : "")}
-                    pinColor={
-                      s.suspended
-                        ? "gray"
-                        : s.name === myStopName
-                        ? "orange"
-                        : "red"
-                    }
-                  />
-                ))}
-                {liveActive && liveLoc && pinPos && (
-                  <Marker
-                    coordinate={{ latitude: pinPos.lat, longitude: pinPos.lng }}
-                    title={`Bus ${bus.busNumber}`}
-                    description={`Updated ${new Date(liveLoc.updatedAt).toLocaleTimeString()}`}
-                    anchor={{ x: 0.5, y: 0.5 }}
-                    flat
-                  >
-                    <View style={styles.busPin}>
-                      <View style={styles.busPinHalo} />
-                      <View style={styles.busPinInner}>
-                        <Text style={styles.busPinEmoji}>🚌</Text>
-                      </View>
-                    </View>
-                  </Marker>
-                )}
-              </MapView>
-              {liveActive && pinPos && (
-                <Pressable
-                  onPress={() =>
-                    mapRef.current?.animateToRegion(
-                      {
-                        latitude: pinPos.lat,
-                        longitude: pinPos.lng,
-                        latitudeDelta: 0.01,
-                        longitudeDelta: 0.01,
-                      },
-                      600
-                    )
-                  }
-                  style={({ pressed }) => [
-                    styles.recenterBtn,
-                    pressed && styles.recenterBtnPressed,
-                  ]}
-                  hitSlop={8}
-                >
-                  <Text style={styles.recenterIcon}>🚌</Text>
-                </Pressable>
-              )}
-              <View style={styles.liveBanner}>
-                <View
-                  style={[styles.liveDot, !liveActive && styles.liveDotIdle]}
-                />
-                <Text style={styles.liveText}>
-                  {liveActive && liveLoc
-                    ? `Live · updated ${new Date(liveLoc.updatedAt).toLocaleTimeString()}`
-                    : tripActive
-                    ? "Waiting for the driver's first location…"
-                    : "Route shown · bus is idle"}
+            <Text style={styles.busNumber}>Bus {bus.busNumber}</Text>
+            <Text style={styles.busPlate}>{bus.plateNumber}</Text>
+            <View style={styles.busMetaRow}>
+              <View style={styles.busMetaCell}>
+                <Text style={styles.busMetaLabel}>Capacity</Text>
+                <Text style={styles.busMetaValue}>{bus.capacity}</Text>
+              </View>
+              <View style={styles.busMetaDivider} />
+              <View style={styles.busMetaCell}>
+                <Text style={styles.busMetaLabel}>Stops</Text>
+                <Text style={styles.busMetaValue}>{stops.length}</Text>
+              </View>
+              <View style={styles.busMetaDivider} />
+              <View style={styles.busMetaCell}>
+                <Text style={styles.busMetaLabel}>Route</Text>
+                <Text style={styles.busMetaValueSmall} numberOfLines={1}>
+                  {bus.route || "—"}
                 </Text>
               </View>
             </View>
-          ) : (
-            <View style={styles.emptyCard}>
-              <ActivityIndicator
-                color={colors.accent}
-                style={{ marginBottom: 8 }}
-              />
-              <Text style={styles.emptyBody}>
-                {tripActive
-                  ? "Waiting for the driver's first location update…"
-                  : "The driver hasn't started the trip yet."}
-              </Text>
-            </View>
-          )}
 
-          <Text style={styles.sectionLabel}>Your Stop</Text>
-          {student?.stop ? (
-            <View>
-              {/* When the admin set an explicit temporary stop, promote it to
-                  the primary card — the student needs to know WHERE to board
-                  today, not that their regular stop is closed. */}
-              {myStop?.suspended && hint?.kind === "temporary" ? (
-                <>
-                  <View style={[styles.myStopCard, styles.myStopCardTemp]}>
-                    <View
-                      style={[
-                        styles.myStopIcon,
-                        { backgroundColor: "#c8e6c9" },
-                      ]}
-                    >
-                      <Text style={styles.myStopEmoji}>📍</Text>
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.myStopHint, styles.myStopHintTemp]}>
-                        Board here today
-                      </Text>
-                      <Text style={[styles.myStopName, styles.myStopNameTemp]}>
-                        {hint.name}
-                      </Text>
-                    </View>
-                  </View>
-                  <View style={styles.tempSubnoteCard}>
-                    <Text style={styles.tempSubnoteText}>
-                      Your regular stop{" "}
-                      <Text style={styles.tempSubnoteStrong}>
-                        {student.stop}
-                      </Text>{" "}
-                      is temporarily closed.
-                    </Text>
-                  </View>
-                </>
-              ) : (
-                <>
-                  <View
-                    style={[
-                      styles.myStopCard,
-                      myStop?.suspended && styles.myStopCardSuspended,
-                    ]}
+            {driverInfo && driverInfo.mobile ? (
+              <View style={styles.busDriverRow}>
+                <View style={styles.busDriverInfo}>
+                  <Pressable
+                    onPress={() => setDriverPhotoOpen(true)}
+                    disabled={!driverHasPhoto}
+                    hitSlop={6}
+                    accessibilityRole={driverHasPhoto ? "button" : undefined}
+                    accessibilityLabel={
+                      driverHasPhoto
+                        ? `View photo of ${driverInfo.name}`
+                        : undefined
+                    }
                   >
-                    <View style={styles.myStopIcon}>
-                      <Text style={styles.myStopEmoji}>
-                        {myStop?.suspended ? "🚧" : "📍"}
-                      </Text>
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.myStopHint}>
-                        {myStop?.suspended
-                          ? "Stop temporarily closed"
-                          : "You board at"}
-                      </Text>
-                      <Text
-                        style={[
-                          styles.myStopName,
-                          myStop?.suspended && styles.myStopNameSuspended,
-                        ]}
-                      >
-                        {student.stop}
-                      </Text>
-                    </View>
-                  </View>
-                  {myStop?.suspended && (
-                    <View style={styles.suggestionCard}>
-                      <Text style={styles.suggestionText}>
-                        {!hint
-                          ? "Please check the notice above for an alternate stop."
-                          : `Nearest open stop: ${hint.name}${
-                              hint.kind === "nearest" && hint.distance != null
-                                ? ` · ${formatDistance(hint.distance)} away`
-                                : ""
-                            }`}
-                      </Text>
-                    </View>
-                  )}
-                </>
-              )}
-            </View>
-          ) : (
-            <View style={styles.emptyCard}>
-              <Text style={styles.emptyBody}>
-                Stop not assigned yet. Please check with your admin.
-              </Text>
-            </View>
-          )}
-
-          <Text style={styles.sectionLabel}>All Stops</Text>
-          {stops.length > 0 ? (
-            <View style={styles.stopsCard}>
-              {stops.map((s, i) => {
-                const isMine = student?.stop === s.name;
-                return (
-                  <View
-                    key={`${s.name}-${i}`}
-                    style={[
-                      styles.stopRow,
-                      i < stops.length - 1 && styles.stopRowDivider,
-                    ]}
-                  >
-                    <View
-                      style={[
-                        styles.stopBullet,
-                        isMine && styles.stopBulletMine,
-                        s.suspended && styles.stopBulletSuspended,
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.stopBulletText,
-                          isMine && styles.stopBulletTextMine,
-                        ]}
-                      >
-                        {i + 1}
-                      </Text>
-                    </View>
-                    <Text
-                      style={[
-                        styles.stopText,
-                        isMine && styles.stopTextMine,
-                        s.suspended && styles.stopTextSuspended,
-                      ]}
-                    >
-                      {s.name}
-                      {s.suspended ? "  (closed)" : ""}
-                    </Text>
-                    {isMine && !s.suspended && (
-                      <Text style={styles.youHere}>You board here</Text>
+                    <Avatar
+                      colors={colors}
+                      size={36}
+                      source={driverPhotoSource(driverInfo._id)}
+                      style={styles.busDriverIconBox}
+                      fallbackNode={<Text style={styles.busDriverIcon}>🧑</Text>}
+                      onPhotoAvailable={setDriverHasPhoto}
+                    />
+                    {driverHasPhoto && (
+                      <View style={styles.busDriverZoomBadge}>
+                        <Text style={styles.busDriverZoomIcon}>⤢</Text>
+                      </View>
                     )}
+                  </Pressable>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.busDriverLabel}>Driver</Text>
+                    <Text style={styles.busDriverName} numberOfLines={1}>
+                      {driverInfo.name}
+                    </Text>
                   </View>
-                );
-              })}
+                </View>
+                <Pressable
+                  onPress={onCallDriver}
+                  style={({ pressed }) => [
+                    styles.busCallBtn,
+                    pressed && styles.busCallBtnPressed,
+                  ]}
+                  android_ripple={{ color: "#f5b70044" }}
+                >
+                  <Text style={styles.busCallIcon}>📞</Text>
+                  <Text style={styles.busCallText}>Call</Text>
+                </Pressable>
+              </View>
+            ) : null}
+          </View>
+        ) : (
+          <View style={styles.emptyCard}>
+            <Text style={styles.emptyTitle}>No bus assigned</Text>
+            <Text style={styles.emptyBody}>
+              You haven't been assigned to a bus yet. Please check with your
+              college admin.
+            </Text>
+          </View>
+        )}
+
+        <Pressable
+          onPress={onTrackOther}
+          style={({ pressed }) => [
+            styles.trackOtherCard,
+            pressed && styles.trackOtherCardPressed,
+          ]}
+        >
+          <View style={styles.trackOtherIconBox}>
+            <Text style={styles.trackOtherEmoji}>🚌</Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.trackOtherTitle}>Track other bus</Text>
+            <Text style={styles.trackOtherSub}>
+              See every bus in your college that&rsquo;s on a trip right now
+            </Text>
+          </View>
+          <Text style={styles.trackOtherChevron}>›</Text>
+        </Pressable>
+
+        {bus && notice ? (
+          <View style={styles.noticeCard}>
+            <Text style={styles.noticeIcon}>⚠️</Text>
+            <Text style={styles.noticeText}>{notice}</Text>
+          </View>
+        ) : null}
+
+        {bus && arrivingSoon ? (
+          <View style={styles.arrivingCard}>
+            <View style={styles.arrivingHeader}>
+              <Text style={styles.arrivingEmoji}>🚌</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.arrivingLabel}>Arriving soon</Text>
+                <Text style={styles.arrivingTitle}>
+                  Get ready to board at {myStopName}
+                </Text>
+              </View>
             </View>
-          ) : (
-            <View style={styles.emptyCard}>
-              <Text style={styles.emptyBody}>No stops added yet.</Text>
+            <Text style={styles.arrivingBody}>
+              Your bus is near{" "}
+              <Text style={styles.arrivingStrong}>{arrivingSoon.prevStop}</Text>
+              {" — "}
+              {formatDistance(arrivingSoon.distance)} away from the previous
+              stop.
+            </Text>
+          </View>
+        ) : null}
+
+        {bus && currentIssue && issueMeta ? (
+          <View style={styles.driverIssueCard}>
+            <View style={styles.driverIssueHeader}>
+              <Text style={styles.driverIssueEmoji}>{issueMeta.emoji}</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.driverIssueLabel}>Driver alert</Text>
+                <Text style={styles.driverIssueTitle}>{issueMeta.label}</Text>
+              </View>
             </View>
-          )}
-        </>
-      )}
-    </ScrollView>
+            <Text style={styles.driverIssueHint}>{issueMeta.hint}</Text>
+            {currentIssue.message ? (
+              <View style={styles.driverIssueQuote}>
+                <Text style={styles.driverIssueQuoteText}>
+                  “{currentIssue.message}”
+                </Text>
+              </View>
+            ) : null}
+          </View>
+        ) : null}
+
+        {bus && (
+          <>
+            <Text style={styles.sectionLabel}>Live Bus Location</Text>
+            {mapCenter ? (
+              <View style={styles.mapCard}>
+                <MapView
+                  ref={mapRef}
+                  provider={PROVIDER_GOOGLE}
+                  style={styles.map}
+                  initialRegion={{
+                    latitude: mapCenter.lat,
+                    longitude: mapCenter.lng,
+                    latitudeDelta: 0.02,
+                    longitudeDelta: 0.02,
+                  }}
+                >
+                  {placedStops.length >= 2 && (
+                    <Polyline
+                      coordinates={placedStops.map((s) => ({
+                        latitude: s.lat,
+                        longitude: s.lng,
+                      }))}
+                      strokeColor={colors.accent}
+                      strokeWidth={3}
+                    />
+                  )}
+                  {placedStops.map((s) => (
+                    <Marker
+                      key={s.name}
+                      coordinate={{ latitude: s.lat, longitude: s.lng }}
+                      title={s.name + (s.suspended ? " (suspended)" : "")}
+                      pinColor={
+                        s.suspended
+                          ? "gray"
+                          : s.name === myStopName
+                          ? "orange"
+                          : "red"
+                      }
+                    />
+                  ))}
+                  {liveActive && liveLoc && pinPos && (
+                    <Marker
+                      coordinate={{ latitude: pinPos.lat, longitude: pinPos.lng }}
+                      title={`Bus ${bus.busNumber}`}
+                      description={`Updated ${new Date(liveLoc.updatedAt).toLocaleTimeString()}`}
+                      anchor={{ x: 0.5, y: 0.5 }}
+                      flat
+                    >
+                      <View style={styles.busPin}>
+                        <View style={styles.busPinHalo} />
+                        <View style={styles.busPinInner}>
+                          <Text style={styles.busPinEmoji}>🚌</Text>
+                        </View>
+                      </View>
+                    </Marker>
+                  )}
+                </MapView>
+                {liveActive && pinPos && (
+                  <Pressable
+                    onPress={() =>
+                      mapRef.current?.animateToRegion(
+                        {
+                          latitude: pinPos.lat,
+                          longitude: pinPos.lng,
+                          latitudeDelta: 0.01,
+                          longitudeDelta: 0.01,
+                        },
+                        600
+                      )
+                    }
+                    style={({ pressed }) => [
+                      styles.recenterBtn,
+                      pressed && styles.recenterBtnPressed,
+                    ]}
+                    hitSlop={8}
+                  >
+                    <Text style={styles.recenterIcon}>🚌</Text>
+                  </Pressable>
+                )}
+                <View style={styles.liveBanner}>
+                  <View
+                    style={[styles.liveDot, !liveActive && styles.liveDotIdle]}
+                  />
+                  <Text style={styles.liveText}>
+                    {liveActive && liveLoc
+                      ? `Live · updated ${new Date(liveLoc.updatedAt).toLocaleTimeString()}`
+                      : tripActive
+                      ? "Waiting for the driver's first location…"
+                      : "Route shown · bus is idle"}
+                  </Text>
+                </View>
+              </View>
+            ) : (
+              <View style={styles.emptyCard}>
+                <ActivityIndicator
+                  color={colors.accent}
+                  style={{ marginBottom: 8 }}
+                />
+                <Text style={styles.emptyBody}>
+                  {tripActive
+                    ? "Waiting for the driver's first location update…"
+                    : "The driver hasn't started the trip yet."}
+                </Text>
+              </View>
+            )}
+
+            <Text style={styles.sectionLabel}>Your Stop</Text>
+            {student?.stop ? (
+              <View>
+                {/* When the admin set an explicit temporary stop, promote it to
+                    the primary card — the student needs to know WHERE to board
+                    today, not that their regular stop is closed. */}
+                {myStop?.suspended && hint?.kind === "temporary" ? (
+                  <>
+                    <View style={[styles.myStopCard, styles.myStopCardTemp]}>
+                      <View
+                        style={[
+                          styles.myStopIcon,
+                          { backgroundColor: "#c8e6c9" },
+                        ]}
+                      >
+                        <Text style={styles.myStopEmoji}>📍</Text>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.myStopHint, styles.myStopHintTemp]}>
+                          Board here today
+                        </Text>
+                        <Text style={[styles.myStopName, styles.myStopNameTemp]}>
+                          {hint.name}
+                        </Text>
+                      </View>
+                    </View>
+                    <View style={styles.tempSubnoteCard}>
+                      <Text style={styles.tempSubnoteText}>
+                        Your regular stop{" "}
+                        <Text style={styles.tempSubnoteStrong}>
+                          {student.stop}
+                        </Text>{" "}
+                        is temporarily closed.
+                      </Text>
+                    </View>
+                  </>
+                ) : (
+                  <>
+                    <View
+                      style={[
+                        styles.myStopCard,
+                        myStop?.suspended && styles.myStopCardSuspended,
+                      ]}
+                    >
+                      <View style={styles.myStopIcon}>
+                        <Text style={styles.myStopEmoji}>
+                          {myStop?.suspended ? "🚧" : "📍"}
+                        </Text>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.myStopHint}>
+                          {myStop?.suspended
+                            ? "Stop temporarily closed"
+                            : "You board at"}
+                        </Text>
+                        <Text
+                          style={[
+                            styles.myStopName,
+                            myStop?.suspended && styles.myStopNameSuspended,
+                          ]}
+                        >
+                          {student.stop}
+                        </Text>
+                      </View>
+                    </View>
+                    {myStop?.suspended && (
+                      <View style={styles.suggestionCard}>
+                        <Text style={styles.suggestionText}>
+                          {!hint
+                            ? "Please check the notice above for an alternate stop."
+                            : `Nearest open stop: ${hint.name}${
+                                hint.kind === "nearest" && hint.distance != null
+                                  ? ` · ${formatDistance(hint.distance)} away`
+                                  : ""
+                              }`}
+                        </Text>
+                      </View>
+                    )}
+                  </>
+                )}
+              </View>
+            ) : (
+              <View style={styles.emptyCard}>
+                <Text style={styles.emptyBody}>
+                  Stop not assigned yet. Please check with your admin.
+                </Text>
+              </View>
+            )}
+
+            <Text style={styles.sectionLabel}>All Stops</Text>
+            {stops.length > 0 ? (
+              <View style={styles.stopsCard}>
+                {stops.map((s, i) => {
+                  const isMine = student?.stop === s.name;
+                  return (
+                    <View
+                      key={`${s.name}-${i}`}
+                      style={[
+                        styles.stopRow,
+                        i < stops.length - 1 && styles.stopRowDivider,
+                      ]}
+                    >
+                      <View
+                        style={[
+                          styles.stopBullet,
+                          isMine && styles.stopBulletMine,
+                          s.suspended && styles.stopBulletSuspended,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.stopBulletText,
+                            isMine && styles.stopBulletTextMine,
+                          ]}
+                        >
+                          {i + 1}
+                        </Text>
+                      </View>
+                      <Text
+                        style={[
+                          styles.stopText,
+                          isMine && styles.stopTextMine,
+                          s.suspended && styles.stopTextSuspended,
+                        ]}
+                      >
+                        {s.name}
+                        {s.suspended ? "  (closed)" : ""}
+                      </Text>
+                      {isMine && !s.suspended && (
+                        <Text style={styles.youHere}>You board here</Text>
+                      )}
+                    </View>
+                  );
+                })}
+              </View>
+            ) : (
+              <View style={styles.emptyCard}>
+                <Text style={styles.emptyBody}>No stops added yet.</Text>
+              </View>
+            )}
+          </>
+        )}
+      </ScrollView>
+
+      <PhotoViewerModal
+        visible={driverPhotoOpen}
+        onClose={() => setDriverPhotoOpen(false)}
+        source={driverInfo ? driverPhotoSource(driverInfo._id) : null}
+        caption={driverInfo?.name ?? null}
+        subtitle={
+          liveBus?.busNumber || bus?.busNumber
+            ? `Driver · Bus ${liveBus?.busNumber ?? bus?.busNumber}`
+            : "Driver"
+        }
+      />
+    </>
   );
 }
 
@@ -1128,6 +1172,24 @@ function makeStyles(colors: Colors) {
       justifyContent: "center",
     },
     busDriverIcon: { fontSize: 18 },
+    // Small affordance so the avatar reads as tappable — only rendered when
+    // there is actually a photo to enlarge.
+    busDriverZoomBadge: {
+      position: "absolute",
+      right: -2,
+      bottom: -2,
+      width: 16,
+      height: 16,
+      borderRadius: 8,
+      backgroundColor: colors.accent,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    busDriverZoomIcon: {
+      fontSize: 9,
+      fontWeight: "900",
+      color: colors.textOnAccent,
+    },
     busDriverLabel: {
       color: "rgba(255,255,255,0.65)",
       fontSize: 10,

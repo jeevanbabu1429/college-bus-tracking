@@ -12,6 +12,7 @@ import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { collegeBusesApi } from "../api/collegeBuses";
 import { collegeDriversApi, type Driver } from "../api/collegeDrivers";
 import { useTheme, type Colors } from "../theme/ThemeContext";
+import { Avatar } from "../components/Avatar";
 import type { AppStackParamList } from "../navigation/types";
 
 type Props = NativeStackScreenProps<AppStackParamList, "SelectDriverForBus">;
@@ -140,18 +141,18 @@ export function SelectDriverForBusScreen({ navigation, route }: Props) {
                 onPress={() => assign(item._id)}
                 disabled={busy || isCurrent}
               >
-                <View
-                  style={[styles.avatar, isCurrent && styles.avatarCurrent]}
-                >
-                  <Text
-                    style={[
-                      styles.avatarText,
-                      isCurrent && styles.avatarTextCurrent,
-                    ]}
-                  >
-                    {item.name.charAt(0).toUpperCase()}
-                  </Text>
-                </View>
+                <Avatar
+                  colors={colors}
+                  name={item.name}
+                  fallback="D"
+                  size={52}
+                  dataUrl={item.image}
+                  initialsColor={isCurrent ? colors.textOnAccent : colors.textMuted}
+                  style={StyleSheet.flatten([
+                    styles.avatar,
+                    isCurrent && styles.avatarCurrent,
+                  ])}
+                />
                 <View style={{ flex: 1 }}>
                   <View style={styles.cardHeader}>
                     <Text style={styles.driverName} numberOfLines={1}>
@@ -328,12 +329,6 @@ function makeStyles(colors: Colors) {
       justifyContent: "center",
     },
     avatarCurrent: { backgroundColor: colors.accent },
-    avatarText: {
-      color: colors.textMuted,
-      fontWeight: "800",
-      fontSize: 20,
-    },
-    avatarTextCurrent: { color: colors.textOnAccent },
     cardHeader: { flexDirection: "row", alignItems: "center", gap: 8 },
     driverName: {
       flex: 1,

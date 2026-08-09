@@ -58,6 +58,12 @@
           "locationWhenInUsePermission": "Allow Bus to access your location while driving so students can see the bus on the map."
         }
       ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Bus to access your photos so you can set a profile picture."
+        }
+      ],
       "@react-native-community/datetimepicker",
       "@react-native-firebase/app",
       [

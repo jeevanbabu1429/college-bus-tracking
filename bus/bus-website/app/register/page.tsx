@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Gender } from "../../lib/api/auth";
+import { useAuth } from "../../lib/auth/AuthContext";
 import { RequiredLegend, RequiredMark } from "../../components/RequiredMark";
 import { SupportContact } from "../../components/SupportContact";
 
@@ -121,6 +122,9 @@ export default function RegisterPage() {
   const [values, setValues] = useState<Values>(EMPTY);
   const [touched, setTouched] = useState<Partial<Record<Field, boolean>>>({});
   const [submitted, setSubmitted] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const { register } = useAuth();
 
   const errors = useMemo(() => validate(values), [values]);
 
@@ -138,20 +142,29 @@ export default function RegisterPage() {
     setTouched((prev) => ({ ...prev, [field]: true }));
   }
 
-  function onSubmit(e: React.FormEvent) {
+  async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSubmitted(true);
+    setSubmitError(null);
     const { gender } = values;
-    if (Object.keys(errors).length > 0 || !gender) return;
+    if (Object.keys(errors).length > 0 || !gender || busy) return;
 
-    const params = new URLSearchParams({
-      name: values.name.trim(),
-      gender,
-      dob: values.dob,
-      mobile: values.mobile,
-      email: values.email.trim().toLowerCase(),
-    });
-    router.push(`/payment?${params.toString()}`);
+    setBusy(true);
+    try {
+      await register({
+        name: values.name.trim(),
+        gender,
+        dob: values.dob,
+        mobile: values.mobile,
+        email: values.email.trim().toLowerCase(),
+      });
+      // register() persists the session, so the shell will render the
+      // pending-verification dashboard.
+      router.replace("/dashboard");
+    } catch (err) {
+      setSubmitError((err as Error).message);
+      setBusy(false);
+    }
   }
 
   const today = new Date();
@@ -318,12 +331,19 @@ export default function RegisterPage() {
             </div>
           )}
 
+          {submitError && (
+            <div className="alert alert-error" style={{ marginTop: 18 }}>
+              {submitError}
+            </div>
+          )}
+
           <button
             type="submit"
             className="btn btn-primary btn-block"
             style={{ marginTop: 18 }}
+            disabled={busy}
           >
-            Continue to activation
+            {busy ? "Creating your account…" : "Create account"}
           </button>
 
           <p className="small muted text-center" style={{ marginTop: 18 }}>

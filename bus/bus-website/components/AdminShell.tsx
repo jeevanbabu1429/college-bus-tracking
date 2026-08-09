@@ -15,6 +15,7 @@ import {
   IconHelp,
 } from "./icons";
 import { SupportModal } from "./SupportButton";
+import { PendingApproval } from "./PendingApproval";
 
 type NavItem = {
   href: string;
@@ -101,6 +102,14 @@ export function AdminShell({ children }: { children: ReactNode }) {
         <span className="spinner" />
       </div>
     );
+  }
+
+  // Gate the entire console, not just the dashboard route — otherwise typing
+  // /buses straight into the address bar would walk around the notice.
+  // `=== false` rather than `!approved`: admins predating the field have no
+  // value stored and are already trusted.
+  if (session?.admin?.approved === false) {
+    return <PendingApproval />;
   }
 
   const admin = session?.admin;

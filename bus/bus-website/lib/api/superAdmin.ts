@@ -91,6 +91,11 @@ export const superAdminApi = {
       method: "PATCH",
       body: JSON.stringify({ suspended }),
     }),
+  setAdminApproved: (id: string, approved: boolean) =>
+    fetchSuper<Admin>(`/api/super/admins/${id}/approved`, {
+      method: "PATCH",
+      body: JSON.stringify({ approved }),
+    }),
   deleteAdmin: (id: string, confirmEmail: string) =>
     fetchSuper<{
       ok: true;

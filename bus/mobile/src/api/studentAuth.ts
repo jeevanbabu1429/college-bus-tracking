@@ -12,7 +12,9 @@ export type BusLocation = {
     stops: BusStop[];
     notice: string;
   } | null;
-  driver: { name: string; mobile: string } | null;
+  // `_id` is what the photo URL is built from — the photo itself is served
+  // separately so it stays out of this endpoint's 5s polling loop.
+  driver: { _id: string; name: string; mobile: string } | null;
   tripActive: boolean;
   currentLocation: { lat: number; lng: number; updatedAt: string } | null;
   currentIssue: CurrentIssue;
@@ -28,6 +30,7 @@ export type LiveBusItem = {
     notice: string;
   };
   driver: {
+    _id: string;
     name: string;
     mobile: string;
     tripActive: boolean;

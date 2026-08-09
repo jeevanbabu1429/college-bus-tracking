@@ -1,13 +1,6 @@
 export type AuthStackParamList = {
   Login: { role?: "admin" | "driver" | "student" } | undefined;
   Register: undefined;
-  Payment: {
-    name: string;
-    gender: import("../api/auth").Gender;
-    dob: string;
-    mobile: string;
-    email: string;
-  };
 };
 
 export type AppStackParamList = {
