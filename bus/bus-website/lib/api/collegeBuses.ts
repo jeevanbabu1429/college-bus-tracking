@@ -99,6 +99,21 @@ export const collegeBusesApi = {
       method: "PUT",
       body: JSON.stringify({ driverId }),
     }),
+  // One-shot move that the plain assignDriver cannot express: releases both
+  // sides before assigning, so a driver already on another bus can be moved
+  // without first unassigning them. Returns only the buses that changed.
+  reassignDriver: (
+    collegeId: string,
+    driverId: string,
+    toBusId: string | null
+  ) =>
+    apiFetch<{ buses: Bus[] }>(
+      `/api/colleges/${collegeId}/buses/reassign-driver`,
+      {
+        method: "POST",
+        body: JSON.stringify({ driverId, toBusId }),
+      }
+    ),
   setRoute: (
     collegeId: string,
     busId: string,
