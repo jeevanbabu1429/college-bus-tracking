@@ -30,6 +30,7 @@ const NAV: NavItem[] = [
   { href: "/buses", label: "Buses", Icon: IconBus },
   { href: "/drivers", label: "Drivers", Icon: IconBadge },
   { href: "/switch-drivers", label: "Switch drivers", Icon: IconSwap },
+  { href: "/switch-students", label: "Switch students", Icon: IconSwap },
   { href: "/students", label: "Students", Icon: IconUsers },
 ];
 
@@ -39,6 +40,7 @@ const PAGE_TITLES: Record<string, string> = {
   buses: "Buses",
   drivers: "Drivers",
   "switch-drivers": "Switch drivers",
+  "switch-students": "Switch students",
   students: "Students",
   "assign-drivers": "Assign drivers",
   "assign-students": "Assign students",
