@@ -50,9 +50,16 @@ export function AddCollegeScreen({ navigation }: Props) {
         busCount: buses,
         driverCount: drivers,
       });
-      Alert.alert("College added", `${college.name} (${college.code}) saved.`, [
-        { text: "OK", onPress: () => navigation.goBack() },
-      ]);
+      // A college beyond the admin's first has to be verified before it can
+      // be operated — say so here rather than letting them find out when the
+      // dashboard actions refuse to open.
+      Alert.alert(
+        college.approved === false ? "Sent for verification" : "College added",
+        college.approved === false
+          ? `${college.name} (${college.code}) has been created. Our team is reviewing its details — this usually completes within 24 hours. You can keep using your other colleges in the meantime.`
+          : `${college.name} (${college.code}) saved.`,
+        [{ text: "OK", onPress: () => navigation.goBack() }]
+      );
     } catch (e) {
       setError((e as Error).message);
     } finally {

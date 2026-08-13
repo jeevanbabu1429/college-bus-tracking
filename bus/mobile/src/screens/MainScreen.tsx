@@ -241,7 +241,24 @@ function HomeView({
         </View>
       )}
 
-      {selected && (
+      {/* A college awaiting verification hides its own dashboard, but the
+          admin's other colleges keep working — the switcher stays right
+          here, and the college itself is still editable from Settings. */}
+      {selected && selected.approved === false && (
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyTitle}>This college is being verified</Text>
+          <Text style={styles.emptyBody}>
+            {selected.name} has been created and our team is reviewing its
+            details. This usually completes within 24 hours. You&apos;ll be able
+            to add its buses, drivers and students as soon as it&apos;s done.
+          </Text>
+          <Pressable onPress={onSwitch} style={styles.emptyBtn}>
+            <Text style={styles.emptyBtnText}>Switch college</Text>
+          </Pressable>
+        </View>
+      )}
+
+      {selected && selected.approved !== false && (
         <>
           <View style={styles.statsCard}>
             <Text style={styles.statsHeading}>Overview</Text>
@@ -488,9 +505,15 @@ function ProfileView({
                 colors={colors}
                 icon="🏫"
                 label={c.name}
-                sublabel={c.code}
+                sublabel={
+                  c.approved === false
+                    ? `${c.code} · awaiting verification`
+                    : c.code
+                }
                 rightChip={
-                  isActive
+                  c.approved === false
+                    ? { text: "Verifying", color: colors.textMuted }
+                    : isActive
                     ? { text: "Active", color: colors.accent }
                     : undefined
                 }

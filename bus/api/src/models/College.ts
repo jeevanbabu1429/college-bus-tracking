@@ -18,6 +18,15 @@ const collegeSchema = new Schema(
     },
     busCount: { type: Number, required: true, min: 0 },
     driverCount: { type: Number, required: true, min: 0 },
+    // Every college after an admin's first has to be verified by the super
+    // admin before it can be operated.
+    //
+    // No schema default on purpose: colleges created before this field
+    // existed have no value stored, and those must keep working. Only an
+    // explicit `false` blocks, so reads are `approved === false`, never
+    // `!approved`. The create route always writes an explicit value.
+    approved: { type: Boolean },
+    approvedAt: { type: Date, default: null },
   },
   { timestamps: true }
 );

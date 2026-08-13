@@ -17,6 +17,7 @@ import {
 } from "./icons";
 import { SupportModal } from "./SupportButton";
 import { PendingApproval } from "./PendingApproval";
+import { PendingCollege } from "./PendingCollege";
 
 type NavItem = {
   href: string;
@@ -84,7 +85,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const { ready, token, session, logout } = useAuth();
-  const { colleges, selectedId, selectCollege } = useColleges();
+  const { colleges, selected, selectedId, selectCollege } = useColleges();
   const [confirmLogout, setConfirmLogout] = useState(false);
   const [supportOpen, setSupportOpen] = useState(false);
 
@@ -131,6 +132,17 @@ export function AdminShell({ children }: { children: ReactNode }) {
     logout();
     router.replace("/login");
   }
+
+  // A college awaiting verification locks its own pages, but not the ones
+  // that are about the account rather than the campus — the admin still needs
+  // to reach their college list to correct the details under review, and their
+  // profile. Everything else shows the wait notice.
+  const COLLEGE_PENDING_EXEMPT = ["/colleges", "/profile"];
+  const collegePending =
+    selected?.approved === false &&
+    !COLLEGE_PENDING_EXEMPT.some(
+      (h) => pathname === h || pathname.startsWith(h + "/")
+    );
 
   const { title } = pageInfo(pathname);
 
@@ -203,6 +215,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
                   {colleges.map((c) => (
                     <option key={c._id} value={c._id}>
                       {c.name}
+                      {c.approved === false ? " — awaiting verification" : ""}
                     </option>
                   ))}
                 </select>
@@ -243,7 +256,9 @@ export function AdminShell({ children }: { children: ReactNode }) {
           </div>
         </header>
 
-        <main className="page">{children}</main>
+        <main className="page">
+          {collegePending ? <PendingCollege /> : children}
+        </main>
       </div>
 
       {confirmLogout && (

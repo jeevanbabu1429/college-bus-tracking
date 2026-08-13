@@ -86,6 +86,14 @@ export default function CollegesPage() {
                       {isActive && (
                         <span className="pill pill-accent">Active</span>
                       )}
+                      {c.approved === false && (
+                        <span
+                          className="pill pill-warning"
+                          title="Awaiting verification — usually within 24 hours"
+                        >
+                          Being verified
+                        </span>
+                      )}
                     </td>
                     <td>{c.code}</td>
                     <td className="muted">{c.address}</td>

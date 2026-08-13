@@ -24,7 +24,10 @@ export default function NewCollegePage() {
           const created = await collegesApi.create(input);
           await refresh();
           selectCollege(created._id);
-          router.push("/colleges");
+          // A college beyond the admin's first has to be verified. Land on the
+          // dashboard so they see the wait notice straight away rather than
+          // discovering it when a page refuses to load.
+          router.push(created.approved === false ? "/dashboard" : "/colleges");
         }}
         onCancel={() => router.back()}
       />

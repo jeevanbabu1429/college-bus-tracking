@@ -10,6 +10,11 @@ export type College = {
   actualBusCount: number;
   actualDriverCount: number;
   actualStudentCount: number;
+  // An admin's first college is verified with their account; later ones wait
+  // for the super admin. Undefined on colleges that predate the field, so
+  // always test `approved === false`, never `!approved`.
+  approved?: boolean;
+  approvedAt?: string | null;
   createdAt: string;
   updatedAt: string;
 };
