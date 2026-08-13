@@ -13,7 +13,14 @@ import {
   type Student,
 } from "../../../../lib/api/collegeStudents";
 import { NoCollege } from "../../../../components/NoCollege";
-import { IconArrowLeft, IconRoute } from "../../../../components/icons";
+import {
+  IconArrowLeft,
+  IconBadge,
+  IconMap,
+  IconRoute,
+  IconUsers,
+} from "../../../../components/icons";
+import { RouteMap } from "./RouteMap";
 
 export default function BusDetailPage({
   params,
@@ -88,6 +95,13 @@ export default function BusDetailPage({
     );
   }
 
+  const activeStops = bus.stops.filter((s) => !s.suspended).length;
+  const suspendedStops = bus.stops.length - activeStops;
+  const seatsLeft = Math.max(0, bus.capacity - students.length);
+  const fillPct = bus.capacity
+    ? Math.min(100, Math.round((students.length / bus.capacity) * 100))
+    : 0;
+
   return (
     <>
       <div className="page-header">
@@ -101,10 +115,7 @@ export default function BusDetailPage({
           <Link href="/buses" className="btn btn-secondary">
             <IconArrowLeft size={14} /> All buses
           </Link>
-          <Link
-            href={`/buses/${bus._id}/route`}
-            className="btn btn-primary"
-          >
+          <Link href={`/buses/${bus._id}/route`} className="btn btn-primary">
             <IconRoute size={14} /> Edit route
           </Link>
         </div>
@@ -112,73 +123,113 @@ export default function BusDetailPage({
 
       {error && <div className="alert alert-error">{error}</div>}
 
+      {/* The four things you open this page to check, before any scrolling. */}
+      <div className="busfacts">
+        <div className="busfact">
+          <span className="busfact-icon">
+            <IconMap size={17} />
+          </span>
+          <span className="busfact-body">
+            <span className="busfact-label">Route</span>
+            <span className="busfact-value" title={bus.route || undefined}>
+              {bus.route || "Not set"}
+            </span>
+          </span>
+        </div>
+
+        <div className="busfact">
+          <span className="busfact-icon">
+            <IconRoute size={17} />
+          </span>
+          <span className="busfact-body">
+            <span className="busfact-label">Stops</span>
+            <span className="busfact-value">
+              {activeStops}
+              {suspendedStops > 0 && (
+                <span className="muted small"> · {suspendedStops} off</span>
+              )}
+            </span>
+          </span>
+        </div>
+
+        <div className="busfact">
+          <span className="busfact-icon">
+            <IconBadge size={17} />
+          </span>
+          <span className="busfact-body">
+            <span className="busfact-label">Driver</span>
+            <span className="busfact-value">
+              {bus.driver?.name ?? "Unassigned"}
+            </span>
+          </span>
+        </div>
+
+        <div className="busfact">
+          <span className="busfact-icon">
+            <IconUsers size={17} />
+          </span>
+          <span className="occupancy">
+            <span className="occupancy-head">
+              <strong>
+                {students.length} / {bus.capacity}
+              </strong>
+              <span>
+                {seatsLeft === 0 ? "Full" : `${seatsLeft} seats free`}
+              </span>
+            </span>
+            <span className="occupancy-bar">
+              <span
+                className="occupancy-fill"
+                data-full={seatsLeft === 0}
+                style={{ width: `${fillPct}%` }}
+              />
+            </span>
+          </span>
+        </div>
+      </div>
+
       <div className="card">
-        <div className="card-title">Route</div>
-        {bus.route ? (
-          <p style={{ fontSize: 15, color: "var(--text)" }}>{bus.route}</p>
-        ) : (
-          <p className="muted">No route assigned yet.</p>
-        )}
+        <div className="card-titlerow">
+          <div className="card-title">
+            Route map
+            {bus.stops.length > 0 && (
+              <span
+                className="muted small"
+                style={{ marginLeft: 8, fontWeight: 400 }}
+              >
+                {bus.stops[0].name} → {bus.stops[bus.stops.length - 1].name}
+              </span>
+            )}
+          </div>
+          <Link href={`/buses/${bus._id}/route`} className="link-action">
+            Edit
+          </Link>
+        </div>
+
         {bus.notice && (
-          <div className="alert alert-warning" style={{ marginTop: 12 }}>
+          <div className="alert alert-warning" style={{ marginTop: 14 }}>
             {bus.notice}
           </div>
         )}
-        {bus.stops.length > 0 && (
-          <ol
-            style={{
-              listStyle: "none",
-              marginTop: 16,
-              display: "grid",
-              gap: 8,
-            }}
-          >
-            {bus.stops.map((s, i) => (
-              <li
-                key={`${s.name}-${i}`}
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "32px 1fr auto",
-                  alignItems: "center",
-                  gap: 8,
-                  padding: "8px 12px",
-                  background: "var(--surface-muted)",
-                  borderRadius: "var(--radius)",
-                  fontSize: 13,
-                  opacity: s.suspended ? 0.55 : 1,
-                }}
-              >
-                <span className="muted small" style={{ fontWeight: 600 }}>
-                  {i + 1}.
-                </span>
-                <span
-                  style={{
-                    textDecoration: s.suspended ? "line-through" : "none",
-                  }}
-                >
-                  {s.name}
-                </span>
-                {s.suspended && (
-                  <span className="pill pill-danger">Suspended</span>
-                )}
-              </li>
-            ))}
-          </ol>
+
+        {bus.stops.length === 0 ? (
+          <div className="empty-state" style={{ marginTop: 16 }}>
+            <p className="muted">
+              No stops on this route yet.{" "}
+              <Link href={`/buses/${bus._id}/route`} className="auth-link">
+                Add the first stop
+              </Link>
+              .
+            </p>
+          </div>
+        ) : (
+          <RouteMap stops={bus.stops} />
         )}
       </div>
 
       <div className="card">
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: 16,
-          }}
-        >
-          <div className="card-title" style={{ margin: 0 }}>
-            Driver
-          </div>
+        <div className="card-titlerow" style={{ marginBottom: 16 }}>
+          <div className="card-title">Driver</div>
           {bus.driver && (
             <button
               type="button"
@@ -190,17 +241,28 @@ export default function BusDetailPage({
             </button>
           )}
         </div>
+
         {bus.driver ? (
-          <div>
-            <p style={{ fontSize: 15, fontWeight: 600, color: "var(--text)" }}>
-              {bus.driver.name}
-            </p>
-            <p className="muted small" style={{ marginTop: 2 }}>
-              {bus.driver.mobile} · Licence {bus.driver.licenceNumber}
-            </p>
+          <div className="busdriver">
+            <span className="busdriver-avatar">
+              {bus.driver.name.charAt(0).toUpperCase()}
+            </span>
+            <span className="busdriver-body">
+              <span className="busdriver-name">{bus.driver.name}</span>
+              <span className="busdriver-meta">
+                {bus.driver.mobile} · Licence {bus.driver.licenceNumber}
+              </span>
+            </span>
           </div>
         ) : (
-          <p className="muted">No driver assigned.</p>
+          <p className="muted">
+            No driver assigned — pick one below, or move an existing driver over
+            on{" "}
+            <Link href="/switch-drivers" className="auth-link">
+              Switch drivers
+            </Link>
+            .
+          </p>
         )}
 
         <div className="divider" style={{ margin: "18px 0 14px" }} />
@@ -209,7 +271,7 @@ export default function BusDetailPage({
           className="field-label"
           style={{ marginBottom: 10, color: "var(--text-soft)" }}
         >
-          Select a driver
+          {bus.driver ? "Replace with" : "Select a driver"}
         </div>
         {drivers.length === 0 ? (
           <p className="muted small">No drivers in this college yet.</p>
@@ -224,6 +286,7 @@ export default function BusDetailPage({
                   className={`chip ${isCurrent ? "chip-active" : ""}`}
                   onClick={() => !isCurrent && setDriver(d._id)}
                   disabled={savingDriver}
+                  title={d.mobile}
                 >
                   {d.name}
                 </button>
@@ -244,6 +307,9 @@ export default function BusDetailPage({
               {students.length} of {bus.capacity}
             </span>
           </div>
+          <Link href="/switch-students" className="link-action">
+            Move students
+          </Link>
         </div>
         {students.length === 0 ? (
           <p
