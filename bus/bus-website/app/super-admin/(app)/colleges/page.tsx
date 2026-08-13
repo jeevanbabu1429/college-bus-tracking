@@ -6,6 +6,7 @@ import {
   superAdminApi,
   type CollegeListItem,
 } from "../../../../lib/api/superAdmin";
+import { CollegeApprovalControl } from "./CollegeApprovalControl";
 
 export default function SuperAdminCollegesPage() {
   const [colleges, setColleges] = useState<CollegeListItem[] | null>(null);
@@ -78,6 +79,7 @@ export default function SuperAdminCollegesPage() {
                 <th>Buses</th>
                 <th>Drivers</th>
                 <th>Students</th>
+                <th>Verification</th>
                 <th></th>
               </tr>
             </thead>
@@ -103,6 +105,21 @@ export default function SuperAdminCollegesPage() {
                   <td>{c.counts.buses}</td>
                   <td>{c.counts.drivers}</td>
                   <td>{c.counts.students}</td>
+                  <td>
+                    <CollegeApprovalControl
+                      collegeId={c._id}
+                      approved={c.approved}
+                      onChange={(next) =>
+                        setColleges((prev) =>
+                          prev
+                            ? prev.map((x) =>
+                                x._id === c._id ? { ...x, approved: next } : x
+                              )
+                            : prev
+                        )
+                      }
+                    />
+                  </td>
                   <td>
                     <Link
                       href={`/super-admin/colleges/${c._id}`}

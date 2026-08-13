@@ -96,6 +96,11 @@ export const superAdminApi = {
       method: "PATCH",
       body: JSON.stringify({ approved }),
     }),
+  setCollegeApproved: (id: string, approved: boolean) =>
+    fetchSuper<College>(`/api/super/colleges/${id}/approved`, {
+      method: "PATCH",
+      body: JSON.stringify({ approved }),
+    }),
   deleteAdmin: (id: string, confirmEmail: string) =>
     fetchSuper<{
       ok: true;

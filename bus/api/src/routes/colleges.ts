@@ -11,7 +11,9 @@ import {
 } from "../lib/suspension.js";
 import {
   checkAdminApproval,
+  checkCollegeApproval,
   sendPendingApproval,
+  sendPendingCollege,
 } from "../lib/approval.js";
 
 const router = Router();
@@ -165,6 +167,11 @@ router.post("/", async (req, res) => {
     return;
   }
 
+  // The admin's first college rides on the account verification that let them
+  // in — they have already been checked. Every college after that is a new
+  // claim about a new campus, so it waits for the super admin.
+  const isFirst = (await CollegeModel.countDocuments({ admin: adminSubId })) === 0;
+
   const college = await CollegeModel.create({
     admin: adminSubId,
     name,
@@ -172,8 +179,33 @@ router.post("/", async (req, res) => {
     code: upperCode,
     busCount,
     driverCount,
+    approved: isFirst,
+    approvedAt: isFirst ? new Date() : null,
   });
   res.status(201).json(college);
 });
+
+// Registered last on purpose. Express matches the routes above first, so
+// /claim-orphans and PUT /:collegeId are handled before this ever runs — an
+// admin can still see and correct a college that is awaiting verification.
+// What this does catch is everything deeper: /:collegeId/buses, /drivers and
+// /students are separate routers mounted on the same prefix, and this router
+// falls through to them, so one middleware here gates the whole operational
+// surface of a pending college.
+const requireApprovedCollege: RequestHandler = async (req, res, next) => {
+  const { collegeId } = req.params as { collegeId?: string };
+  if (!collegeId || !isValidObjectId(collegeId)) {
+    next();
+    return;
+  }
+  const pendingMsg = await checkCollegeApproval(collegeId);
+  if (pendingMsg) {
+    sendPendingCollege(res, pendingMsg);
+    return;
+  }
+  next();
+};
+
+router.use("/:collegeId", requireApprovedCollege);
 
 export default router;

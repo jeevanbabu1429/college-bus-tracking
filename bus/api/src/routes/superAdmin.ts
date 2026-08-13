@@ -448,6 +448,46 @@ router.patch("/colleges/:id", requireSuperAdmin, async (req, res) => {
   }
 });
 
+router.patch("/colleges/:id/approved", requireSuperAdmin, async (req, res) => {
+  const { id } = req.params;
+  if (!isValidObjectId(id)) {
+    res.status(400).json({ error: "Invalid id" });
+    return;
+  }
+  const { approved } = req.body ?? {};
+  if (typeof approved !== "boolean") {
+    res.status(400).json({ error: "approved (boolean) is required" });
+    return;
+  }
+  const before = await CollegeModel.findById(id).select("approved admin").lean();
+  if (!before) {
+    res.status(404).json({ error: "College not found" });
+    return;
+  }
+  const college = await CollegeModel.findByIdAndUpdate(
+    id,
+    { approved, approvedAt: approved ? new Date() : null },
+    { new: true }
+  ).populate("admin", "-otp -otpExpiresAt");
+  if (!college) {
+    res.status(404).json({ error: "College not found" });
+    return;
+  }
+  // Only announce a real transition into approved — re-saving an already
+  // verified college should not re-notify its admin.
+  if (approved && before.approved === false && before.admin) {
+    sendPushSafe(
+      { role: "admin", id: before.admin },
+      {
+        title: "College verified",
+        body: `${college.name} has been verified. You can now set up its buses and drivers.`,
+        data: { kind: "college-approved", url: "/dashboard" },
+      }
+    );
+  }
+  res.json(college);
+});
+
 router.delete("/colleges/:id", requireSuperAdmin, async (req, res) => {
   const { id } = req.params;
   if (!isValidObjectId(id)) {

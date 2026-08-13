@@ -1,6 +1,7 @@
 import type { Response } from "express";
 import type { Types } from "mongoose";
 import { AdminModel } from "../models/Admin.js";
+import { CollegeModel } from "../models/College.js";
 
 // A newly registered admin can sign in and reach their dashboard, but cannot
 // do anything until the super admin verifies them. This is the server half of
@@ -33,4 +34,35 @@ export async function checkAdminApproval(
 // same way `suspended: true` works.
 export function sendPendingApproval(res: Response, message: string): void {
   res.status(403).json({ error: message, pendingApproval: true });
+}
+
+// ── Per-college verification ────────────────────────────────────────────────
+//
+// An approved admin may run more than one college, and each college beyond
+// their first is verified separately. That keeps a second campus from going
+// live on the strength of a check that was only ever done on the first, while
+// leaving the colleges already in service untouched.
+
+export const PENDING_COLLEGE_MESSAGE =
+  "This college is being verified. This usually completes within 24 hours.";
+
+// Returns null when the college may be operated, or the user-facing message
+// while it waits. Same `=== false` rule as above: colleges predating the field
+// have no stored value and stay usable.
+export async function checkCollegeApproval(
+  collegeId: string | Types.ObjectId | null | undefined
+): Promise<string | null> {
+  if (!collegeId) return null;
+  const college = await CollegeModel.findById(collegeId)
+    .select("approved")
+    .lean();
+  if (!college) return null;
+  return college.approved === false ? PENDING_COLLEGE_MESSAGE : null;
+}
+
+// Deliberately NOT `pendingApproval` — that flag means "the whole account is
+// locked" and the clients react by replacing the entire console. A pending
+// college must only lock that one college, so it gets its own flag.
+export function sendPendingCollege(res: Response, message: string): void {
+  res.status(403).json({ error: message, collegePending: true });
 }
