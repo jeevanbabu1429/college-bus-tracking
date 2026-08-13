@@ -526,6 +526,138 @@ router.post("/bus-assignments", async (req, res) => {
   res.status(200).json({ applied, failed });
 });
 
+// Move a batch of students onto a bus (or off every bus) in one request.
+//
+// Unlike drivers this is not a swap — a bus holds many students, so the
+// constraint is capacity rather than a unique index. Doing it in one call
+// matters because the alternative, N parallel PUT /:studentId/bus requests,
+// each check capacity against the count at the moment they run: fire eight at
+// a bus with three free seats and several can pass their own check before any
+// of them writes, overfilling the bus.
+//
+// Body: { studentIds: string[], toBusId: string | null }.
+router.post("/reassign-bus", async (req, res) => {
+  const { collegeId } = req.params as { collegeId: string };
+  if (!isValidObjectId(collegeId)) {
+    res.status(400).json({ error: "Invalid college id" });
+    return;
+  }
+
+  const { studentIds, toBusId } = (req.body ?? {}) as {
+    studentIds?: unknown;
+    toBusId?: unknown;
+  };
+
+  if (!Array.isArray(studentIds) || studentIds.length === 0) {
+    res.status(400).json({ error: "studentIds must be a non-empty array" });
+    return;
+  }
+  if (studentIds.length > 500) {
+    res.status(400).json({ error: "Cannot move more than 500 students at once" });
+    return;
+  }
+  if (!studentIds.every((id) => typeof id === "string" && isValidObjectId(id))) {
+    res.status(400).json({ error: "studentIds must all be valid ids" });
+    return;
+  }
+
+  const targetId =
+    toBusId === null || toBusId === undefined || toBusId === "" ? null : toBusId;
+  if (targetId !== null && (typeof targetId !== "string" || !isValidObjectId(targetId))) {
+    res.status(400).json({ error: "toBusId must be a bus id or null" });
+    return;
+  }
+
+  const students = await StudentModel.find({
+    _id: { $in: studentIds },
+    college: collegeId,
+  });
+  if (students.length !== studentIds.length) {
+    res.status(404).json({ error: "Some students were not found in this college" });
+    return;
+  }
+
+  const bus = targetId
+    ? await BusModel.findOne({ _id: targetId, college: collegeId })
+    : null;
+  if (targetId && !bus) {
+    res.status(404).json({ error: "Bus not found in this college" });
+    return;
+  }
+
+  if (bus) {
+    // Only students not already on this bus consume a new seat.
+    const incoming = students.filter(
+      (s) => s.bus?.toString() !== bus._id.toString()
+    );
+    const movingIds = students.map((s) => s._id);
+    const staying = await StudentModel.countDocuments({
+      bus: bus._id,
+      _id: { $nin: movingIds },
+    });
+    if (staying + students.length > bus.capacity) {
+      const free = Math.max(0, bus.capacity - staying);
+      res.status(409).json({
+        error:
+          incoming.length === 1
+            ? `Bus ${bus.busNumber} is full (${bus.capacity} seats).`
+            : `Bus ${bus.busNumber} has ${free} seat${free === 1 ? "" : "s"} free — cannot take ${incoming.length}.`,
+      });
+      return;
+    }
+  }
+
+  const stopNames = new Set((bus?.stops ?? []).map((st) => st.name));
+  const moved: unknown[] = [];
+
+  for (const student of students) {
+    const prevBusId = student.bus ? student.bus.toString() : null;
+    const nextBusId = bus ? bus._id.toString() : null;
+    if (prevBusId === nextBusId) {
+      moved.push(await student.populate("bus"));
+      continue;
+    }
+
+    student.bus = bus ? bus._id : null;
+    // Same rule as PUT /:studentId/bus — a stop survives only if the new
+    // route still has one by that name, otherwise the admin re-picks it.
+    student.stop =
+      bus && student.stop && stopNames.has(student.stop) ? student.stop : null;
+    await student.save();
+
+    if (bus) {
+      sendPushSafe(
+        { role: "student", id: student._id },
+        {
+          title: `Assigned to bus ${bus.busNumber}`,
+          body: student.stop
+            ? `Your stop is ${student.stop}. Open the app to view the route.`
+            : "Open the app to pick your stop.",
+          data: {
+            kind: "bus-assigned",
+            busId: bus._id.toString(),
+            stop: student.stop ?? "",
+            url: "/",
+          },
+        }
+      );
+    } else if (prevBusId) {
+      sendPushSafe(
+        { role: "student", id: student._id },
+        {
+          title: "Bus unassigned",
+          body: "You have been removed from your bus. Please contact the admin.",
+          data: { kind: "bus-unassigned", url: "/" },
+        }
+      );
+    }
+
+    moved.push(await student.populate("bus"));
+  }
+
+  res.json({ students: moved });
+});
+
 router.put("/:studentId/bus", async (req, res) => {
   const { collegeId, studentId } = req.params as {
     collegeId: string;

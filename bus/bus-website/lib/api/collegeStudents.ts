@@ -37,6 +37,8 @@ export type StudentInput = {
   stop?: string | null;
 };
 
+export type ReassignBusResult = { students: Student[] };
+
 export type BulkFailedStudentRow = {
   row: number;
   name?: string;
@@ -83,6 +85,21 @@ export const collegeStudentsApi = {
       method: "PUT",
       body: JSON.stringify(input),
     }),
+  // Batch move. Capacity is checked once for the whole set server-side, so a
+  // group that would overfill the bus is refused outright rather than half
+  // applied — which is what N parallel assignBus calls would risk.
+  reassignBus: (
+    collegeId: string,
+    studentIds: string[],
+    toBusId: string | null
+  ) =>
+    apiFetch<ReassignBusResult>(
+      `/api/colleges/${collegeId}/students/reassign-bus`,
+      {
+        method: "POST",
+        body: JSON.stringify({ studentIds, toBusId }),
+      }
+    ),
   assignBus: (
     collegeId: string,
     studentId: string,

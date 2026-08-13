@@ -2110,3 +2110,168 @@ select.field-control {
 .switch-drop-block { width: 100%; margin-bottom: 12px; }
 
 .switch-pool-list { display: flex; flex-direction: column; gap: 8px; }
+
+/* ── Switch students ───────────────────────────────────────────────────────
+   Same board as Switch drivers, but a bus holds many riders, so the cards are
+   wider, the roster scrolls inside the card, and the constraint on show is
+   capacity rather than a swap. */
+.switch-bus-grid-wide {
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+}
+
+.switch-bus-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.switch-seats {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--text-muted);
+  background: var(--surface-muted);
+  border-radius: 999px;
+  padding: 2px 9px;
+  flex: none;
+}
+/* Bus is at or over its seat count. */
+.switch-seats[data-tight="true"] {
+  color: #92400e;
+  background: var(--warning-soft);
+}
+
+/* A destination that cannot take the current selection. */
+.switch-bus[data-full="true"] {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 3px var(--danger-soft);
+}
+
+.switch-rider-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  /* Long rosters scroll inside the card instead of stretching the grid row
+     to the height of the fullest bus. */
+  max-height: 208px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.switch-rider {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-align: left;
+  width: 100%;
+  padding: 6px 9px;
+  border-radius: 9px;
+  background: var(--surface-muted);
+  border: 1px solid transparent;
+  transition: background .12s, border-color .12s;
+}
+.switch-rider:hover { background: var(--accent-soft); }
+.switch-rider[data-picked="true"] {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+.switch-rider-name {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.switch-rider-meta { font-size: 11px; color: var(--text-muted); }
+.switch-rider-more {
+  font-size: 11px;
+  color: var(--text-muted);
+  padding: 4px 9px;
+  font-style: italic;
+}
+
+/* Switch students works bus-to-bus: one card becomes the source and opens
+   its roster, every other card becomes a drop target. */
+.switch-bus[data-source="true"] {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.switch-source-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  margin-top: 2px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px dashed var(--border-strong);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  transition: background .12s, color .12s, border-color .12s;
+}
+.switch-source-btn:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.switch-source-block { margin-bottom: 12px; }
+
+.switch-roster-summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+  padding: 8px 0;
+}
+
+.switch-roster-tools {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  padding-bottom: 2px;
+}
+.switch-roster-all {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--accent);
+  background: none;
+  border: none;
+  padding: 2px 4px;
+}
+.switch-roster-all:hover { text-decoration: underline; }
+
+/* The tick box in front of each roster row — flex-none so long names
+   ellipsise instead of squeezing it. */
+.switch-rider-check {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 5px;
+  border: 1.5px solid var(--border-strong);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+  color: transparent;
+}
+.switch-rider[data-picked="true"] .switch-rider-check {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--text-on-accent);
+}
+
+.switch-pool-source .switch-rider-list { max-height: 340px; }
+
+/* Read-only roster rows on the bench — no hover lift, nothing to click. */
+.switch-chip-static { cursor: default; }
+.switch-chip-static:hover { background: var(--surface-muted); transform: none; }
