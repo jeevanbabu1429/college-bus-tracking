@@ -115,6 +115,28 @@ export function TrackOtherBusesScreen() {
               </Pressable>
             )}
           </View>
+
+          {/* Sits with the search box because it answers the same question
+              from the other end: search is for a bus you can name, this is
+              for one you can only point at. */}
+          <Pressable
+            onPress={() => navigation.navigate("NearbyBuses")}
+            style={({ pressed }) => [
+              styles.nearbyBtn,
+              pressed && styles.nearbyBtnPressed,
+            ]}
+          >
+            <View style={styles.nearbyIconBox}>
+              <Text style={styles.nearbyEmoji}>📍</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.nearbyTitle}>Find buses near me</Text>
+              <Text style={styles.nearbySub}>
+                Show every live bus within 5 km of where you are
+              </Text>
+            </View>
+            <Text style={styles.nearbyChevron}>›</Text>
+          </Pressable>
         </View>
       )}
 
@@ -410,6 +432,32 @@ function makeStyles(colors: Colors) {
       fontWeight: "700",
       lineHeight: 18,
     },
+
+    // ─── Nearby buses entry point ────────────────────────
+    nearbyBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+      marginTop: 10,
+      padding: 12,
+      borderRadius: 14,
+      backgroundColor: colors.accentSoft,
+      borderWidth: 1,
+      borderColor: colors.accent,
+    },
+    nearbyBtnPressed: { opacity: 0.75 },
+    nearbyIconBox: {
+      width: 38,
+      height: 38,
+      borderRadius: 19,
+      backgroundColor: colors.surface,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    nearbyEmoji: { fontSize: 18 },
+    nearbyTitle: { fontSize: 14.5, fontWeight: "700", color: colors.text },
+    nearbySub: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
+    nearbyChevron: { fontSize: 20, color: colors.textMuted },
     clearFilterBtn: {
       marginTop: 16,
       paddingHorizontal: 18,
