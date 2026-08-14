@@ -1,7 +1,7 @@
 import { apiFetch } from "./client";
 import type { Student } from "./collegeStudents";
 import type { BusStop } from "./collegeBuses";
-import type { CurrentIssue } from "./driverTrip";
+import type { CurrentIssue, StopArrival } from "./driverTrip";
 
 export type BusLocation = {
   bus: {
@@ -18,6 +18,8 @@ export type BusLocation = {
   tripActive: boolean;
   currentLocation: { lat: number; lng: number; updatedAt: string } | null;
   currentIssue: CurrentIssue;
+  /** Stops the driver has confirmed reaching, cleared when the trip ends. */
+  stopArrivals: StopArrival[];
 };
 
 export type LiveBusItem = {
@@ -35,6 +37,7 @@ export type LiveBusItem = {
     mobile: string;
     tripActive: boolean;
     currentLocation: { lat: number; lng: number; updatedAt: string } | null;
+    stopArrivals: StopArrival[];
   };
 };
 

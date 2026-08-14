@@ -148,7 +148,7 @@ router.get("/live-buses", requireStudent, async (req, res) => {
     college: student.college,
     tripActive: true,
   })
-    .select("name mobile currentLocation tripActive")
+    .select("name mobile currentLocation tripActive stopArrivals")
     .lean();
   if (activeDrivers.length === 0) {
     res.json([]);
@@ -183,6 +183,7 @@ router.get("/live-buses", requireStudent, async (req, res) => {
           mobile: driver.mobile,
           tripActive: driver.tripActive,
           currentLocation: driver.currentLocation ?? null,
+          stopArrivals: driver.stopArrivals ?? [],
         },
       };
     })
@@ -225,7 +226,9 @@ router.get("/bus-location", requireStudent, async (req, res) => {
   // id is included below.
   const driver = bus.driver
     ? await DriverModel.findById(bus.driver)
-        .select("name mobile tripActive currentLocation currentIssue")
+        .select(
+          "name mobile tripActive currentLocation currentIssue stopArrivals"
+        )
         .lean()
     : null;
   res.json({
@@ -245,6 +248,10 @@ router.get("/bus-location", requireStudent, async (req, res) => {
     tripActive: driver?.tripActive ?? false,
     currentLocation: driver?.currentLocation ?? null,
     currentIssue: driver?.currentIssue ?? null,
+    // Which stops the driver has confirmed reaching on this trip. Cleared
+    // server-side when the trip starts or stops, so an empty list always
+    // means "nothing has been reached yet", never "stale from yesterday".
+    stopArrivals: driver?.stopArrivals ?? [],
   });
 });
 

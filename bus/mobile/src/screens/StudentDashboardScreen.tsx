@@ -23,6 +23,7 @@ import { Avatar } from "../components/Avatar";
 import { PhotoViewerModal } from "../components/PhotoViewerModal";
 import type { BusStop } from "../api/collegeBuses";
 import { distanceMeters, formatDistance } from "../lib/geo";
+import { RouteStops } from "../components/RouteStops";
 import type { StudentStackParamList } from "../navigation/types";
 
 const POLL_INTERVAL_MS = 5000;
@@ -358,6 +359,9 @@ function HomeView({ styles, colors, student, busLocation, onTrackOther }: HomeVi
   const issueMeta = currentIssue ? ISSUE_META[currentIssue.type] : null;
   const driverInfo = busLocation?.driver ?? null;
   const myStopName = student?.stop ?? null;
+  // Stops the driver has confirmed reaching. The server empties this when the
+  // trip ends, so an idle bus never leaves yesterday's ticks on the list.
+  const arrivals = busLocation?.stopArrivals ?? [];
 
   // "Arriving soon" — matches the server-side proximity check.
   // Distance from bus to the stop *before* the student's stop.
@@ -829,52 +833,30 @@ function HomeView({ styles, colors, student, busLocation, onTrackOther }: HomeVi
               </View>
             )}
 
-            <Text style={styles.sectionLabel}>All Stops</Text>
+            <View style={styles.sectionRow}>
+              <Text style={styles.sectionLabel}>All Stops</Text>
+              {stops.length > 0 && (
+                <Text style={styles.sectionCount}>
+                  {arrivals.length > 0
+                    ? `${arrivals.length} of ${stops.length} reached`
+                    : `${stops.length} stop${stops.length === 1 ? "" : "s"}`}
+                </Text>
+              )}
+            </View>
             {stops.length > 0 ? (
-              <View style={styles.stopsCard}>
-                {stops.map((s, i) => {
-                  const isMine = student?.stop === s.name;
-                  return (
-                    <View
-                      key={`${s.name}-${i}`}
-                      style={[
-                        styles.stopRow,
-                        i < stops.length - 1 && styles.stopRowDivider,
-                      ]}
-                    >
-                      <View
-                        style={[
-                          styles.stopBullet,
-                          isMine && styles.stopBulletMine,
-                          s.suspended && styles.stopBulletSuspended,
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.stopBulletText,
-                            isMine && styles.stopBulletTextMine,
-                          ]}
-                        >
-                          {i + 1}
-                        </Text>
-                      </View>
-                      <Text
-                        style={[
-                          styles.stopText,
-                          isMine && styles.stopTextMine,
-                          s.suspended && styles.stopTextSuspended,
-                        ]}
-                      >
-                        {s.name}
-                        {s.suspended ? "  (closed)" : ""}
-                      </Text>
-                      {isMine && !s.suspended && (
-                        <Text style={styles.youHere}>You board here</Text>
-                      )}
-                    </View>
-                  );
-                })}
-              </View>
+              <RouteStops
+                stops={stops}
+                viewer="student"
+                // The bus's own position, so the distance on each row reads as
+                // "how far the bus still is from there".
+                origin={
+                  tripActive && liveLoc
+                    ? { lat: liveLoc.lat, lng: liveLoc.lng }
+                    : null
+                }
+                arrivals={arrivals}
+                myStop={myStopName}
+              />
             ) : (
               <View style={styles.emptyCard}>
                 <Text style={styles.emptyBody}>No stops added yet.</Text>
@@ -1208,6 +1190,20 @@ function makeStyles(colors: Colors) {
       letterSpacing: 0.4,
     },
 
+    sectionRow: {
+      flexDirection: "row",
+      alignItems: "baseline",
+      justifyContent: "space-between",
+      gap: 10,
+    },
+    sectionCount: {
+      fontSize: 12,
+      fontWeight: "700",
+      color: colors.textMuted,
+      marginTop: 24,
+      marginBottom: 10,
+      paddingHorizontal: 4,
+    },
     sectionLabel: {
       fontSize: 12,
       fontWeight: "700",
@@ -1461,12 +1457,6 @@ function makeStyles(colors: Colors) {
     },
     suggestionText: { color: colors.text, fontSize: 13, fontWeight: "700" },
 
-    stopBulletSuspended: { backgroundColor: "rgba(217,83,79,0.2)" },
-    stopTextSuspended: {
-      color: colors.textMuted,
-      textDecorationLine: "line-through",
-      fontWeight: "600",
-    },
 
     emptyCard: {
       backgroundColor: colors.surfaceMuted,
@@ -1517,47 +1507,6 @@ function makeStyles(colors: Colors) {
       marginTop: 2,
     },
 
-    stopsCard: {
-      backgroundColor: colors.surface,
-      borderRadius: 18,
-      paddingVertical: 4,
-      shadowColor: "#000",
-      shadowOpacity: 0.04,
-      shadowRadius: 8,
-      shadowOffset: { width: 0, height: 2 },
-      elevation: 2,
-    },
-    stopRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      paddingVertical: 12,
-      paddingHorizontal: 16,
-      gap: 14,
-    },
-    stopRowDivider: {
-      borderBottomWidth: 1,
-      borderColor: colors.border,
-    },
-    stopBullet: {
-      width: 28,
-      height: 28,
-      borderRadius: 999,
-      backgroundColor: colors.surfaceMuted,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    stopBulletMine: { backgroundColor: colors.accent },
-    stopBulletText: { color: colors.textMuted, fontSize: 12, fontWeight: "800" },
-    stopBulletTextMine: { color: colors.textOnAccent },
-    stopText: { fontSize: 14, color: colors.text, flex: 1, fontWeight: "600" },
-    stopTextMine: { color: colors.accent, fontWeight: "800" },
-    youHere: {
-      color: colors.accent,
-      fontSize: 11,
-      fontWeight: "700",
-      textTransform: "uppercase",
-      letterSpacing: 0.5,
-    },
 
     groupCard: {
       backgroundColor: colors.surface,

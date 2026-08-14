@@ -12,6 +12,7 @@ import {
   View,
 } from "react-native";
 import * as Location from "expo-location";
+import { RouteStops } from "../components/RouteStops";
 import { useAuth } from "../auth/AuthContext";
 import { useTheme, type Colors } from "../theme/ThemeContext";
 import {
@@ -61,6 +62,10 @@ export function DriverDashboardScreen() {
     lng: number;
     at: number;
   } | null>(null);
+
+  // Name of the stop whose Arrived/Undo is in flight, so only that one row
+  // shows a spinner rather than the whole list going busy.
+  const [marking, setMarking] = useState<string | null>(null);
 
   const watcherRef = useRef<Location.LocationSubscription | null>(null);
   const sendingRef = useRef(false);
@@ -177,6 +182,28 @@ export function DriverDashboardScreen() {
       setBusy(false);
     }
   }, [busy, stopWatching, loadStatus]);
+
+  const handleMarkArrival = useCallback(
+    async (stop: string, arrived: boolean) => {
+      if (marking) return;
+      setMarking(stop);
+      setError(null);
+      try {
+        const res = await driverTripApi.markArrival(stop, arrived);
+        // Take the server's list rather than patching the local one: it is
+        // what students are about to be shown, and it settles the arrival
+        // time instead of guessing it from this phone's clock.
+        setStatus((prev) =>
+          prev ? { ...prev, stopArrivals: res.stopArrivals } : prev
+        );
+      } catch (e) {
+        setError((e as Error).message);
+      } finally {
+        setMarking(null);
+      }
+    },
+    [marking]
+  );
 
   // The photo is fetched at runtime rather than read off the session: the
   // session blob is persisted to SecureStore, whose Android backend is
@@ -327,6 +354,8 @@ export function DriverDashboardScreen() {
           busy={busy}
           error={error}
           lastSent={lastSent}
+          marking={marking}
+          onMarkArrival={handleMarkArrival}
           onStart={handleStart}
           onStop={handleStop}
           onOpenIssue={() => setIssueModalOpen(true)}
@@ -408,6 +437,8 @@ type HomeViewProps = {
   issueBusy: boolean;
   error: string | null;
   lastSent: { lat: number; lng: number; at: number } | null;
+  marking: string | null;
+  onMarkArrival: (stop: string, arrived: boolean) => void;
   onStart: () => void;
   onStop: () => void;
 };
@@ -420,6 +451,8 @@ function HomeView({
   busy,
   error,
   lastSent,
+  marking,
+  onMarkArrival,
   onStart,
   onStop,
   onOpenIssue,
@@ -429,6 +462,21 @@ function HomeView({
   const tripActive = status?.tripActive ?? false;
   const bus = status?.bus ?? null;
   const currentIssue = status?.currentIssue ?? null;
+  const closedStops = bus?.stops.filter((s) => s.suspended).length ?? 0;
+  const arrivals = status?.stopArrivals ?? [];
+
+  // Distances are only shown on an active trip. Off trip, currentLocation is
+  // wherever the driver switched off last time — possibly a different town
+  // yesterday — and "nearest stop 14 km" read off a stale fix is worse than no
+  // distance at all. The local watcher's fix is preferred while on trip since
+  // it is fresher than the one the server echoes back, but the server's is
+  // what a just-reopened screen has.
+  const here =
+    tripActive && lastSent
+      ? { lat: lastSent.lat, lng: lastSent.lng }
+      : tripActive && status?.currentLocation
+      ? { lat: status.currentLocation.lat, lng: status.currentLocation.lng }
+      : null;
 
   return (
     <ScrollView
@@ -598,41 +646,35 @@ function HomeView({
             </Pressable>
           )}
 
-          <Text style={styles.sectionLabel}>Route stops</Text>
+          <View style={styles.sectionRow}>
+            <Text style={styles.sectionLabel}>Route stops</Text>
+            {bus.stops.length > 0 && (
+              <Text style={styles.sectionCount}>
+                {bus.stops.length} stop{bus.stops.length === 1 ? "" : "s"}
+                {arrivals.length > 0 ? ` · ${arrivals.length} done` : ""}
+                {closedStops > 0 ? ` · ${closedStops} closed` : ""}
+              </Text>
+            )}
+          </View>
           {bus.stops.length > 0 ? (
-            <View style={styles.stopsCard}>
-              {bus.stops.map((s, i) => (
-                <View
-                  key={`${s.name}-${i}`}
-                  style={[
-                    styles.stopRow,
-                    i < bus.stops.length - 1 && styles.stopRowDivider,
-                    s.suspended && { opacity: 0.55 },
-                  ]}
-                >
-                  <View
-                    style={[
-                      styles.stopBullet,
-                      s.suspended && styles.stopBulletSuspended,
-                    ]}
-                  >
-                    <Text style={styles.stopBulletText}>{i + 1}</Text>
-                  </View>
-                  <Text
-                    style={[
-                      styles.stopText,
-                      s.suspended && styles.stopTextSuspended,
-                    ]}
-                  >
-                    {s.name}
-                    {s.suspended ? "  (closed)" : ""}
-                  </Text>
-                </View>
-              ))}
-            </View>
+            <RouteStops
+              stops={bus.stops}
+              origin={here}
+              viewer="driver"
+              arrivals={arrivals}
+              // No trip, no marking: the API refuses it, and a route with
+              // Arrived buttons on a bus that hasn't left invites a tap that
+              // can only fail.
+              onMark={tripActive ? onMarkArrival : undefined}
+              marking={marking}
+            />
           ) : (
             <View style={styles.emptyCard}>
-              <Text style={styles.emptyBody}>No stops on this route yet.</Text>
+              <Text style={styles.emptyTitle}>No stops yet</Text>
+              <Text style={styles.emptyBody}>
+                Your college sets the route for this bus. Once they add the
+                stops they will show up here in order.
+              </Text>
             </View>
           )}
         </>
@@ -1250,6 +1292,20 @@ function makeStyles(colors: Colors) {
       letterSpacing: 0.3,
     },
 
+    sectionRow: {
+      flexDirection: "row",
+      alignItems: "baseline",
+      justifyContent: "space-between",
+      gap: 10,
+    },
+    sectionCount: {
+      fontSize: 12,
+      fontWeight: "700",
+      color: colors.textMuted,
+      marginTop: 24,
+      marginBottom: 10,
+      paddingHorizontal: 4,
+    },
     sectionLabel: {
       fontSize: 12,
       fontWeight: "700",
@@ -1508,41 +1564,6 @@ function makeStyles(colors: Colors) {
       color: colors.danger,
       marginTop: 16,
       textAlign: "center",
-      fontWeight: "600",
-    },
-
-    stopsCard: {
-      backgroundColor: colors.surface,
-      borderRadius: 18,
-      paddingVertical: 4,
-      shadowColor: "#000",
-      shadowOpacity: 0.04,
-      shadowRadius: 8,
-      shadowOffset: { width: 0, height: 2 },
-      elevation: 2,
-    },
-    stopRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      paddingVertical: 12,
-      paddingHorizontal: 16,
-      gap: 14,
-    },
-    stopRowDivider: { borderBottomWidth: 1, borderColor: colors.border },
-    stopBullet: {
-      width: 28,
-      height: 28,
-      borderRadius: 999,
-      backgroundColor: colors.surfaceMuted,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    stopBulletSuspended: { backgroundColor: "rgba(217,83,79,0.2)" },
-    stopBulletText: { color: colors.textMuted, fontSize: 12, fontWeight: "800" },
-    stopText: { fontSize: 14, color: colors.text, flex: 1, fontWeight: "600" },
-    stopTextSuspended: {
-      color: colors.textMuted,
-      textDecorationLine: "line-through",
       fontWeight: "600",
     },
 
