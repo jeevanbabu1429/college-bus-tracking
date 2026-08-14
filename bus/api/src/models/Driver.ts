@@ -49,6 +49,26 @@ const driverSchema = new Schema(
       ref: "Student",
       default: [],
     },
+    // Stops the driver has confirmed reaching on the current trip. Cleared on
+    // every /trip/start and /trip/stop alongside notifiedStudentIds — this
+    // describes one run of the route, not the bus.
+    //
+    // Keyed by stop *name*, not index. The same list is driven in both
+    // directions (pickup in the morning, drop in the evening) so a position in
+    // the array means nothing on its own, and a name is already how a student's
+    // own `stop` field refers to the same place.
+    stopArrivals: {
+      type: [
+        new Schema(
+          {
+            stop: { type: String, required: true, trim: true },
+            at: { type: Date, required: true },
+          },
+          { _id: false }
+        ),
+      ],
+      default: [],
+    },
     currentLocation: {
       type: new Schema(
         {

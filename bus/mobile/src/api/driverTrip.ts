@@ -31,11 +31,15 @@ export type CurrentIssue = {
   reportedAt: string;
 } | null;
 
+/** A stop the driver has confirmed reaching on the current trip. */
+export type StopArrival = { stop: string; at: string };
+
 export type TripStatus = {
   bus: TripBus;
   tripActive: boolean;
   currentLocation: TripLocation;
   currentIssue: CurrentIssue;
+  stopArrivals: StopArrival[];
 };
 
 export const driverTripApi = {
@@ -44,6 +48,14 @@ export const driverTripApi = {
     apiFetch<{ ok: true }>("/api/driver/trip/start", { method: "POST" }),
   stop: () =>
     apiFetch<{ ok: true }>("/api/driver/trip/stop", { method: "POST" }),
+  markArrival: (stop: string, arrived: boolean) =>
+    apiFetch<{ ok: true; stopArrivals: StopArrival[] }>(
+      "/api/driver/trip/arrival",
+      {
+        method: "POST",
+        body: JSON.stringify({ stop, arrived }),
+      }
+    ),
   sendLocation: (lat: number, lng: number) =>
     apiFetch<{ ok: true }>("/api/driver/trip/location", {
       method: "POST",

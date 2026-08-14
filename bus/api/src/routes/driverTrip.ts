@@ -70,6 +70,7 @@ router.get("/status", async (req, res) => {
     tripActive: driver.tripActive ?? false,
     currentLocation: driver.currentLocation ?? null,
     currentIssue: driver.currentIssue ?? null,
+    stopArrivals: driver.stopArrivals ?? [],
   });
 });
 
@@ -132,8 +133,9 @@ router.post("/start", async (req, res) => {
   const driverId = (req as unknown as { driverId: string }).driverId;
   const driver = await DriverModel.findByIdAndUpdate(
     driverId,
-    // Also wipe the arriving-soon dedup list so every trip starts fresh.
-    { $set: { tripActive: true, notifiedStudentIds: [] } },
+    // Also wipe the arriving-soon dedup list and last run's arrivals so every
+    // trip starts fresh.
+    { $set: { tripActive: true, notifiedStudentIds: [], stopArrivals: [] } },
     { new: true }
   );
   if (!driver) {
@@ -148,7 +150,7 @@ router.post("/stop", async (req, res) => {
   const driverId = (req as unknown as { driverId: string }).driverId;
   const driver = await DriverModel.findByIdAndUpdate(
     driverId,
-    { $set: { tripActive: false, notifiedStudentIds: [] } },
+    { $set: { tripActive: false, notifiedStudentIds: [], stopArrivals: [] } },
     { new: true }
   );
   if (!driver) {
@@ -176,6 +178,98 @@ function notifyTripChange(driverId: string, kind: "start" | "stop") {
       { title, body, data: { kind: `trip-${kind}`, busId: bus._id.toString(), url: "/" } }
     );
   })().catch((err) => console.error("[fcm] notifyTripChange failed:", err));
+}
+
+// Mark a stop as reached, or take the mark back.
+//
+// Deliberately driver-confirmed rather than derived from GPS. A bus sits
+// inside a stop's radius at a red light, and a route often doubles back past
+// a stop it has not served — auto-marking on proximity would tell students
+// the bus had been somewhere it had not stopped. The driver taps once and the
+// claim is theirs.
+router.post("/arrival", async (req, res) => {
+  const driverId = (req as unknown as { driverId: string }).driverId;
+  const { stop, arrived } = req.body ?? {};
+  if (typeof stop !== "string" || !stop.trim()) {
+    res.status(400).json({ error: "stop (a stop name) is required" });
+    return;
+  }
+  if (typeof arrived !== "boolean") {
+    res.status(400).json({ error: "arrived (a boolean) is required" });
+    return;
+  }
+
+  const driver = await DriverModel.findById(driverId);
+  if (!driver) {
+    res.status(404).json({ error: "Driver not found" });
+    return;
+  }
+  if (!driver.tripActive) {
+    res.status(400).json({ error: "Start the trip before marking stops" });
+    return;
+  }
+
+  const bus = await BusModel.findOne({ driver: driver._id })
+    .select("_id busNumber stops")
+    .lean();
+  if (!bus) {
+    res.status(404).json({ error: "No bus assigned to this driver" });
+    return;
+  }
+  // Match the route's own spelling so what gets stored always equals a
+  // student's `stop` value exactly, whatever casing the client sent.
+  const known = bus.stops.find(
+    (s) => s.name.toLowerCase() === stop.trim().toLowerCase()
+  );
+  if (!known) {
+    res.status(400).json({ error: "That stop is not on this bus's route" });
+    return;
+  }
+
+  const existing = (driver.stopArrivals ?? []).find(
+    (a) => a.stop === known.name
+  );
+
+  if (arrived) {
+    // Idempotent: re-marking keeps the first arrival time rather than sliding
+    // it forward every time the button is tapped twice.
+    if (!existing) {
+      driver.stopArrivals.push({ stop: known.name, at: new Date() });
+      await driver.save();
+      notifyStopArrival(bus._id.toString(), bus.busNumber, known.name);
+    }
+  } else if (existing) {
+    const at = driver.stopArrivals.findIndex((a) => a.stop === known.name);
+    driver.stopArrivals.splice(at, 1);
+    await driver.save();
+  }
+
+  res.json({ ok: true, stopArrivals: driver.stopArrivals ?? [] });
+});
+
+// Tell the students who board at this stop that their bus is actually there.
+// Fired only on the transition into "arrived", so undoing and re-marking a
+// stop the driver mis-tapped does not push the same alert twice in a row.
+function notifyStopArrival(
+  busId: string,
+  busNumber: string,
+  stopName: string
+): void {
+  (async () => {
+    const students = await StudentModel.find({ bus: busId, stop: stopName })
+      .select("_id")
+      .lean();
+    const ids = students.map((s) => s._id);
+    if (ids.length === 0) return;
+    sendPushSafe(
+      { role: "students", ids },
+      {
+        title: "Your bus has arrived",
+        body: `Bus ${busNumber} has reached ${stopName}.`,
+        data: { kind: "stop-arrived", busId, stop: stopName, url: "/" },
+      }
+    );
+  })().catch((err) => console.error("[fcm] notifyStopArrival failed:", err));
 }
 
 router.post("/location", async (req, res) => {

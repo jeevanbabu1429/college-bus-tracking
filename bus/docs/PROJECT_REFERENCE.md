@@ -228,10 +228,11 @@ All tokens are 7-day TTL, signed with `JWT_SECRET`.
 **Driver trip (`/api/driver/trip`, all `requireDriver`)**
 | Method | Path | Notes |
 |---|---|---|
-| GET | `/status` | returns assigned bus (if any) + `tripActive` + `currentLocation` |
-| POST | `/start` | flips `tripActive: true` |
-| POST | `/stop` | flips `tripActive: false` — leaves `currentLocation` intact |
+| GET | `/status` | returns assigned bus (if any) + `tripActive` + `currentLocation` + `stopArrivals` |
+| POST | `/start` | flips `tripActive: true`; clears `notifiedStudentIds` and `stopArrivals` |
+| POST | `/stop` | flips `tripActive: false` — clears the same two, leaves `currentLocation` intact |
 | POST | `/location` `{lat, lng}` | writes `currentLocation` **only if `tripActive`** |
+| POST | `/arrival` `{stop, arrived}` | **New.** Marks a stop reached, or takes the mark back. 400 unless `tripActive`; 400 if the name is not on this bus's route. Stores the route's own spelling so it equals a student's `stop` exactly. Idempotent — re-marking keeps the first timestamp. Pushes "Your bus has arrived" to students at that stop, on the transition only |
 
 **Colleges (`/api/colleges`, `requireAuth`)**
 | Method | Path | Notes |
@@ -280,6 +281,7 @@ All tokens are 7-day TTL, signed with `JWT_SECRET`.
 - **OTPs `console.log`-ed** in `auth.ts`, `driverAuth.ts`, `studentAuth.ts` (`[ROLE OTP] name mobile -> otp`). No SMS gateway.
 - **No rate limiting** on `/request-otp`.
 - **`Driver.currentLocation` is not cleared on trip stop** — last position lingers. Intentional (students see "last seen here") but easy to forget.
+- **`Driver.stopArrivals` IS cleared on both trip start and stop**, unlike `currentLocation`. It describes one run of the route, so an idle bus must never show yesterday's ticks. Keyed by stop *name*, not index — the same route is driven in both directions (morning pickup, evening drop), so array position carries no meaning, and `Student.stop` is a name too.
 - **Location updates rejected unless `tripActive: true`** — the write-side gate lives in `POST /trip/location`.
 - **Reassigning a driver requires clearing the old bus first** to satisfy the partial unique index; `PUT /buses/:id/driver` and `POST /driver-assignments` do this. Don't break it in new code paths.
 - **`orphan claim` race** — `POST /claim-orphans` doesn't lock, so two admins could grab the same college.
