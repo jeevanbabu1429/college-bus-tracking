@@ -55,7 +55,7 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Allow Bus to access your location while driving so students can see the bus on the map."
+          "locationWhenInUsePermission": "Allow Bus to use your location so drivers can share the bus position with students, and students can find the buses running near them."
         }
       ],
       [

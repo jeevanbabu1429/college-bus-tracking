@@ -25,6 +25,7 @@ import { EditStudentScreen } from "../screens/EditStudentScreen";
 import { DriverDashboardScreen } from "../screens/DriverDashboardScreen";
 import { StudentDashboardScreen } from "../screens/StudentDashboardScreen";
 import { TrackOtherBusesScreen } from "../screens/TrackOtherBusesScreen";
+import { NearbyBusesScreen } from "../screens/NearbyBusesScreen";
 import { TrackOtherBusMapScreen } from "../screens/TrackOtherBusMapScreen";
 import { PendingApprovalScreen } from "../screens/PendingApprovalScreen";
 import { CollegeProvider } from "../college/CollegeContext";
@@ -108,6 +109,7 @@ function StudentNavigator() {
         name="TrackOtherBuses"
         component={TrackOtherBusesScreen}
       />
+      <StudentStack.Screen name="NearbyBuses" component={NearbyBusesScreen} />
       <StudentStack.Screen
         name="TrackOtherBusMap"
         component={TrackOtherBusMapScreen}

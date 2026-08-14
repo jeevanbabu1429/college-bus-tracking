@@ -22,6 +22,7 @@ import { driverPhotoSource } from "../api/driverAuth";
 import { Avatar } from "../components/Avatar";
 import { PhotoViewerModal } from "../components/PhotoViewerModal";
 import type { BusStop } from "../api/collegeBuses";
+import { distanceMeters, formatDistance } from "../lib/geo";
 import type { StudentStackParamList } from "../navigation/types";
 
 const POLL_INTERVAL_MS = 5000;
@@ -32,21 +33,6 @@ type Tab = "home" | "profile";
 type Styles = ReturnType<typeof makeStyles>;
 
 type PlacedStop = { name: string; lat: number; lng: number; suspended: boolean };
-
-function distanceMeters(
-  a: { lat: number; lng: number },
-  b: { lat: number; lng: number }
-): number {
-  const R = 6371000;
-  const dLat = ((b.lat - a.lat) * Math.PI) / 180;
-  const dLng = ((b.lng - a.lng) * Math.PI) / 180;
-  const lat1 = (a.lat * Math.PI) / 180;
-  const lat2 = (b.lat * Math.PI) / 180;
-  const h =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
-  return 2 * R * Math.asin(Math.sqrt(h));
-}
 
 // When the student's own stop is suspended, tell them what to do. Two modes:
 //   - "temporary": the admin explicitly set a replacement stop name — show it
@@ -203,10 +189,6 @@ const indicatorStyles = {
   textOn: { color: "#4caf50" },
   textOff: { color: "#a0a4b1" },
 };
-
-function formatDistance(m: number): string {
-  return m >= 1000 ? `${(m / 1000).toFixed(1)} km` : `${Math.round(m)} m`;
-}
 
 export function StudentDashboardScreen() {
   const { session, refreshSession, logout } = useAuth();
