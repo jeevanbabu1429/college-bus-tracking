@@ -1,14 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import type {
-  Driver,
-  DriverInput,
-  Gender,
-} from "../lib/api/collegeDrivers";
-import { RequiredLegend, RequiredMark } from "./RequiredMark";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { Driver, DriverInput, Gender } from "../lib/api/collegeDrivers";
+import { RequiredMark } from "./RequiredMark";
 import { fileToSquareDataUrl } from "../lib/images";
-import { IconUpload, IconX } from "./icons";
+import { IconBadge, IconPhone, IconUpload, IconUsers, IconX } from "./icons";
 
 const GENDERS: Gender[] = ["male", "female", "other"];
 
@@ -25,6 +21,14 @@ function isoDate(value: string): string {
   if (Number.isNaN(d.getTime())) return value.slice(0, 10);
   return d.toISOString().slice(0, 10);
 }
+
+type Field =
+  | "name"
+  | "dob"
+  | "licenceNumber"
+  | "aadharNumber"
+  | "mobile"
+  | "address";
 
 type Props = {
   initial?: Driver | null;
@@ -44,6 +48,9 @@ export function DriverForm({ initial, submitLabel, onSubmit, onCancel }: Props) 
   const [image, setImage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<Field, string>>>(
+    {}
+  );
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -58,6 +65,42 @@ export function DriverForm({ initial, submitLabel, onSubmit, onCancel }: Props) 
     setImage(initial.image ?? null);
   }, [initial]);
 
+  // What the action bar reports on an edit. Compared against the record as it
+  // was loaded, not against a blank form, so retyping the same value correctly
+  // counts as no change.
+  const dirty = useMemo(() => {
+    if (!initial) return true;
+    return (
+      name !== initial.name ||
+      dob !== isoDate(initial.dob) ||
+      gender !== initial.gender ||
+      licenceNumber !== initial.licenceNumber ||
+      aadharNumber !== initial.aadharNumber ||
+      mobile !== initial.mobile ||
+      address !== initial.address ||
+      image !== (initial.image ?? null)
+    );
+  }, [
+    initial,
+    name,
+    dob,
+    gender,
+    licenceNumber,
+    aadharNumber,
+    mobile,
+    address,
+    image,
+  ]);
+
+  function clearFieldError(field: Field) {
+    setFieldErrors((prev) => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  }
+
   async function onPhotoPicked(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     // Reset straight away so re-picking the same file still fires onChange.
@@ -71,24 +114,34 @@ export function DriverForm({ initial, submitLabel, onSubmit, onCancel }: Props) 
     }
   }
 
+  // Errors land on the field that caused them rather than in one lump at the
+  // bottom, so a long form points straight at the box to fix.
+  function validate(): Partial<Record<Field, string>> {
+    const next: Partial<Record<Field, string>> = {};
+    if (!name.trim()) next.name = "Enter a name";
+    if (!dob) next.dob = "Pick a date of birth";
+    if (!mobile.trim()) next.mobile = "Enter a mobile number";
+    if (!licenceNumber.trim()) next.licenceNumber = "Enter the licence number";
+    if (!aadharNumber.trim()) {
+      next.aadharNumber = "Enter the Aadhar number";
+    } else if (!/^\d{12}$/.test(aadharNumber.trim())) {
+      next.aadharNumber = "Aadhar must be exactly 12 digits";
+    }
+    if (!address.trim()) next.address = "Enter an address";
+    return next;
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    if (
-      !name.trim() ||
-      !dob ||
-      !licenceNumber.trim() ||
-      !aadharNumber.trim() ||
-      !mobile.trim() ||
-      !address.trim()
-    ) {
-      setError("All fields are required");
+
+    const problems = validate();
+    setFieldErrors(problems);
+    if (Object.keys(problems).length > 0) {
+      setError("Check the highlighted fields above.");
       return;
     }
-    if (!/^\d{12}$/.test(aadharNumber.trim())) {
-      setError("Aadhar must be exactly 12 digits");
-      return;
-    }
+
     setBusy(true);
     try {
       await onSubmit({
@@ -109,12 +162,21 @@ export function DriverForm({ initial, submitLabel, onSubmit, onCancel }: Props) 
   }
 
   return (
-    <form className="card" onSubmit={handleSubmit} style={{ maxWidth: 780 }}>
-      <RequiredLegend />
+    <form className="formstack" onSubmit={handleSubmit} noValidate>
+      <section className="formsection">
+        <div className="formsection-head">
+          <span className="formsection-icon" aria-hidden>
+            <IconUsers size={17} />
+          </span>
+          <div className="formsection-titles">
+            <h2 className="formsection-title">Driver details</h2>
+            <span className="formsection-hint">
+              The name and photo students see while tracking the bus.
+            </span>
+          </div>
+        </div>
 
-      <div className="field" style={{ marginBottom: 20 }}>
-        <label className="field-label">Photo</label>
-        <div className="photo-field">
+        <div className="photo-field" style={{ marginBottom: 20 }}>
           <span className="photo-preview">
             {image ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -132,7 +194,8 @@ export function DriverForm({ initial, submitLabel, onSubmit, onCancel }: Props) 
                 className="btn btn-secondary btn-sm"
                 onClick={() => fileInputRef.current?.click()}
               >
-                <IconUpload size={13} /> {image ? "Change photo" : "Upload photo"}
+                <IconUpload size={13} />{" "}
+                {image ? "Change photo" : "Upload photo"}
               </button>
               {image && (
                 <button
@@ -157,124 +220,233 @@ export function DriverForm({ initial, submitLabel, onSubmit, onCancel }: Props) 
             hidden
           />
         </div>
-      </div>
 
-      <div className="form-grid">
-        <div className="field" style={{ marginBottom: 0 }}>
-          <label className="field-label">
-            Name
-            <RequiredMark />
-          </label>
-          <input
-            className="field-control"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-          />
+        <div className="form-grid">
+          <div className="field" style={{ marginBottom: 0 }}>
+            <label className="field-label" htmlFor="driver-name">
+              Name
+              <RequiredMark />
+            </label>
+            <input
+              id="driver-name"
+              className="field-control"
+              value={name}
+              onChange={(e) => {
+                setName(e.target.value);
+                clearFieldError("name");
+              }}
+              aria-invalid={fieldErrors.name ? true : undefined}
+              aria-required
+              autoComplete="name"
+            />
+            {fieldErrors.name && (
+              <span className="field-error">{fieldErrors.name}</span>
+            )}
+          </div>
+
+          <div className="field" style={{ marginBottom: 0 }}>
+            <label className="field-label" htmlFor="driver-dob">
+              Date of birth
+              <RequiredMark />
+            </label>
+            <input
+              id="driver-dob"
+              className="field-control"
+              type="date"
+              value={dob}
+              onChange={(e) => {
+                setDob(e.target.value);
+                clearFieldError("dob");
+              }}
+              aria-invalid={fieldErrors.dob ? true : undefined}
+              aria-required
+            />
+            {fieldErrors.dob && (
+              <span className="field-error">{fieldErrors.dob}</span>
+            )}
+          </div>
         </div>
-        <div className="field" style={{ marginBottom: 0 }}>
-          <label className="field-label">
-            Date of birth
+
+        <div className="field" style={{ marginTop: 18, marginBottom: 0 }}>
+          <span className="field-label">
+            Gender
             <RequiredMark />
-          </label>
-          <input
-            className="field-control"
-            type="date"
-            value={dob}
-            onChange={(e) => setDob(e.target.value)}
-            required
-          />
+          </span>
+          <div className="chip-row" role="group" aria-label="Gender">
+            {GENDERS.map((g) => (
+              <button
+                key={g}
+                type="button"
+                onClick={() => setGender(g)}
+                aria-pressed={gender === g}
+                className={`chip ${gender === g ? "chip-active" : ""}`}
+                style={{ textTransform: "capitalize" }}
+              >
+                {g}
+              </button>
+            ))}
+          </div>
         </div>
-        <div className="field" style={{ marginBottom: 0 }}>
-          <label className="field-label">
+      </section>
+
+      <section className="formsection">
+        <div className="formsection-head">
+          <span className="formsection-icon" aria-hidden>
+            <IconPhone size={17} />
+          </span>
+          <div className="formsection-titles">
+            <h2 className="formsection-title">Contact</h2>
+            <span className="formsection-hint">
+              How the college reaches this driver. The mobile number is also the
+              one shown on the live tracking card.
+            </span>
+          </div>
+        </div>
+
+        <div className="field" style={{ marginBottom: 18 }}>
+          <label className="field-label" htmlFor="driver-mobile">
             Mobile
             <RequiredMark />
           </label>
           <input
+            id="driver-mobile"
             className="field-control"
             value={mobile}
-            onChange={(e) => setMobile(e.target.value)}
+            onChange={(e) => {
+              setMobile(e.target.value);
+              clearFieldError("mobile");
+            }}
             inputMode="tel"
-            required
+            autoComplete="tel"
+            aria-invalid={fieldErrors.mobile ? true : undefined}
+            aria-required
           />
+          {fieldErrors.mobile && (
+            <span className="field-error">{fieldErrors.mobile}</span>
+          )}
         </div>
-        <div className="field" style={{ marginBottom: 0 }}>
-          <label className="field-label">
-            Licence number
-            <RequiredMark />
-          </label>
-          <input
-            className="field-control"
-            value={licenceNumber}
-            onChange={(e) => setLicenceNumber(e.target.value)}
-            required
-          />
-        </div>
-        <div className="field" style={{ marginBottom: 0 }}>
-          <label className="field-label">
-            Aadhar number
-            <RequiredMark />
-          </label>
-          <input
-            className="field-control"
-            value={aadharNumber}
-            onChange={(e) => setAadharNumber(e.target.value)}
-            inputMode="numeric"
-            maxLength={12}
-            required
-          />
-        </div>
-      </div>
 
-      <div className="field" style={{ marginTop: 14, marginBottom: 0 }}>
-        <label className="field-label">
-          Gender
-          <RequiredMark />
-        </label>
-        <div className="chip-row" aria-required="true">
-          {GENDERS.map((g) => (
+        <div className="field" style={{ marginBottom: 0 }}>
+          <label className="field-label" htmlFor="driver-address">
+            Address
+            <RequiredMark />
+          </label>
+          <textarea
+            id="driver-address"
+            className="field-control"
+            rows={2}
+            value={address}
+            onChange={(e) => {
+              setAddress(e.target.value);
+              clearFieldError("address");
+            }}
+            aria-invalid={fieldErrors.address ? true : undefined}
+            aria-required
+          />
+          {fieldErrors.address && (
+            <span className="field-error">{fieldErrors.address}</span>
+          )}
+        </div>
+      </section>
+
+      <section className="formsection">
+        <div className="formsection-head">
+          <span className="formsection-icon" aria-hidden>
+            <IconBadge size={17} />
+          </span>
+          <div className="formsection-titles">
+            <h2 className="formsection-title">Licence &amp; ID</h2>
+            <span className="formsection-hint">
+              Kept for the college&rsquo;s own records — students never see
+              these.
+            </span>
+          </div>
+        </div>
+
+        <div className="form-grid">
+          <div className="field" style={{ marginBottom: 0 }}>
+            <label className="field-label" htmlFor="driver-licence">
+              Licence number
+              <RequiredMark />
+            </label>
+            <input
+              id="driver-licence"
+              className="field-control"
+              value={licenceNumber}
+              onChange={(e) => {
+                setLicenceNumber(e.target.value);
+                clearFieldError("licenceNumber");
+              }}
+              style={{ textTransform: "uppercase" }}
+              aria-invalid={fieldErrors.licenceNumber ? true : undefined}
+              aria-required
+            />
+            {fieldErrors.licenceNumber ? (
+              <span className="field-error">{fieldErrors.licenceNumber}</span>
+            ) : (
+              <span className="field-help">Saved in capitals.</span>
+            )}
+          </div>
+
+          <div className="field" style={{ marginBottom: 0 }}>
+            <label className="field-label" htmlFor="driver-aadhar">
+              Aadhar number
+              <RequiredMark />
+            </label>
+            <input
+              id="driver-aadhar"
+              className="field-control"
+              value={aadharNumber}
+              onChange={(e) => {
+                setAadharNumber(e.target.value);
+                clearFieldError("aadharNumber");
+              }}
+              inputMode="numeric"
+              maxLength={12}
+              aria-invalid={fieldErrors.aadharNumber ? true : undefined}
+              aria-required
+            />
+            {fieldErrors.aadharNumber ? (
+              <span className="field-error">{fieldErrors.aadharNumber}</span>
+            ) : (
+              <span className="field-help">{aadharNumber.length}/12 digits</span>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {error && <div className="alert alert-error">{error}</div>}
+
+      <div className="formbar">
+        <span className="formbar-note">
+          {!initial ? (
+            <>
+              Fields marked <span className="required">*</span> are required.
+            </>
+          ) : dirty ? (
+            <>
+              <span className="status-dot status-dot-warning" aria-hidden />
+              <strong>Unsaved changes</strong>
+            </>
+          ) : (
+            <>No changes yet.</>
+          )}
+        </span>
+        <div className="formbar-actions">
+          {onCancel && (
             <button
-              key={g}
               type="button"
-              onClick={() => setGender(g)}
-              className={`chip ${gender === g ? "chip-active" : ""}`}
-              style={{ textTransform: "capitalize" }}
+              className="btn btn-quiet"
+              onClick={onCancel}
+              disabled={busy}
             >
-              {g}
+              Cancel
             </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="field" style={{ marginTop: 14, marginBottom: 0 }}>
-        <label className="field-label">
-          Address
-          <RequiredMark />
-        </label>
-        <textarea
-          className="field-control"
-          rows={2}
-          value={address}
-          onChange={(e) => setAddress(e.target.value)}
-          required
-        />
-      </div>
-
-      {error && (
-        <div className="alert alert-error" style={{ marginTop: 14 }}>
-          {error}
-        </div>
-      )}
-
-      <div style={{ marginTop: 18, display: "flex", gap: 10 }}>
-        <button type="submit" className="btn btn-primary" disabled={busy}>
-          {busy ? <span className="spinner spinner-light" /> : submitLabel}
-        </button>
-        {onCancel && (
-          <button type="button" className="btn btn-quiet" onClick={onCancel}>
-            Cancel
+          )}
+          <button type="submit" className="btn btn-primary" disabled={busy}>
+            {busy ? <span className="spinner spinner-light" /> : submitLabel}
           </button>
-        )}
+        </div>
       </div>
     </form>
   );

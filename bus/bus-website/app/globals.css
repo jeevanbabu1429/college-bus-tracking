@@ -2529,3 +2529,198 @@ select.field-control {
 .busdriver-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .busdriver-name { font-size: 15px; font-weight: 700; color: var(--text); }
 .busdriver-meta { font-size: 12.5px; color: var(--text-muted); }
+
+/* ===========================================================
+   Sectioned record forms (add / edit driver, add / edit student)
+   =========================================================== */
+
+/* One <form> made of several cards instead of one long slab. Each section
+   answers a single question ("who is this?", "how do we reach them?"), so a
+   half-filled form is still readable and an edit only asks you to scan the
+   one block you came to change. */
+.formstack {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  max-width: 880px;
+}
+
+.formsection {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 20px 22px 22px;
+  box-shadow: 0 1px 2px rgba(20, 16, 8, 0.03);
+}
+
+.formsection-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.formsection-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.formsection-titles {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.formsection-title {
+  font-size: 14.5px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+.formsection-hint {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+/* Action bar. Sticky so a long form never hides its own Save button — it
+   reserves its space in the flow, so nothing ends up permanently underneath
+   it either. The window is the scroll container (.app uses `overflow: clip`,
+   not `hidden`), which is what lets this stick at all. */
+.formbar {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 14px 18px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+}
+.formbar-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  margin-right: auto;
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+.formbar-note strong { color: var(--text); font-weight: 600; }
+.formbar-actions { display: flex; gap: 10px; }
+
+@media (max-width: 560px) {
+  .formbar-note { width: 100%; margin-right: 0; }
+  .formbar-actions { width: 100%; }
+  .formbar-actions .btn { flex: 1; justify-content: center; }
+}
+
+/* ---- Identity strip above an edit form ---- */
+
+/* Tells you at a glance which record you opened, so the form below can be
+   plain inputs without repeating the name in a heading. */
+.subject {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 14px 18px;
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+.subject-avatar {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+  border: 1px solid var(--border);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.subject-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.subject-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  flex: 1;
+}
+.subject-name {
+  font-size: 15.5px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+.subject-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+.subject-meta-dot { color: var(--border-strong); }
+
+/* ---- Chosen-bus preview inside the student form ---- */
+
+.buspreview {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-muted);
+}
+.buspreview-mark {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: #ffffff;
+  border: 1px solid var(--border);
+  color: var(--text-soft);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.buspreview-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.buspreview-title { font-size: 13.5px; font-weight: 700; color: var(--text); }
+.buspreview-meta { font-size: 12px; color: var(--text-muted); }
+
+/* ---- Loading placeholder for a record form ---- */
+
+.skeleton-form { display: flex; flex-direction: column; gap: 14px; max-width: 880px; }
+.skeleton-line {
+  height: 46px;
+  border-radius: 12px;
+  background: linear-gradient(90deg, var(--surface-muted) 25%, #f1eadb 50%, var(--surface-muted) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-sweep 1.3s ease-in-out infinite;
+}
+.skeleton-line[data-tall] { height: 120px; }
+@keyframes skeleton-sweep {
+  from { background-position: 200% 0; }
+  to   { background-position: -200% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-line { animation: none; }
+}
