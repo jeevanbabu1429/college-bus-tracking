@@ -20,6 +20,7 @@ export default function AssignDriversPage() {
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [savingBusId, setSavingBusId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
 
   const load = useCallback(async () => {
     if (!selected) return;
@@ -67,6 +68,19 @@ export default function AssignDriversPage() {
     (buses ?? []).map((b) => b.driver?._id).filter(Boolean) as string[]
   );
 
+  // Only the three fields this table actually shows. Matching on a hidden
+  // field like the route would surface rows with no visible reason for being
+  // there, and this page is a picker, not a report.
+  const filtered = (buses ?? []).filter((b) => {
+    const q = query.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      b.busNumber.toLowerCase().includes(q) ||
+      b.plateNumber.toLowerCase().includes(q) ||
+      (b.driver?.name ?? "").toLowerCase().includes(q)
+    );
+  });
+
   return (
     <>
       <div className="page-header">
@@ -86,17 +100,31 @@ export default function AssignDriversPage() {
 
       {error && <div className="alert alert-error">{error}</div>}
 
+      <div className="toolbar">
+        <input
+          className="field-control toolbar-search"
+          placeholder="Search by bus, plate or assigned driver…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+        <span className="toolbar-meta">
+          {filtered.length} of {(buses ?? []).length}
+        </span>
+      </div>
+
       <div className="table-card">
         {buses === null ? (
           <div className="center" style={{ padding: 60 }}>
             <span className="spinner" />
           </div>
-        ) : buses.length === 0 ? (
+        ) : filtered.length === 0 ? (
           <p
             className="muted"
             style={{ padding: 24, textAlign: "center", fontSize: 13 }}
           >
-            No buses to assign drivers to.
+            {buses.length === 0
+              ? "No buses to assign drivers to."
+              : "No buses match that search."}
           </p>
         ) : (
           <table className="table">
@@ -109,7 +137,7 @@ export default function AssignDriversPage() {
               </tr>
             </thead>
             <tbody>
-              {buses.map((b) => {
+              {filtered.map((b) => {
                 const isSaving = savingBusId === b._id;
                 return (
                   <tr key={b._id}>
