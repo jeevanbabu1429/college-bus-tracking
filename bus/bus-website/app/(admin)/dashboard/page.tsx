@@ -5,6 +5,7 @@ import { useEffect } from "react";
 import { useAuth } from "../../../lib/auth/AuthContext";
 import { useColleges } from "../../../lib/college/CollegeContext";
 import { NoCollege } from "../../../components/NoCollege";
+import { BusIssuesPanel } from "../../../components/BusIssuesPanel";
 import { ExportReportButton } from "../../../components/ExportReportButton";
 import { buildCollegeReport } from "../../../lib/export/collegeReport";
 
@@ -109,6 +110,10 @@ export default function DashboardPage() {
           <span className="blob-c" />
         </div>
       </div>
+
+      {/* Above the stats on purpose — a bus stuck by the roadside outranks
+          every count on this page. */}
+      <BusIssuesPanel />
 
       <div
         style={{

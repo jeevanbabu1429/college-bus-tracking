@@ -256,6 +256,7 @@ All tokens are 7-day TTL, signed with `JWT_SECRET`.
 | Method | Path | Notes |
 |---|---|---|
 | GET | `/` | list buses, driver populated |
+| GET | `/issues` | **New.** Buses whose driver has an unresolved `currentIssue`, with driver contact details and how many students ride each. **Not** filtered by `tripActive` — see `/live` — oldest report first |
 | GET | `/live` | **New.** All buses whose driver is `tripActive` — returns `[{ bus, driver }]` with location |
 | POST | `/` | single create |
 | POST | `/bulk` | up to 500 rows, per-row `{ created, failed }` |

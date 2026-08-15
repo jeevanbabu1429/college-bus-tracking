@@ -23,6 +23,32 @@ export type Bus = {
   updatedAt: string;
 };
 
+export type IssueType =
+  | "breakdown"
+  | "flat_tyre"
+  | "refuelling"
+  | "traffic"
+  | "mechanical"
+  | "weather"
+  | "other";
+
+/** A bus whose driver has reported a problem they have not yet resolved. */
+export type BusIssueItem = {
+  bus: { _id: string; busNumber: string; plateNumber: string; route: string };
+  driver: {
+    _id: string;
+    name: string;
+    mobile: string;
+    licenceNumber: string;
+    /** False when the driver has come off the road — the issue outlives the trip. */
+    tripActive: boolean;
+    currentLocation: { lat: number; lng: number; updatedAt: string } | null;
+  };
+  issue: { type: IssueType; message: string; reportedAt: string };
+  /** Riders on that bus — how many people the problem actually strands. */
+  studentCount: number;
+};
+
 export type BusInput = {
   busNumber: string;
   plateNumber: string;
@@ -80,6 +106,8 @@ export type LiveBusItem = {
 };
 
 export const collegeBusesApi = {
+  issues: (collegeId: string) =>
+    apiFetch<BusIssueItem[]>(`/api/colleges/${collegeId}/buses/issues`),
   list: (collegeId: string) =>
     apiFetch<Bus[]>(`/api/colleges/${collegeId}/buses`),
   live: (collegeId: string) =>
