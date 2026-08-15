@@ -39,7 +39,9 @@ const driverSchema = new Schema(
     otp: { type: String, default: null },
     otpExpiresAt: { type: Date, default: null },
     tripActive: { type: Boolean, default: false },
-    fcmTokens: { type: [String], default: [] },
+    // Indexed because every sign-in sweeps all three collections for this
+    // device's token to take it off its previous owner.
+    fcmTokens: { type: [String], default: [], index: true },
     // Students already pushed the "bus arriving soon" alert during the
     // current trip. Cleared on every /trip/start and /trip/stop so each
     // trip starts fresh. Prevents re-notifying the same student while the

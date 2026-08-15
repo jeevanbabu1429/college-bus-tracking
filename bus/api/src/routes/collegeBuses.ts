@@ -494,6 +494,8 @@ router.put("/:busId/route", async (req, res) => {
   }
 
   const prevNotice = bus.notice ?? "";
+  const prevRoute = bus.route ?? "";
+  const prevOrder = (bus.stops ?? []).map((s) => s.name).join(" ");
   const prevSuspended = new Set(
     (bus.stops ?? []).filter((s) => s.suspended).map((s) => s.name)
   );
@@ -583,7 +585,22 @@ router.put("/:busId/route", async (req, res) => {
     if (s.suspended) tempByStop.set(s.name, s.temporaryReplacement);
   }
 
-  if (noticeChanged || newlySuspended.length || newlyResumed.length || removedStops.length) {
+  // The shape of the line itself: renamed route, stops added, or the order
+  // rearranged. Suspensions are excluded — those already reach exactly the
+  // students they affect, and a second blanket alert would double-notify.
+  const addedStops = stopNames.filter((n) => !prevNames.has(n));
+  const routeRenamed = bus.route !== prevRoute;
+  const reordered = stopNames.join(" ") !== prevOrder;
+  const lineChanged =
+    routeRenamed || addedStops.length > 0 || removedStops.length > 0 || reordered;
+
+  if (
+    noticeChanged ||
+    newlySuspended.length ||
+    newlyResumed.length ||
+    removedStops.length ||
+    lineChanged
+  ) {
     notifyBusUpdate(bus._id.toString(), bus.busNumber, {
       noticeChanged,
       notice: bus.notice,
@@ -591,11 +608,47 @@ router.put("/:busId/route", async (req, res) => {
       newlyResumed,
       removedStops,
       tempByStop,
+      lineChanged,
+      routeRenamed,
+      routeName: bus.route,
+      addedStops,
+      driverId: bus.driver ? String(bus.driver) : null,
     });
   }
 
   res.json(populated);
 });
+
+// One sentence covering whichever part of the line moved. Named stops where
+// there are few enough to name, since "2 stops added" makes a reader open the
+// app to find out which.
+function describeLineChange(changes: {
+  routeRenamed: boolean;
+  routeName: string;
+  addedStops: string[];
+  removedStops: string[];
+}): string {
+  const parts: string[] = [];
+  if (changes.addedStops.length > 0) {
+    parts.push(
+      changes.addedStops.length <= 3
+        ? `${changes.addedStops.join(", ")} added`
+        : `${changes.addedStops.length} stops added`
+    );
+  }
+  if (changes.removedStops.length > 0) {
+    parts.push(
+      changes.removedStops.length <= 3
+        ? `${changes.removedStops.join(", ")} removed`
+        : `${changes.removedStops.length} stops removed`
+    );
+  }
+  if (changes.routeRenamed && changes.routeName) {
+    parts.push(`now running as "${changes.routeName}"`);
+  }
+  if (parts.length === 0) return "The stop order has changed. Check the app for the new route.";
+  return `${parts.join("; ")}. Check the app for the full route.`;
+}
 
 function notifyBusUpdate(
   busId: string,
@@ -607,11 +660,44 @@ function notifyBusUpdate(
     newlyResumed: string[];
     removedStops: string[];
     tempByStop: Map<string, string | null>;
+    lineChanged: boolean;
+    routeRenamed: boolean;
+    routeName: string;
+    addedStops: string[];
+    driverId: string | null;
   }
 ) {
   (async () => {
     const students = await StudentModel.find({ bus: busId }).select("_id stop").lean();
+
+    // The driver drives whatever the admin last saved, so any edit to the line
+    // is theirs to know about — they were previously the only person on the
+    // bus who was never told.
+    if (changes.lineChanged && changes.driverId) {
+      sendPushSafe(
+        { role: "driver", id: changes.driverId },
+        {
+          title: `Bus ${busNumber} route updated`,
+          body: describeLineChange(changes),
+          data: { kind: "route-updated", busId, url: "/" },
+        }
+      );
+    }
+
     if (students.length === 0) return;
+
+    // Everyone on the bus, not just the students at a changed stop: a
+    // reordered or renamed route changes the journey for all of them.
+    if (changes.lineChanged) {
+      sendPushSafe(
+        { role: "students", ids: students.map((s) => s._id) },
+        {
+          title: `Bus ${busNumber} route updated`,
+          body: describeLineChange(changes),
+          data: { kind: "route-updated", busId, url: "/" },
+        }
+      );
+    }
 
     if (changes.noticeChanged) {
       sendPushSafe(

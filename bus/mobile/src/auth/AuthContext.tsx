@@ -15,6 +15,7 @@ import type { Driver } from "../api/collegeDrivers";
 import type { Student } from "../api/collegeStudents";
 import { setCurrentToken } from "./tokenStore";
 import { setOnSuspended, setOnUnauthorized } from "../api/client";
+import { releaseDeviceToken } from "../notifications/releaseDeviceToken";
 
 const TOKEN_KEY = "bus.authToken";
 const SESSION_KEY = "bus.authSession";
@@ -205,6 +206,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [state.token, state.session?.role]);
 
   const logout = useCallback(async () => {
+    // Before the session goes, not after: apiFetch reads the bearer
+    // synchronously, so releasing the push token once the token store is
+    // cleared sends an unauthenticated request that 401s and leaves this
+    // phone still registered to the account it just left.
+    await releaseDeviceToken();
     await Promise.all([
       SecureStore.deleteItemAsync(TOKEN_KEY),
       SecureStore.deleteItemAsync(SESSION_KEY),
