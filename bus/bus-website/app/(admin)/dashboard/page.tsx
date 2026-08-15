@@ -24,6 +24,7 @@ import {
   IconRoute,
   IconBuilding,
   IconMap,
+  IconBell,
 } from "../../../components/icons";
 
 const QUICK_ACTIONS = [
@@ -68,6 +69,12 @@ const QUICK_ACTIONS = [
     label: "Routes & stops",
     caption: "Manage routes and capacity",
     Icon: IconRoute,
+  },
+  {
+    href: "/send-notification",
+    label: "Send notification",
+    caption: "Alert students and drivers",
+    Icon: IconBell,
   },
 ];
 

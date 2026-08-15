@@ -8,6 +8,7 @@ import collegesRouter from "./routes/colleges.js";
 import collegeBusesRouter from "./routes/collegeBuses.js";
 import collegeDriversRouter from "./routes/collegeDrivers.js";
 import collegeStudentsRouter from "./routes/collegeStudents.js";
+import collegeNotificationsRouter from "./routes/collegeNotifications.js";
 import notificationsRouter from "./routes/notifications.js";
 import superAdminRouter from "./routes/superAdmin.js";
 import bannerRouter from "./routes/banner.js";
@@ -33,6 +34,9 @@ export function createApp(): Express {
   app.use("/api/colleges/:collegeId/buses", collegeBusesRouter);
   app.use("/api/colleges/:collegeId/drivers", collegeDriversRouter);
   app.use("/api/colleges/:collegeId/students", collegeStudentsRouter);
+  // Mounted after collegesRouter like its siblings, so it inherits that
+  // router's requireAdmin and its pending-college gate by fall-through.
+  app.use("/api/colleges/:collegeId/notifications", collegeNotificationsRouter);
   app.use("/api/notifications", notificationsRouter);
   app.use("/api/super", superAdminRouter);
   app.use("/api/banner", bannerRouter);
