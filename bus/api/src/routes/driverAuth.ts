@@ -2,6 +2,7 @@ import { Router, type RequestHandler } from "express";
 import jwt, { type SignOptions } from "jsonwebtoken";
 import { isValidObjectId } from "mongoose";
 import { DriverModel } from "../models/Driver.js";
+import { CollegeModel } from "../models/College.js";
 import { parseImageField } from "../lib/images.js";
 import {
   checkCollegeAdminSuspension,
@@ -38,6 +39,26 @@ function publicDriver(driver: InstanceType<typeof DriverModel>) {
     address: driver.address,
     createdAt: driver.get("createdAt"),
     updatedAt: driver.get("updatedAt"),
+  };
+}
+
+// The college the driver works for, in the shape the app's profile page shows
+// it. Kept beside `college` (still the raw id) rather than replacing it — the
+// admin-facing Driver payloads use that field as an id and share a type with
+// this one on the client.
+async function collegeInfoFor(
+  collegeId: unknown
+): Promise<{ _id: string; name: string; code: string; address: string } | null> {
+  if (!collegeId) return null;
+  const college = await CollegeModel.findById(collegeId)
+    .select("name code address")
+    .lean();
+  if (!college) return null;
+  return {
+    _id: String(college._id),
+    name: college.name,
+    code: college.code,
+    address: college.address,
   };
 }
 
@@ -105,7 +126,13 @@ router.post("/verify-otp", async (req, res) => {
 
   const token = signToken({ role: "driver", sub: driver.id });
 
-  res.json({ token, driver: publicDriver(driver) });
+  res.json({
+    token,
+    driver: {
+      ...publicDriver(driver),
+      collegeInfo: await collegeInfoFor(driver.college),
+    },
+  });
 });
 
 // Same shape as the middleware in driverTrip.ts — verifies the driver token
@@ -152,7 +179,11 @@ router.get("/me", requireDriver, async (req, res) => {
     res.status(404).json({ error: "Driver not found" });
     return;
   }
-  res.json({ ...publicDriver(driver), image: driver.image ?? null });
+  res.json({
+    ...publicDriver(driver),
+    image: driver.image ?? null,
+    collegeInfo: await collegeInfoFor(driver.college),
+  });
 });
 
 // Driver-managed profile photo — the self-service equivalent of what the

@@ -1,8 +1,19 @@
 import { apiFetch, authedImageSource } from "./client";
 import type { Driver } from "./collegeDrivers";
 
+/** The college a driver works for, as shown on their profile page. */
+export type DriverCollege = {
+  _id: string;
+  name: string;
+  code: string;
+  address: string;
+};
+
 /** The driver's own profile. Unlike the login payload this carries the photo. */
-export type DriverProfile = Driver & { image: string | null };
+export type DriverProfile = Driver & {
+  image: string | null;
+  collegeInfo: DriverCollege | null;
+};
 
 // Driver photos are served as real images (with ETag revalidation) rather than
 // inlined into JSON, so they stay out of the student dashboard's 5s poll.
@@ -17,7 +28,7 @@ export const driverAuthApi = {
       body: JSON.stringify({ mobile }),
     }),
   verifyOtp: (mobile: string, otp: string) =>
-    apiFetch<{ token: string; driver: Driver }>(
+    apiFetch<{ token: string; driver: Driver & { collegeInfo?: DriverCollege | null } }>(
       "/api/driver-auth/verify-otp",
       {
         method: "POST",

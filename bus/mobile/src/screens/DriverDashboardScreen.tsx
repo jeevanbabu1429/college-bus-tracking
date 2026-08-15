@@ -21,7 +21,7 @@ import {
   type IssueType,
   type TripStatus,
 } from "../api/driverTrip";
-import { driverAuthApi } from "../api/driverAuth";
+import { driverAuthApi, type DriverCollege } from "../api/driverAuth";
 import { pickSquareAvatar } from "../lib/images";
 import { Avatar } from "../components/Avatar";
 import { Toast } from "../components/Toast";
@@ -209,6 +209,7 @@ export function DriverDashboardScreen() {
   // session blob is persisted to SecureStore, whose Android backend is
   // unreliable above ~2 KB, and a base64 photo is far larger than that.
   const [photo, setPhoto] = useState<string | null>(null);
+  const [college, setCollege] = useState<DriverCollege | null>(null);
   const [photoBusy, setPhotoBusy] = useState(false);
   // Carries a monotonic id, not just the text: setting the same string twice
   // would be a no-op state update, so a second "Profile photo updated" would
@@ -225,7 +226,12 @@ export function DriverDashboardScreen() {
     driverAuthApi
       .me()
       .then((profile) => {
-        if (!cancelled) setPhoto(profile.image ?? null);
+        if (cancelled) return;
+        setPhoto(profile.image ?? null);
+        // Read from /me rather than the stored session: a driver signed in
+        // before this field existed would otherwise have to log out and back
+        // in to see their college.
+        setCollege(profile.collegeInfo ?? null);
       })
       .catch(() => {
         // The photo is cosmetic — a failure here must not block the dashboard.
@@ -281,6 +287,10 @@ export function DriverDashboardScreen() {
   }, [photoBusy, showToast]);
 
   const [issueModalOpen, setIssueModalOpen] = useState(false);
+  // Which trip action is waiting to be confirmed. Both are consequential:
+  // starting shares the driver's location with students, stopping tells them
+  // the bus is done and wipes the stops marked on this run.
+  const [confirmTrip, setConfirmTrip] = useState<"start" | "stop" | null>(null);
   const [issueBusy, setIssueBusy] = useState(false);
 
   const handleReportIssue = useCallback(
@@ -356,8 +366,8 @@ export function DriverDashboardScreen() {
           lastSent={lastSent}
           marking={marking}
           onMarkArrival={handleMarkArrival}
-          onStart={handleStart}
-          onStop={handleStop}
+          onStart={() => setConfirmTrip("start")}
+          onStop={() => setConfirmTrip("stop")}
           onOpenIssue={() => setIssueModalOpen(true)}
           onClearIssue={handleClearIssue}
           issueBusy={issueBusy}
@@ -369,6 +379,7 @@ export function DriverDashboardScreen() {
           mode={mode}
           setMode={setMode}
           driver={driver}
+          college={college}
           photo={photo}
           photoBusy={photoBusy}
           onChangePhoto={handleChangePhoto}
@@ -404,6 +415,23 @@ export function DriverDashboardScreen() {
           </Text>
         </Pressable>
       </View>
+
+      <TripConfirmModal
+        action={confirmTrip}
+        busy={busy}
+        busNumber={status?.bus?.busNumber ?? ""}
+        markedStops={(status?.stopArrivals ?? []).length}
+        onCancel={() => setConfirmTrip(null)}
+        onConfirm={async () => {
+          // Closed after the work, not before: starting waits on a permission
+          // prompt and a GPS fix, and the sheet's spinner is the only feedback
+          // the driver gets while that happens.
+          const action = confirmTrip;
+          if (action === "start") await handleStart();
+          else if (action === "stop") await handleStop();
+          setConfirmTrip(null);
+        }}
+      />
 
       <IssueReportModal
         visible={issueModalOpen}
@@ -696,6 +724,136 @@ function formatAgo(reportedMs: number): string {
   return `${h}h ago`;
 }
 
+// Confirms Start / Stop Trip.
+//
+// Not a generic "are you sure": each side names what actually happens, because
+// the consequences are invisible from the button. Starting begins sharing the
+// driver's live location; stopping ends it, tells every student the trip is
+// over, and discards the stops marked on this run — the server clears
+// stopArrivals on /trip/stop, and losing a morning's worth of marks to a
+// mis-tap is worth one extra tap to avoid.
+function TripConfirmModal({
+  action,
+  busy,
+  busNumber,
+  markedStops,
+  onCancel,
+  onConfirm,
+}: {
+  action: "start" | "stop" | null;
+  busy: boolean;
+  busNumber: string;
+  markedStops: number;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  const starting = action === "start";
+  const bus = busNumber ? `Bus ${busNumber}` : "your bus";
+
+  return (
+    <Modal
+      visible={action !== null}
+      transparent
+      animationType="slide"
+      onRequestClose={onCancel}
+      statusBarTranslucent
+    >
+      <View style={reportStyles.backdrop}>
+        <View style={reportStyles.sheet}>
+          <View style={reportStyles.handle} />
+          <Text style={reportStyles.title}>
+            {starting ? "Start the trip?" : "Stop the trip?"}
+          </Text>
+          <Text style={[reportStyles.subtitle, { marginBottom: 10 }]}>
+            {starting
+              ? `Students on ${bus} will be told it is on the way, and your location will be shared with them until you stop the trip.`
+              : `Students on ${bus} will be told the trip has finished, and will stop seeing where the bus is.`}
+          </Text>
+
+          {!starting && markedStops > 0 && (
+            <View style={confirmStyles.warning}>
+              <Text style={confirmStyles.warningEmoji}>⚠️</Text>
+              <Text style={confirmStyles.warningText}>
+                The {markedStops} stop{markedStops === 1 ? "" : "s"} you marked
+                as reached will be cleared.
+              </Text>
+            </View>
+          )}
+
+          <View style={reportStyles.actions}>
+            <Pressable
+              onPress={onCancel}
+              disabled={busy}
+              style={({ pressed }) => [
+                confirmStyles.cancel,
+                pressed && { opacity: 0.85 },
+              ]}
+            >
+              <Text style={confirmStyles.cancelText}>Cancel</Text>
+            </Pressable>
+            <Pressable
+              onPress={onConfirm}
+              disabled={busy}
+              style={({ pressed }) => [
+                confirmStyles.confirm,
+                starting ? confirmStyles.confirmGo : confirmStyles.confirmStop,
+                pressed && { opacity: 0.9 },
+                busy && { opacity: 0.6 },
+              ]}
+            >
+              {busy ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text
+                  style={[
+                    confirmStyles.confirmText,
+                    starting && confirmStyles.confirmTextGo,
+                  ]}
+                >
+                  {starting ? "Start trip" : "Stop trip"}
+                </Text>
+              )}
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+const confirmStyles = StyleSheet.create({
+  warning: {
+    flexDirection: "row",
+    gap: 10,
+    alignItems: "flex-start",
+    padding: 12,
+    borderRadius: 14,
+    backgroundColor: "#fff4e5",
+    marginBottom: 18,
+  },
+  warningEmoji: { fontSize: 16 },
+  warningText: { flex: 1, fontSize: 13, color: "#8a5a00", lineHeight: 18 },
+  cancel: {
+    flex: 1,
+    paddingVertical: 15,
+    borderRadius: 16,
+    backgroundColor: "#f0f0f2",
+    alignItems: "center",
+  },
+  cancelText: { fontSize: 15, fontWeight: "700", color: "#444" },
+  confirm: {
+    flex: 1,
+    paddingVertical: 15,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  confirmGo: { backgroundColor: "#f5b700" },
+  confirmStop: { backgroundColor: "#c0392b" },
+  confirmText: { fontSize: 15, fontWeight: "800", color: "#fff" },
+  confirmTextGo: { color: "#111" },
+});
+
 function IssueReportModal({
   visible,
   busy,
@@ -924,6 +1082,7 @@ type ProfileViewProps = {
   mode: "light" | "dark";
   setMode: (m: "light" | "dark") => Promise<void>;
   driver: Driver | null;
+  college: DriverCollege | null;
   photo: string | null;
   photoBusy: boolean;
   onChangePhoto: () => void;
@@ -937,6 +1096,7 @@ function ProfileView({
   mode,
   setMode,
   driver,
+  college,
   photo,
   photoBusy,
   onChangePhoto,
@@ -1013,6 +1173,35 @@ function ProfileView({
           )}
         </View>
       </View>
+
+      <Text style={styles.phSectionHeader}>College</Text>
+      {college ? (
+        <View style={styles.phCard}>
+          <View style={styles.phCollegeRow}>
+            <View style={styles.phCollegeMark}>
+              <Text style={styles.phCollegeMarkText}>
+                {college.name.trim().charAt(0).toUpperCase() || "C"}
+              </Text>
+            </View>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={styles.phCollegeName} numberOfLines={2}>
+                {college.name}
+              </Text>
+              <Text style={styles.phCollegeCode}>Code {college.code}</Text>
+            </View>
+          </View>
+          <InfoLine styles={styles} label="Address" value={college.address} />
+        </View>
+      ) : (
+        <View style={styles.phCard}>
+          <InfoLine
+            styles={styles}
+            label="College"
+            value="Not available right now"
+            first
+          />
+        </View>
+      )}
 
       <Text style={styles.phSectionHeader}>Personal details</Text>
       <View style={styles.phCard}>
@@ -1493,6 +1682,36 @@ function makeStyles(colors: Colors) {
       backgroundColor: colors.accentSoft,
     },
     phPillAccentText: { fontSize: 12, fontWeight: "700", color: colors.accent },
+    phCollegeRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+      paddingVertical: 14,
+    },
+    phCollegeMark: {
+      width: 44,
+      height: 44,
+      borderRadius: 14,
+      backgroundColor: colors.accentSoft,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    phCollegeMarkText: {
+      fontSize: 19,
+      fontWeight: "800",
+      color: colors.accent,
+    },
+    phCollegeName: {
+      fontSize: 16,
+      fontWeight: "800",
+      color: colors.text,
+      letterSpacing: -0.2,
+    },
+    phCollegeCode: {
+      fontSize: 12.5,
+      color: colors.textMuted,
+      marginTop: 2,
+    },
     phSectionHeader: {
       fontSize: 11,
       fontWeight: "800",
