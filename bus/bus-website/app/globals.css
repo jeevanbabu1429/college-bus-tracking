@@ -2816,3 +2816,159 @@ select.field-control {
   line-height: 1.45;
   overflow-wrap: anywhere;
 }
+
+/* ===========================================================
+   Bus issues panel (admin dashboard)
+   =========================================================== */
+
+/* Red-edged rather than a plain card: this is the one thing on the dashboard
+   that means somebody is stuck by the roadside. */
+.issues-panel {
+  background: var(--surface);
+  border: 1px solid #fecaca;
+  border-left: 4px solid var(--danger);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: 0 1px 2px rgba(20, 16, 8, 0.03);
+}
+
+.issues-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 18px;
+  background: var(--danger-soft);
+  border-bottom: 1px solid #fecaca;
+}
+.issues-head-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--danger);
+  animation: issues-pulse 1.8s ease-in-out infinite;
+}
+@keyframes issues-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.3; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .issues-head-dot { animation: none; }
+}
+.issues-head-title {
+  font-size: 14.5px;
+  font-weight: 700;
+  color: #991b1b;
+  letter-spacing: -0.005em;
+}
+.issues-head-meta {
+  margin-left: auto;
+  font-size: 11.5px;
+  color: #b91c1c;
+  white-space: nowrap;
+}
+
+.issues-list { display: flex; flex-direction: column; }
+
+.issue-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 16px 18px;
+  flex-wrap: wrap;
+}
+.issue-row + .issue-row { border-top: 1px solid var(--border); }
+
+.issue-emoji { font-size: 22px; line-height: 1.2; flex-shrink: 0; }
+
+.issue-main { flex: 1 1 300px; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+
+.issue-titleline { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.issue-label { font-size: 14.5px; font-weight: 700; color: var(--text); }
+.issue-age { font-size: 12px; color: var(--text-muted); }
+
+.issue-bus {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+.issue-bus svg { color: var(--text-faint); flex-shrink: 0; }
+.issue-buslink { font-weight: 700; color: var(--text); }
+.issue-buslink:hover { color: var(--accent-hover); text-decoration: underline; }
+.issue-riders {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--surface-muted);
+  font-weight: 600;
+  color: var(--text-soft);
+}
+
+.issue-message {
+  font-size: 13px;
+  color: var(--text-soft);
+  font-style: italic;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+/* The whole point of the panel: who to ring. */
+.issue-driver {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 1 auto;
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+}
+.issue-driver-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+}
+.issue-driver-body { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.issue-driver-name { font-size: 13.5px; font-weight: 700; color: var(--text); }
+.issue-driver-meta { font-size: 11.5px; color: var(--text-muted); }
+
+@media (max-width: 700px) {
+  .issue-driver { width: 100%; }
+  .issue-driver .btn { margin-left: auto; }
+}
+
+/* The all-clear. Deliberately quiet — it should read as reassurance, not as
+   another thing competing for attention. */
+.issues-clear {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 11px 16px;
+  border-radius: var(--radius);
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.issues-clear-icon {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--success-soft);
+  color: #065f46;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}

@@ -85,6 +85,83 @@ router.get("/live", async (req, res) => {
   res.json(items);
 });
 
+// Buses whose driver has an unresolved problem.
+//
+// Deliberately NOT filtered by tripActive, unlike /live. currentIssue is not
+// cleared when a trip stops — the driver decides when the situation is over —
+// and a bus that broke down and came off the road is precisely the one the
+// admin most needs on their dashboard.
+router.get("/issues", async (req, res) => {
+  const { collegeId } = req.params as { collegeId: string };
+  if (!isValidObjectId(collegeId)) {
+    res.status(400).json({ error: "Invalid college id" });
+    return;
+  }
+
+  const drivers = await DriverModel.find({
+    college: collegeId,
+    currentIssue: { $ne: null },
+  })
+    .select("name mobile licenceNumber tripActive currentLocation currentIssue")
+    .lean();
+  if (drivers.length === 0) {
+    res.json([]);
+    return;
+  }
+
+  const buses = await BusModel.find({
+    college: collegeId,
+    driver: { $in: drivers.map((d) => d._id) },
+  })
+    .select("busNumber plateNumber route driver")
+    .lean();
+
+  // How many people are actually stranded by each one. It is the number that
+  // decides which of two breakdowns the admin deals with first.
+  const riderCounts = await Promise.all(
+    buses.map((b) => StudentModel.countDocuments({ bus: b._id }))
+  );
+  const ridersByBus = new Map(
+    buses.map((b, i) => [String(b._id), riderCounts[i]])
+  );
+
+  const driverById = new Map(drivers.map((d) => [String(d._id), d]));
+  const items = buses
+    .map((bus) => {
+      const driver = bus.driver ? driverById.get(String(bus.driver)) : null;
+      if (!driver?.currentIssue) return null;
+      return {
+        bus: {
+          _id: bus._id,
+          busNumber: bus.busNumber,
+          plateNumber: bus.plateNumber,
+          route: bus.route,
+        },
+        driver: {
+          _id: driver._id,
+          name: driver.name,
+          mobile: driver.mobile,
+          licenceNumber: driver.licenceNumber,
+          tripActive: driver.tripActive ?? false,
+          currentLocation: driver.currentLocation ?? null,
+        },
+        issue: driver.currentIssue,
+        studentCount: ridersByBus.get(String(bus._id)) ?? 0,
+      };
+    })
+    .filter((x) => x !== null);
+
+  // Longest-running first: the one reported an hour ago has been ignored the
+  // longest, whatever it is.
+  items.sort(
+    (a, b) =>
+      new Date(a!.issue.reportedAt).getTime() -
+      new Date(b!.issue.reportedAt).getTime()
+  );
+
+  res.json(items);
+});
+
 router.post("/", async (req, res) => {
   const { collegeId } = req.params as { collegeId: string };
   if (!isValidObjectId(collegeId)) {
