@@ -9,7 +9,15 @@ export type Audience =
   | { role: "admin"; id: string | Types.ObjectId }
   | { role: "driver"; id: string | Types.ObjectId }
   | { role: "student"; id: string | Types.ObjectId }
-  | { role: "students"; ids: (string | Types.ObjectId)[] };
+  | { role: "students"; ids: (string | Types.ObjectId)[] }
+  // Everyone in one college. Used by the admin's own announcements, where the
+  // recipient list is "whoever is on the books right now" rather than a set
+  // the caller already holds.
+  | {
+      role: "college";
+      collegeId: string | Types.ObjectId;
+      to: "students" | "drivers" | "both";
+    };
 
 export type PushPayload = {
   title: string;
@@ -77,6 +85,14 @@ export function sendPushSafe(audience: Audience, payload: PushPayload): void {
   });
 }
 
+// Whether the server can actually deliver anything. Worth checking before an
+// operator-triggered send: without it a misconfigured server reports "sent to
+// 0 devices", which reads like nobody has the app rather than like a server
+// that never tried.
+export function isPushConfigured(): boolean {
+  return getFirebaseApp() !== null;
+}
+
 type Recipient = {
   role: "admin" | "driver" | "student";
   _id: Types.ObjectId;
@@ -103,6 +119,34 @@ async function resolveRecipients(audience: Audience): Promise<Recipient[]> {
         .select("fcmTokens")
         .lean();
       return docs.map((d) => ({ role: "student", _id: d._id, tokens: d.fcmTokens ?? [] }));
+    }
+    case "college": {
+      const out: Recipient[] = [];
+      if (audience.to !== "drivers") {
+        const docs = await StudentModel.find({ college: audience.collegeId })
+          .select("fcmTokens")
+          .lean();
+        out.push(
+          ...docs.map((d) => ({
+            role: "student" as const,
+            _id: d._id,
+            tokens: d.fcmTokens ?? [],
+          }))
+        );
+      }
+      if (audience.to !== "students") {
+        const docs = await DriverModel.find({ college: audience.collegeId })
+          .select("fcmTokens")
+          .lean();
+        out.push(
+          ...docs.map((d) => ({
+            role: "driver" as const,
+            _id: d._id,
+            tokens: d.fcmTokens ?? [],
+          }))
+        );
+      }
+      return out;
     }
   }
 }

@@ -14,6 +14,7 @@ import {
   IconLogout,
   IconHelp,
   IconSwap,
+  IconBell,
 } from "./icons";
 import { SupportModal } from "./SupportButton";
 import { PendingApproval } from "./PendingApproval";
@@ -33,6 +34,7 @@ const NAV: NavItem[] = [
   { href: "/switch-drivers", label: "Switch drivers", Icon: IconSwap },
   { href: "/switch-students", label: "Switch students", Icon: IconSwap },
   { href: "/students", label: "Students", Icon: IconUsers },
+  { href: "/send-notification", label: "Send notification", Icon: IconBell },
 ];
 
 const PAGE_TITLES: Record<string, string> = {
@@ -45,6 +47,7 @@ const PAGE_TITLES: Record<string, string> = {
   students: "Students",
   "assign-drivers": "Assign drivers",
   "assign-students": "Assign students",
+  "send-notification": "Send notification",
   profile: "Profile",
 };
 

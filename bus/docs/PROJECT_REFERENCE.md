@@ -242,6 +242,12 @@ All tokens are 7-day TTL, signed with `JWT_SECRET`.
 | PUT | `/:collegeId` | update |
 | POST | `/claim-orphans` | claims colleges with null `admin` — race-prone (no lock) |
 
+**College notifications (`/api/colleges/:collegeId/notifications`)**
+| Method | Path | Notes |
+|---|---|---|
+| GET | `/audience` | **New.** `{students:{total,withDevice}, drivers:{...}, pushConfigured}`. `withDevice` = has at least one `fcmTokens` entry; the gap from `total` is the people who have never opened the app |
+| POST | `/` `{title, body, audience}` | **New.** Admin announcement to every student and/or driver in the college. `audience` is `students`/`drivers`/`both`. Title ≤80, body ≤300. 400 if nobody in the group has a device, **then** 503 if the server has no Firebase credentials — that order matters, the two failures look identical in the send count but only one is the admin's to fix. The only awaited `sendPush` in the codebase: everywhere else push is a side effect, here it IS the action |
+
 **College sub-routes (unauthenticated — see 3.6)**
 
 `/api/colleges/:collegeId/buses`
