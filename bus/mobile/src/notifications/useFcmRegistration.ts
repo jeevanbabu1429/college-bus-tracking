@@ -11,7 +11,8 @@ import {
 
 // Drives the FCM lifecycle from auth state:
 //   - signed in  -> ask permission, get token, send to backend
-//   - signed out -> unregister the last token we sent
+//   - signed out -> forget it locally; AuthContext.logout does the release,
+//                   since only it still holds the bearer at that moment
 //   - token rotates while signed in -> re-register
 //
 // Foreground messages get an Alert so they're visible while the app is open
@@ -25,15 +26,12 @@ export function useFcmRegistration() {
 
     async function sync() {
       if (!authToken) {
-        const dead = registeredTokenRef.current;
-        if (dead) {
-          registeredTokenRef.current = null;
-          try {
-            await notificationsApi.unregisterToken(dead);
-          } catch {
-            // best effort
-          }
-        }
+        // Releasing the token is AuthContext.logout's job — it is the only
+        // place that still holds the bearer needed to authenticate the call.
+        // All that is left here is to forget what we registered, so the next
+        // sign-in on this device re-registers instead of deduping against a
+        // token that now belongs to someone else.
+        registeredTokenRef.current = null;
         return;
       }
 

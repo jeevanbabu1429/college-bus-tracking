@@ -63,13 +63,28 @@ router.post("/register-token", async (req, res) => {
     res.status(400).json({ error: "token is required" });
     return;
   }
+  const value = token.trim();
   const Model = modelFor(caller.role);
-  // $addToSet ensures the same device token is never stored twice. We don't
-  // try to clear it from other accounts here — that would require a global
-  // sweep across three collections and the dead-token pruning on send is
-  // enough to keep things tidy.
+
+  // An FCM token identifies a phone, not a person, so exactly one account may
+  // hold it at a time. Whoever signs in on this device takes the token from
+  // whoever had it before — across all three collections, because the previous
+  // owner may have been a different role entirely.
+  //
+  // This used to only $addToSet onto the caller, on the theory that dead-token
+  // pruning would tidy up the rest. It does not: a token left on a stale
+  // account is perfectly *alive*, so FCM keeps delivering to it. One phone that
+  // had signed into two colleges received both colleges' announcements.
+  await Promise.all([
+    AdminModel.updateMany({ fcmTokens: value }, { $pull: { fcmTokens: value } }),
+    DriverModel.updateMany({ fcmTokens: value }, { $pull: { fcmTokens: value } }),
+    StudentModel.updateMany({ fcmTokens: value }, { $pull: { fcmTokens: value } }),
+  ]);
+
+  // Added after the sweep, never before — the sweep would otherwise strip the
+  // token straight back off the caller.
   await (Model as typeof AdminModel).findByIdAndUpdate(caller.sub, {
-    $addToSet: { fcmTokens: token.trim() },
+    $addToSet: { fcmTokens: value },
   });
   res.json({ ok: true, fcmReady: isFirebaseReady() });
 });
