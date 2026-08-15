@@ -13,6 +13,7 @@ export default function BusesPage() {
   const { selected } = useColleges();
   const [buses, setBuses] = useState<Bus[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
 
   const load = useCallback(async () => {
     if (!selected) return;
@@ -30,6 +31,21 @@ export default function BusesPage() {
   }, [load]);
 
   if (!selected) return <NoCollege />;
+
+  // Stop names are in here on purpose: "which bus goes to Adyar" is the
+  // question this page actually gets asked, and the answer is not in any
+  // column on screen.
+  const filtered = (buses ?? []).filter((b) => {
+    const q = query.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      b.busNumber.toLowerCase().includes(q) ||
+      b.plateNumber.toLowerCase().includes(q) ||
+      b.route.toLowerCase().includes(q) ||
+      (b.driver?.name ?? "").toLowerCase().includes(q) ||
+      b.stops.some((s) => s.name.toLowerCase().includes(q))
+    );
+  });
 
   return (
     <>
@@ -69,18 +85,36 @@ export default function BusesPage() {
 
       {error && <div className="alert alert-error">{error}</div>}
 
+      <div className="toolbar">
+        <input
+          className="field-control toolbar-search"
+          placeholder="Search by bus, plate, route, driver or stop…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+        <span className="toolbar-meta">
+          {filtered.length} of {(buses ?? []).length}
+        </span>
+      </div>
+
       <div className="table-card">
         {buses === null ? (
           <div className="center" style={{ padding: 60 }}>
             <span className="spinner" />
           </div>
-        ) : buses.length === 0 ? (
+        ) : filtered.length === 0 ? (
           <div className="empty-state" style={{ border: "none" }}>
-            <h3>No buses yet</h3>
-            <p>Add the first vehicle to start building out your fleet.</p>
-            <Link href="/buses/new" className="btn btn-primary">
-              <IconPlus size={14} /> Add bus
-            </Link>
+            <h3>{buses.length === 0 ? "No buses yet" : "No buses match"}</h3>
+            <p>
+              {buses.length === 0
+                ? "Add the first vehicle to start building out your fleet."
+                : "Try a different bus number, plate, route, driver or stop."}
+            </p>
+            {buses.length === 0 && (
+              <Link href="/buses/new" className="btn btn-primary">
+                <IconPlus size={14} /> Add bus
+              </Link>
+            )}
           </div>
         ) : (
           <table className="table">
@@ -96,7 +130,7 @@ export default function BusesPage() {
               </tr>
             </thead>
             <tbody>
-              {buses.map((b) => (
+              {filtered.map((b) => (
                 <tr key={b._id}>
                   <td>
                     <span className="table-name">{b.busNumber}</span>
