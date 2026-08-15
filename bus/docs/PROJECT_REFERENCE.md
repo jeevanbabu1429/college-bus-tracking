@@ -232,6 +232,8 @@ All tokens are 7-day TTL, signed with `JWT_SECRET`.
 | POST | `/start` | flips `tripActive: true`; clears `notifiedStudentIds` and `stopArrivals` |
 | POST | `/stop` | flips `tripActive: false` — clears the same two, leaves `currentLocation` intact |
 | POST | `/location` `{lat, lng}` | writes `currentLocation` **only if `tripActive`** |
+| POST | `/issue` `{type, message?}` | pushes the report to the bus's students **and** the college admin (admin's copy names the driver) |
+| DELETE | `/issue` | pushes "back on the road" to both. Reads the pre-update doc to name what was resolved, and stays silent if there was no issue |
 | POST | `/arrival` `{stop, arrived}` | **New.** Marks a stop reached, or takes the mark back. 400 unless `tripActive`; 400 if the name is not on this bus's route. Stores the route's own spelling so it equals a student's `stop` exactly. Idempotent — re-marking keeps the first timestamp. Pushes "Your bus has arrived" to students at that stop, on the transition only |
 
 **Colleges (`/api/colleges`, `requireAuth`)**
@@ -287,6 +289,10 @@ All tokens are 7-day TTL, signed with `JWT_SECRET`.
 - **OTPs `console.log`-ed** in `auth.ts`, `driverAuth.ts`, `studentAuth.ts` (`[ROLE OTP] name mobile -> otp`). No SMS gateway.
 - **No rate limiting** on `/request-otp`.
 - **`Driver.currentLocation` is not cleared on trip stop** — last position lingers. Intentional (students see "last seen here") but easy to forget.
+- **One device token belongs to exactly one account.** `POST /api/notifications/register-token` `$pull`s the token from admins, drivers *and* students before adding it to the caller, because an FCM token identifies a phone, not a person. It previously only added, on the theory that dead-token pruning would tidy the rest — it does not, since a token on a stale account is perfectly alive, and one handset signed into two colleges received both colleges' announcements. Rows written before the fix are repaired by `src/scripts/pruneSharedDeviceTokens.ts`.
+- **Sign-out releases the token in `AuthContext.logout`, not in the FCM hook.** `apiFetch` reads the bearer synchronously, so releasing after the session is cleared sends an unauthenticated request that 401s silently — which is what used to happen.
+- **"One stop away" infers direction from the marks, never from array order.** `notifyNextStop` compares the last two arrival marks; on the first mark of a trip it only acts if the bus started at an end of the line, and otherwise stays silent rather than guessing. The morning and evening runs cover the same array in opposite directions, so array position alone would alert the wrong half of the bus.
+- **`notifiedStudentIds` is shared by both "get ready" paths** — the GPS proximity push and the arrival-driven next-stop push — so a student gets one per trip whichever fires first.
 - **`Driver.stopArrivals` IS cleared on both trip start and stop**, unlike `currentLocation`. It describes one run of the route, so an idle bus must never show yesterday's ticks. Keyed by stop *name*, not index — the same route is driven in both directions (morning pickup, evening drop), so array position carries no meaning, and `Student.stop` is a name too.
 - **Location updates rejected unless `tripActive: true`** — the write-side gate lives in `POST /trip/location`.
 - **Reassigning a driver requires clearing the old bus first** to satisfy the partial unique index; `PUT /buses/:id/driver` and `POST /driver-assignments` do this. Don't break it in new code paths.

@@ -1,9 +1,10 @@
 import { Router, type RequestHandler } from "express";
 import jwt from "jsonwebtoken";
-import { isValidObjectId } from "mongoose";
+import { isValidObjectId, type Types } from "mongoose";
 import { DriverModel } from "../models/Driver.js";
 import { BusModel } from "../models/Bus.js";
 import { StudentModel } from "../models/Student.js";
+import { CollegeModel } from "../models/College.js";
 import { sendPushSafe } from "../services/notifications.js";
 import {
   checkCollegeAdminSuspension,
@@ -84,6 +85,124 @@ const ISSUE_TYPES = new Set([
   "other",
 ]);
 
+const ISSUE_LABELS: Record<string, string> = {
+  breakdown: "Breakdown",
+  flat_tyre: "Flat tyre",
+  refuelling: "Refuelling stop",
+  traffic: "Traffic delay",
+  mechanical: "Mechanical issue",
+  weather: "Weather delay",
+  other: "Issue reported",
+};
+
+// Students on the bus and the admin who runs the college. Both need to hear
+// about a breakdown; only one of them can do anything about it.
+async function busAudience(driverId: string): Promise<{
+  busId: string;
+  busNumber: string;
+  studentIds: Types.ObjectId[];
+  adminId: string | null;
+} | null> {
+  const bus = await BusModel.findOne({ driver: driverId })
+    .select("_id busNumber college")
+    .lean();
+  if (!bus) return null;
+  const [students, college] = await Promise.all([
+    StudentModel.find({ bus: bus._id }).select("_id").lean(),
+    CollegeModel.findById(bus.college).select("admin").lean(),
+  ]);
+  return {
+    busId: bus._id.toString(),
+    busNumber: bus.busNumber,
+    studentIds: students.map((s) => s._id),
+    adminId: college?.admin ? String(college.admin) : null,
+  };
+}
+
+function notifyIssue(
+  driverId: string,
+  driverName: string,
+  type: string,
+  message: string
+): void {
+  (async () => {
+    const audience = await busAudience(driverId);
+    if (!audience) return;
+    const label = ISSUE_LABELS[type] ?? "Issue reported";
+    const data = {
+      kind: "bus-issue",
+      issue: type,
+      busId: audience.busId,
+      url: "/",
+    };
+
+    if (audience.studentIds.length > 0) {
+      sendPushSafe(
+        { role: "students", ids: audience.studentIds },
+        {
+          title: `Bus ${audience.busNumber}: ${label.toLowerCase()}`,
+          body: message || `Your bus has reported a ${label.toLowerCase()}. Expect a delay.`,
+          data,
+        }
+      );
+    }
+
+    // The admin gets the driver's name; the students do not need it and it is
+    // the one detail that turns this into something the admin can act on.
+    if (audience.adminId) {
+      sendPushSafe(
+        { role: "admin", id: audience.adminId },
+        {
+          title: `${label} on bus ${audience.busNumber}`,
+          body: message
+            ? `${driverName}: ${message}`
+            : `${driverName} reported a ${label.toLowerCase()}.`,
+          data,
+        }
+      );
+    }
+  })().catch((err) => console.error("[fcm] notifyIssue failed:", err));
+}
+
+function notifyIssueCleared(
+  driverId: string,
+  driverName: string,
+  type: string
+): void {
+  (async () => {
+    const audience = await busAudience(driverId);
+    if (!audience) return;
+    const label = (ISSUE_LABELS[type] ?? "issue").toLowerCase();
+    const data = {
+      kind: "bus-issue-cleared",
+      issue: type,
+      busId: audience.busId,
+      url: "/",
+    };
+
+    if (audience.studentIds.length > 0) {
+      sendPushSafe(
+        { role: "students", ids: audience.studentIds },
+        {
+          title: `Bus ${audience.busNumber} is back on the road`,
+          body: `The ${label} has been sorted out. The bus is running again.`,
+          data,
+        }
+      );
+    }
+    if (audience.adminId) {
+      sendPushSafe(
+        { role: "admin", id: audience.adminId },
+        {
+          title: `Bus ${audience.busNumber} resolved`,
+          body: `${driverName} marked the ${label} as resolved.`,
+          data,
+        }
+      );
+    }
+  })().catch((err) => console.error("[fcm] notifyIssueCleared failed:", err));
+}
+
 router.post("/issue", async (req, res) => {
   const driverId = (req as unknown as { driverId: string }).driverId;
   const { type, message } = req.body ?? {};
@@ -112,19 +231,29 @@ router.post("/issue", async (req, res) => {
     res.status(404).json({ error: "Driver not found" });
     return;
   }
+  notifyIssue(driver._id.toString(), driver.name, type, trimmedMessage);
   res.json({ ok: true, currentIssue: driver.currentIssue ?? null });
 });
 
 router.delete("/issue", async (req, res) => {
   const driverId = (req as unknown as { driverId: string }).driverId;
-  const driver = await DriverModel.findByIdAndUpdate(
-    driverId,
-    { $set: { currentIssue: null } },
-    { new: true }
-  );
-  if (!driver) {
+  // Default `new: false` on purpose — the pre-update document is the only
+  // place the issue being resolved still exists, and the message names it.
+  const before = await DriverModel.findByIdAndUpdate(driverId, {
+    $set: { currentIssue: null },
+  });
+  if (!before) {
     res.status(404).json({ error: "Driver not found" });
     return;
+  }
+  // Silent when there was nothing to clear: a driver double-tapping "Mark
+  // resolved" must not tell the whole bus twice that it is back on the road.
+  if (before.currentIssue) {
+    notifyIssueCleared(
+      before._id.toString(),
+      before.name,
+      before.currentIssue.type
+    );
   }
   res.json({ ok: true });
 });
@@ -237,6 +366,13 @@ router.post("/arrival", async (req, res) => {
       driver.stopArrivals.push({ stop: known.name, at: new Date() });
       await driver.save();
       notifyStopArrival(bus._id.toString(), bus.busNumber, known.name);
+      notifyNextStop(
+        driver._id.toString(),
+        bus._id.toString(),
+        bus.busNumber,
+        bus.stops.map((st) => ({ name: st.name, suspended: !!st.suspended })),
+        driver.stopArrivals.map((a) => ({ stop: a.stop, at: a.at }))
+      );
     }
   } else if (existing) {
     const at = driver.stopArrivals.findIndex((a) => a.stop === known.name);
@@ -246,6 +382,89 @@ router.post("/arrival", async (req, res) => {
 
   res.json({ ok: true, stopArrivals: driver.stopArrivals ?? [] });
 });
+
+// "Your bus is one stop away" — fired when the driver marks the stop directly
+// before someone's own.
+//
+// Which stop is "before" cannot come from the array order: the same route is
+// driven forwards in the morning and backwards in the evening. It is inferred
+// from the marks themselves — the step from the previous mark to this one is
+// the direction of travel. On the very first mark of a trip there is nothing
+// to compare against, so it is only safe when the bus started at one end of
+// the line; anywhere else the alert is skipped rather than guessed, since
+// telling the wrong half of the bus to get ready is worse than saying nothing.
+function notifyNextStop(
+  driverId: string,
+  busId: string,
+  busNumber: string,
+  stops: { name: string; suspended: boolean }[],
+  arrivals: { stop: string; at: Date }[]
+): void {
+  (async () => {
+    if (stops.length < 2) return;
+
+    const indexByName = new Map(stops.map((s, i) => [s.name, i]));
+    const marks = [...arrivals]
+      .sort((a, b) => a.at.getTime() - b.at.getTime())
+      .map((a) => indexByName.get(a.stop))
+      .filter((i): i is number => i !== undefined);
+    if (marks.length === 0) return;
+
+    const current = marks[marks.length - 1];
+    let direction = 0;
+    if (marks.length >= 2) {
+      direction = Math.sign(current - marks[marks.length - 2]);
+    } else if (current === 0) {
+      direction = 1;
+    } else if (current === stops.length - 1) {
+      direction = -1;
+    }
+    // Unknown direction, or the driver re-marked the stop they were already on.
+    if (direction === 0) return;
+
+    const next = stops[current + direction];
+    // Past the end of the line, or a stop the bus is not serving today — the
+    // students there were told it was suspended when the admin closed it.
+    if (!next || next.suspended) return;
+
+    const students = await StudentModel.find({ bus: busId, stop: next.name })
+      .select("_id")
+      .lean();
+    if (students.length === 0) return;
+
+    // Shares the dedup set with the GPS-driven arriving-soon push, so a
+    // student gets one "get ready" per trip no matter which of the two
+    // mechanisms noticed first.
+    const dr = await DriverModel.findById(driverId)
+      .select("notifiedStudentIds")
+      .lean();
+    const already = new Set((dr?.notifiedStudentIds ?? []).map((id) => String(id)));
+    const fresh = students.filter((s) => !already.has(String(s._id)));
+    if (fresh.length === 0) return;
+
+    // Reserve before sending, like notifyArrivingSoon — two marks in quick
+    // succession must not both get through.
+    await DriverModel.updateOne(
+      { _id: driverId },
+      { $addToSet: { notifiedStudentIds: { $each: fresh.map((s) => s._id) } } }
+    );
+
+    sendPushSafe(
+      { role: "students", ids: fresh.map((s) => s._id) },
+      {
+        title: "Your bus is one stop away",
+        body: `Bus ${busNumber} has just reached ${stops[current].name}. ${next.name} is next — get ready to board.`,
+        data: {
+          kind: "next-stop",
+          busId,
+          stop: next.name,
+          previousStop: stops[current].name,
+          url: "/",
+        },
+      }
+    );
+  })().catch((err) => console.error("[fcm] notifyNextStop failed:", err));
+}
 
 // Tell the students who board at this stop that their bus is actually there.
 // Fired only on the transition into "arrived", so undoing and re-marking a
