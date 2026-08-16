@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useAuth } from "../../../lib/auth/AuthContext";
+import { useAuth, sessionAdmin } from "../../../lib/auth/AuthContext";
+import { StaffAccount } from "../../../components/StaffAccount";
 import type { Gender } from "../../../lib/api/auth";
 
 const GENDERS: { value: Gender; label: string }[] = [
@@ -52,7 +53,7 @@ function initials(name: string): string {
 
 export default function ProfilePage() {
   const { session, updateAdmin } = useAuth();
-  const admin = session?.admin;
+  const admin = sessionAdmin(session);
 
   const [form, setForm] = useState<FormState>(EMPTY);
   const [busy, setBusy] = useState(false);
@@ -120,7 +121,10 @@ export default function ProfilePage() {
     setSuccess(null);
   }
 
+  // A staff member has no admin record to edit, so this branch is theirs. It
+  // used to be a bare spinner, which for them never resolved.
   if (!admin) {
+    if (session?.role === "staff") return <StaffAccount staff={session.staff} />;
     return (
       <div className="center" style={{ padding: 60 }}>
         <span className="spinner" />

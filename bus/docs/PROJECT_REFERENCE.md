@@ -244,6 +244,19 @@ All tokens are 7-day TTL, signed with `JWT_SECRET`.
 | PUT | `/:collegeId` | update |
 | POST | `/claim-orphans` | claims colleges with null `admin` — race-prone (no lock) |
 
+**Roles & staff (`/api/colleges/:collegeId/roles` and `/staff`)**
+| Method | Path | Notes |
+|---|---|---|
+| GET | `/roles/catalogue` | **New.** The module/action catalogue the website's permission matrix is drawn from — served, not duplicated client-side, so what an admin ticks cannot drift from what is enforced |
+| GET POST | `/roles`, `/roles/:roleId` (PUT, DELETE) | **New.** Per-college roles. Unknown modules/actions are dropped on save; deleting a role in use is refused |
+| GET POST | `/staff`, `/staff/:staffId` (PUT, DELETE) | **New.** People given console access, by name + mobile. `active: false` blocks sign-in without deleting the record |
+
+**Staff auth (`/api/staff-auth`)**
+| Method | Path | Notes |
+|---|---|---|
+| POST | `/request-otp`, `/verify-otp` | **New.** Mobile + OTP like drivers/students. A mobile that is staff at several colleges gets `{needsCollege, options}` and re-posts with `staffId` |
+| GET | `/me` | **New.** Profile, college and the role's live permissions |
+
 **College notifications (`/api/colleges/:collegeId/notifications`)**
 | Method | Path | Notes |
 |---|---|---|
@@ -286,7 +299,9 @@ All tokens are 7-day TTL, signed with `JWT_SECRET`.
 
 ### 3.6 Known quirks + fragility
 
-- **`/api/colleges/:collegeId/*` sub-routes are NOT auth-checked.** Anyone with a `collegeId` can read/write buses/drivers/students. Deliberate for now, needs `requireAdmin` before production.
+- ~~**`/api/colleges/:collegeId/*` sub-routes are NOT auth-checked.**~~ **Fixed.** They always ran behind `requireAdmin` by fall-through, but nothing checked the `:collegeId` belonged to the caller — any admin's token reached any college's data by id. `requireCollegeAccess` in `colleges.ts` now checks ownership *and* the caller's role permission, in the same fall-through position as `requireApprovedCollege`, covering /buses, /drivers, /students and /notifications from one place.
+- **Permissions are derived from the URL, not annotated per route.** `permissionFor()` in `lib/permissions.ts` maps path + verb to a module/action, with explicit overrides where the module is not the first segment (`/buses/:id/route` → `routes`, `/buses/:id/driver` → `assignments`). An unmapped path is **refused**, so a new sub-router cannot silently bypass every role.
+- **A role's permissions are read fresh on every request**, never baked into the token — narrowing a role takes effect immediately, not at next sign-in.
 - **OTPs `console.log`-ed** in `auth.ts`, `driverAuth.ts`, `studentAuth.ts` (`[ROLE OTP] name mobile -> otp`). No SMS gateway.
 - **No rate limiting** on `/request-otp`.
 - **`Driver.currentLocation` is not cleared on trip stop** — last position lingers. Intentional (students see "last seen here") but easy to forget.

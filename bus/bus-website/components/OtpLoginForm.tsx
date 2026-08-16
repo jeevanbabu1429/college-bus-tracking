@@ -6,7 +6,9 @@ type Props = {
   title: string;
   subtitle?: string;
   requestOtp: (mobile: string) => Promise<void>;
-  verifyOtp: (mobile: string, otp: string) => Promise<void>;
+  /** May resolve to a value the caller handles itself, e.g. a college
+   *  picker when one mobile belongs to staff at several colleges. */
+  verifyOtp: (mobile: string, otp: string) => Promise<unknown>;
   footer?: ReactNode;
 };
 

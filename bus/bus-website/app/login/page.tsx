@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../../lib/auth/AuthContext";
+import type { CollegeChoice } from "../../lib/api/staffAuth";
 import { OtpLoginForm } from "../../components/OtpLoginForm";
 import { SupportContact } from "../../components/SupportContact";
 import {
@@ -13,13 +14,29 @@ import {
 
 export default function LoginPage() {
   const router = useRouter();
-  const { ready, token, requestOtp, verifyOtp } = useAuth();
+  const { ready, token, session, requestOtp, verifyOtp, chooseCollege } = useAuth();
+  // Set when one mobile turns out to be staff at more than one college:
+  // the code is right, but we still need to know which console to open.
+  const [choices, setChoices] = useState<CollegeChoice[] | null>(null);
+  const [pending, setPending] = useState<{ mobile: string; otp: string } | null>(
+    null
+  );
+  const [choosing, setChoosing] = useState<string | null>(null);
+  const [chooseError, setChooseError] = useState<string | null>(null);
   const [suspendedMessage, setSuspendedMessage] = useState<string | null>(null);
   const [expiredMessage, setExpiredMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    if (ready && token) router.replace("/dashboard");
-  }, [ready, token, router]);
+    if (!ready || !token) return;
+    // Staff go where their role says. Dropping someone on a dashboard their
+    // role cannot read would greet them with a permission notice every time
+    // they sign in.
+    const landing =
+      session?.role === "staff"
+        ? session.staff.role?.landingPage || "/dashboard"
+        : "/dashboard";
+    router.replace(landing);
+  }, [ready, token, session, router]);
 
   // On mount, check whether we were kicked here by a suspension 403 or a 401
   // token-expiry. Read once and clear so a future manual visit doesn't keep
@@ -87,11 +104,64 @@ export default function LoginPage() {
             {expiredMessage}
           </div>
         )}
+        {choices ? (
+          <div className="auth-card">
+            <h1 className="auth-heading">Which college?</h1>
+            <p className="auth-subheading">
+              You have access to more than one. Pick the one to open.
+            </p>
+            {chooseError && (
+              <div className="alert alert-error" style={{ marginTop: 14 }}>
+                {chooseError}
+              </div>
+            )}
+            <div className="pending-switch-list" style={{ marginTop: 16 }}>
+              {choices.map((choice) => (
+                <button
+                  key={choice.staffId}
+                  type="button"
+                  className="btn btn-secondary"
+                  disabled={choosing !== null}
+                  onClick={async () => {
+                    if (!pending) return;
+                    setChoosing(choice.staffId);
+                    setChooseError(null);
+                    try {
+                      await chooseCollege(
+                        pending.mobile,
+                        pending.otp,
+                        choice.staffId
+                      );
+                    } catch (e) {
+                      setChooseError((e as Error).message);
+                      setChoosing(null);
+                    }
+                  }}
+                >
+                  {choosing === choice.staffId ? (
+                    <span className="spinner" />
+                  ) : (
+                    <span>
+                      {choice.collegeName}
+                      {choice.collegeCode ? ` · ${choice.collegeCode}` : ""}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : (
         <OtpLoginForm
           title="Sign in"
           subtitle="We’ll send a one-time code to your registered mobile."
           requestOtp={requestOtp}
-          verifyOtp={verifyOtp}
+          verifyOtp={async (mobile, otp) => {
+            const options = await verifyOtp(mobile, otp);
+            if (options) {
+              setPending({ mobile, otp });
+              setChoices(options);
+            }
+          }}
           footer={
             <span className="muted">
               Don’t have an account?{" "}
@@ -101,6 +171,7 @@ export default function LoginPage() {
             </span>
           }
         />
+        )}
         <SupportContact />
         <p className="small muted" style={{ textAlign: "center", marginTop: 14 }}>
           <Link href="/" className="auth-link">

@@ -4,11 +4,13 @@ import { getFirebaseApp } from "./firebase.js";
 import { AdminModel } from "../models/Admin.js";
 import { DriverModel } from "../models/Driver.js";
 import { StudentModel } from "../models/Student.js";
+import { StaffModel } from "../models/Staff.js";
 
 export type Audience =
   | { role: "admin"; id: string | Types.ObjectId }
   | { role: "driver"; id: string | Types.ObjectId }
   | { role: "student"; id: string | Types.ObjectId }
+  | { role: "staff"; id: string | Types.ObjectId }
   | { role: "students"; ids: (string | Types.ObjectId)[] }
   // Everyone in one college. Used by the admin's own announcements, where the
   // recipient list is "whoever is on the books right now" rather than a set
@@ -94,7 +96,7 @@ export function isPushConfigured(): boolean {
 }
 
 type Recipient = {
-  role: "admin" | "driver" | "student";
+  role: "admin" | "driver" | "student" | "staff";
   _id: Types.ObjectId;
   tokens: string[];
 };
@@ -108,6 +110,10 @@ async function resolveRecipients(audience: Audience): Promise<Recipient[]> {
     case "driver": {
       const doc = await DriverModel.findById(audience.id).select("fcmTokens").lean();
       return doc ? [{ role: "driver", _id: doc._id, tokens: doc.fcmTokens ?? [] }] : [];
+    }
+    case "staff": {
+      const doc = await StaffModel.findById(audience.id).select("fcmTokens").lean();
+      return doc ? [{ role: "staff", _id: doc._id, tokens: doc.fcmTokens ?? [] }] : [];
     }
     case "student": {
       const doc = await StudentModel.findById(audience.id).select("fcmTokens").lean();
@@ -182,7 +188,12 @@ async function pruneInvalidTokens(
   });
   if (dead.size === 0) return;
 
-  const byRole = { admin: [] as Recipient[], driver: [] as Recipient[], student: [] as Recipient[] };
+  const byRole = {
+    admin: [] as Recipient[],
+    driver: [] as Recipient[],
+    student: [] as Recipient[],
+    staff: [] as Recipient[],
+  };
   for (const r of recipients) byRole[r.role].push(r);
 
   const ops: Promise<unknown>[] = [];
@@ -204,6 +215,13 @@ async function pruneInvalidTokens(
     ops.push(
       StudentModel.updateMany(
         { _id: { $in: byRole.student.map((r) => r._id) } },
+        { $pull: { fcmTokens: { $in: [...dead] } } }
+      )
+    );
+  if (byRole.staff.length)
+    ops.push(
+      StaffModel.updateMany(
+        { _id: { $in: byRole.staff.map((r) => r._id) } },
         { $pull: { fcmTokens: { $in: [...dead] } } }
       )
     );

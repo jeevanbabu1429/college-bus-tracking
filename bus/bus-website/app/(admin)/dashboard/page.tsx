@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect } from "react";
-import { useAuth } from "../../../lib/auth/AuthContext";
+import { useAuth, sessionName } from "../../../lib/auth/AuthContext";
 import { useColleges } from "../../../lib/college/CollegeContext";
 import { NoCollege } from "../../../components/NoCollege";
 import { BusIssuesPanel } from "../../../components/BusIssuesPanel";
@@ -89,7 +89,7 @@ export default function DashboardPage() {
 
   if (!selected) return <NoCollege />;
 
-  const firstName = (session?.admin?.name ?? "").split(/\s+/)[0] || "there";
+  const firstName = sessionName(session).split(/\s+/)[0] || "there";
   const busPlanned = Math.max(selected.busCount, 1);
   const driverPlanned = Math.max(selected.driverCount, 1);
   const busPct = Math.min(100, Math.round((selected.actualBusCount / busPlanned) * 100));
