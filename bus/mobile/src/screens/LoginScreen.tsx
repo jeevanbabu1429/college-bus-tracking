@@ -2,12 +2,14 @@ import { useState } from "react";
 import {
   Image,
   Pressable,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
+// Not react-native's SafeAreaView: that one applies insets on iOS only, so on
+// Android it left the brand row sitting under the status bar.
+import { SafeAreaView } from "react-native-safe-area-context";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useAuth } from "../auth/AuthContext";
 import { OtpLoginForm } from "../auth/OtpLoginForm";

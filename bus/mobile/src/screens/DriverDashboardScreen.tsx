@@ -11,6 +11,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Location from "expo-location";
 import { RouteStops } from "../components/RouteStops";
 import { useAuth } from "../auth/AuthContext";
@@ -51,6 +52,7 @@ export function DriverDashboardScreen() {
   const driver = session?.role === "driver" ? session.driver : null;
   const { mode, colors, setMode } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
+  const insets = useSafeAreaInsets();
 
   const [tab, setTab] = useState<Tab>("home");
   const [status, setStatus] = useState<TripStatus | null>(null);
@@ -388,7 +390,9 @@ export function DriverDashboardScreen() {
         />
       )}
 
-      <View style={styles.bottomBar}>
+      {/* Lifted clear of the system navigation bar. `bottom: 20` alone put
+          the pill underneath Android's button bar. */}
+      <View style={[styles.bottomBar, { bottom: 20 + insets.bottom }]}>
         <Pressable
           style={[styles.tab, tab === "home" && styles.tabActive]}
           onPress={() => setTab("home")}
@@ -487,6 +491,7 @@ function HomeView({
   onClearIssue,
   issueBusy,
 }: HomeViewProps) {
+  const insets = useSafeAreaInsets();
   const tripActive = status?.tripActive ?? false;
   const bus = status?.bus ?? null;
   const currentIssue = status?.currentIssue ?? null;
@@ -509,7 +514,12 @@ function HomeView({
   return (
     <ScrollView
       style={styles.body}
-      contentContainerStyle={styles.bodyContent}
+      contentContainerStyle={[
+          styles.bodyContent,
+          // The floating tab pill now clears the system navigation bar, so the
+          // scroll has to clear both.
+          { paddingBottom: 120 + insets.bottom },
+        ]}
       showsVerticalScrollIndicator={false}
     >
       {loading ? (
@@ -1103,6 +1113,7 @@ function ProfileView({
   onRemovePhoto,
   onLogout,
 }: ProfileViewProps) {
+  const insets = useSafeAreaInsets();
   const formatDob = (value: string | undefined) => {
     if (!value) return "—";
     const d = new Date(value);
@@ -1124,7 +1135,12 @@ function ProfileView({
   return (
     <ScrollView
       style={styles.body}
-      contentContainerStyle={styles.bodyContent}
+      contentContainerStyle={[
+          styles.bodyContent,
+          // The floating tab pill now clears the system navigation bar, so the
+          // scroll has to clear both.
+          { paddingBottom: 120 + insets.bottom },
+        ]}
       showsVerticalScrollIndicator={false}
     >
       <View style={styles.phHero}>

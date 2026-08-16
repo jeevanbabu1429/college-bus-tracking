@@ -13,6 +13,7 @@ import {
   View,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type Role = "admin" | "student" | "driver";
 
@@ -65,6 +66,9 @@ export function OtpLoginForm({
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const otpInputRef = useRef<TextInput>(null);
+  // This screen sits outside any SafeAreaView, so the hero pads itself past
+  // the status bar rather than trusting a fixed inset.
+  const insets = useSafeAreaInsets();
 
   const meta = useMemo(() => ROLE_META[role ?? "student"], [role]);
 
@@ -128,7 +132,7 @@ export function OtpLoginForm({
         colors={HERO_GRADIENT}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={styles.hero}
+        style={[styles.hero, { paddingTop: 16 + insets.top }]}
       >
         <Pressable onPress={onBack} style={styles.backBtn} hitSlop={12}>
           <Text style={styles.backText}>←</Text>
@@ -326,8 +330,9 @@ const styles = StyleSheet.create({
 
   // ─── Hero panel ────────────────────────────────────────────────
   hero: {
-    height: 286,
-    paddingTop: 56,
+    // paddingTop comes from the safe-area inset at the usage site.
+    minHeight: 286,
+    paddingBottom: 24,
     paddingHorizontal: 20,
   },
   backBtn: {

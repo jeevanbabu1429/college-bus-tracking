@@ -15,6 +15,7 @@ import { useTheme, type Colors } from "../theme/ThemeContext";
 import { studentAuthApi, type LiveBusItem } from "../api/studentAuth";
 import { distanceMeters, formatDistance, type LatLng } from "../lib/geo";
 import type { StudentStackParamList } from "../navigation/types";
+import { useMarkerTracking } from "../lib/useMarkerTracking";
 
 const POLL_MS = 5000;
 const RADIUS_M = 5000;
@@ -119,6 +120,13 @@ export function NearbyBusesScreen() {
   }, [origin, items]);
 
   const selected = nearby.find((n) => n.item.bus._id === selectedId) ?? null;
+
+  // Re-armed when the set of buses changes, so a pin that appears mid-poll is
+  // captured in full rather than reusing a bitmap taken before it existed.
+  // Must stay above the early returns below — it is a hook.
+  const trackMarker = useMarkerTracking(
+    nearby.map((n) => n.item.bus._id).join(",")
+  );
 
   // Drop the selection when the chosen bus leaves the radius or ends its
   // trip, so the card can never describe a bus that is no longer on the map.
@@ -246,6 +254,7 @@ export function NearbyBusesScreen() {
             }}
             title="You are here"
             anchor={{ x: 0.5, y: 0.5 }}
+            tracksViewChanges={trackMarker}
           >
             <View style={styles.meMarker}>
               <View style={styles.meMarkerHalo} />
@@ -258,6 +267,7 @@ export function NearbyBusesScreen() {
               key={item.bus._id}
               coordinate={{ latitude: at.lat, longitude: at.lng }}
               anchor={{ x: 0.5, y: 0.5 }}
+              tracksViewChanges={trackMarker}
               onPress={() => setSelectedId(item.bus._id)}
             >
               {/* The number rides with the pin rather than hiding in a
