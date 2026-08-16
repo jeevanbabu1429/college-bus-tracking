@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useAuth } from "../lib/auth/AuthContext";
+import { useAuth, sessionAdmin } from "../lib/auth/AuthContext";
 import { SupportContact } from "./SupportContact";
 import { IconLogout } from "./icons";
 
@@ -34,7 +34,7 @@ function IconClock({ size = 30 }: { size?: number }) {
 // signing out and contacting support.
 export function PendingApproval() {
   const { session, refreshAdmin, logout } = useAuth();
-  const admin = session?.admin;
+  const admin = sessionAdmin(session);
   const [checking, setChecking] = useState(false);
 
   // Held in a ref so the polling effect does not restart whenever the auth

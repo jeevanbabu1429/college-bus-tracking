@@ -2,6 +2,14 @@ import { Router, type RequestHandler } from "express";
 import jwt from "jsonwebtoken";
 import { isValidObjectId } from "mongoose";
 import { CollegeModel } from "../models/College.js";
+import {
+  adminOnly,
+  callerCan,
+  getCaller,
+  requireConsoleUser,
+  sendForbidden,
+} from "../lib/consoleAuth.js";
+import { permissionFor } from "../lib/permissions.js";
 import { BusModel } from "../models/Bus.js";
 import { DriverModel } from "../models/Driver.js";
 import { StudentModel } from "../models/Student.js";
@@ -18,48 +26,17 @@ import {
 
 const router = Router();
 
-const requireAdmin: RequestHandler = async (req, res, next) => {
-  const header = req.headers.authorization;
-  if (!header?.startsWith("Bearer ")) {
-    res.status(401).json({ error: "Missing bearer token" });
-    return;
-  }
-  const token = header.slice("Bearer ".length);
-  let payload: { sub?: string; adminId?: string };
-  try {
-    const secret = process.env.JWT_SECRET;
-    if (!secret) throw new Error("JWT_SECRET is not configured");
-    payload = jwt.verify(token, secret) as { sub?: string; adminId?: string };
-  } catch {
-    res.status(401).json({ error: "Invalid or expired token" });
-    return;
-  }
-  if (!payload.sub || !payload.adminId || !isValidObjectId(payload.sub)) {
-    res.status(401).json({ error: "Not an admin token" });
-    return;
-  }
-  const suspensionMsg = await checkAdminSuspension(payload.sub, "admin");
-  if (suspensionMsg) {
-    sendSuspended(res, suspensionMsg);
-    return;
-  }
-  // This router is mounted on the "/api/colleges" prefix, so this middleware
-  // also runs for /api/colleges/:id/buses, /drivers and /students — blocking
-  // here covers the whole admin surface in one place.
-  const pendingMsg = await checkAdminApproval(payload.sub);
-  if (pendingMsg) {
-    sendPendingApproval(res, pendingMsg);
-    return;
-  }
-  (req as unknown as { adminSubId: string }).adminSubId = payload.sub;
-  next();
-};
-
-router.use(requireAdmin);
+router.use(requireConsoleUser);
 
 router.get("/", async (req, res) => {
-  const adminSubId = (req as unknown as { adminSubId: string }).adminSubId;
-  const colleges = await CollegeModel.find({ admin: adminSubId })
+  const caller = getCaller(req);
+  // An admin sees the colleges they own; a staff member sees the single
+  // college they were added to, and never learns the others exist.
+  const filter =
+    caller.kind === "admin"
+      ? { admin: caller.adminId }
+      : { _id: caller.collegeId };
+  const colleges = await CollegeModel.find(filter)
     .sort({ createdAt: -1 })
     .lean();
   const enriched = await Promise.all(
@@ -76,7 +53,7 @@ router.get("/", async (req, res) => {
   res.json(enriched);
 });
 
-router.post("/claim-orphans", async (req, res) => {
+router.post("/claim-orphans", adminOnly, async (req, res) => {
   const adminSubId = (req as unknown as { adminSubId: string }).adminSubId;
   const result = await CollegeModel.updateMany(
     { $or: [{ admin: { $exists: false } }, { admin: null }] },
@@ -85,7 +62,7 @@ router.post("/claim-orphans", async (req, res) => {
   res.json({ claimed: result.modifiedCount });
 });
 
-router.put("/:collegeId", async (req, res) => {
+router.put("/:collegeId", adminOnly, async (req, res) => {
   const adminSubId = (req as unknown as { adminSubId: string }).adminSubId;
   const { collegeId } = req.params;
   const { name, address, code, busCount, driverCount } = req.body ?? {};
@@ -138,7 +115,7 @@ router.put("/:collegeId", async (req, res) => {
   res.json(college);
 });
 
-router.post("/", async (req, res) => {
+router.post("/", adminOnly, async (req, res) => {
   const adminSubId = (req as unknown as { adminSubId: string }).adminSubId;
   const { name, address, code, busCount, driverCount } = req.body ?? {};
 
@@ -206,6 +183,64 @@ const requireApprovedCollege: RequestHandler = async (req, res, next) => {
   next();
 };
 
+/**
+ * Two checks the sub-routers never had: is this college yours, and does your
+ * role allow what you are about to do.
+ *
+ * Runs in the same fall-through position as requireApprovedCollege, so it
+ * covers /buses, /drivers, /students and /notifications from one place. Before
+ * this, requireAdmin proved you were *an* admin and nothing proved the
+ * :collegeId in the URL was yours — any admin's token reached any college's
+ * data by id.
+ */
+const requireCollegeAccess: RequestHandler = async (req, res, next) => {
+  const { collegeId } = req.params as { collegeId?: string };
+  if (!collegeId || !isValidObjectId(collegeId)) {
+    next();
+    return;
+  }
+  const caller = getCaller(req);
+
+  if (caller.kind === "staff") {
+    if (caller.collegeId !== collegeId) {
+      // "Not found" rather than "forbidden": a staff member has no business
+      // learning which other college ids exist.
+      res.status(404).json({ error: "College not found" });
+      return;
+    }
+  } else {
+    const college = await CollegeModel.findById(collegeId).select("admin").lean();
+    if (!college) {
+      res.status(404).json({ error: "College not found" });
+      return;
+    }
+    if (String(college.admin) !== caller.adminId) {
+      res.status(404).json({ error: "College not found" });
+      return;
+    }
+  }
+
+  // `req.url` inside a router mounted on "/:collegeId" is the remainder of the
+  // path, which is exactly what the permission map expects.
+  const needed = permissionFor(req.url.split("?")[0], req.method);
+  if (!needed) {
+    // An unmapped path is refused rather than waved through, so a new
+    // sub-router cannot quietly bypass every role.
+    sendForbidden(res, "This action is not available.");
+    return;
+  }
+  if (!callerCan(caller, needed.module, needed.action)) {
+    sendForbidden(
+      res,
+      `Your role does not allow you to ${needed.action} ${needed.module}.`
+    );
+    return;
+  }
+
+  next();
+};
+
 router.use("/:collegeId", requireApprovedCollege);
+router.use("/:collegeId", requireCollegeAccess);
 
 export default router;

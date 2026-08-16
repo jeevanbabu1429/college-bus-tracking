@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
-import { useAuth } from "../lib/auth/AuthContext";
+import { useAuth, sessionAdmin, sessionName } from "../lib/auth/AuthContext";
+import { moduleForPath, usePermissions } from "../lib/auth/permissions";
+import { NoAccess } from "./NoAccess";
 import { useColleges } from "../lib/college/CollegeContext";
 import {
   IconDashboard,
@@ -15,6 +17,7 @@ import {
   IconHelp,
   IconSwap,
   IconBell,
+  IconShield,
 } from "./icons";
 import { SupportModal } from "./SupportButton";
 import { PendingApproval } from "./PendingApproval";
@@ -24,17 +27,21 @@ type NavItem = {
   href: string;
   label: string;
   Icon: typeof IconDashboard;
+  /** Catalogue module this page belongs to; `null` means owner-only. */
+  module: string | null;
 };
 
 const NAV: NavItem[] = [
-  { href: "/dashboard", label: "Dashboard", Icon: IconDashboard },
-  { href: "/colleges", label: "Colleges", Icon: IconBuilding },
-  { href: "/buses", label: "Buses", Icon: IconBus },
-  { href: "/drivers", label: "Drivers", Icon: IconBadge },
-  { href: "/switch-drivers", label: "Switch drivers", Icon: IconSwap },
-  { href: "/switch-students", label: "Switch students", Icon: IconSwap },
-  { href: "/students", label: "Students", Icon: IconUsers },
-  { href: "/send-notification", label: "Send notification", Icon: IconBell },
+  { href: "/dashboard", label: "Dashboard", Icon: IconDashboard, module: "dashboard" },
+  // Owner-only: staff belong to exactly one college and never switch.
+  { href: "/colleges", label: "Colleges", Icon: IconBuilding, module: null },
+  { href: "/buses", label: "Buses", Icon: IconBus, module: "buses" },
+  { href: "/drivers", label: "Drivers", Icon: IconBadge, module: "drivers" },
+  { href: "/switch-drivers", label: "Switch drivers", Icon: IconSwap, module: "assignments" },
+  { href: "/switch-students", label: "Switch students", Icon: IconSwap, module: "assignments" },
+  { href: "/students", label: "Students", Icon: IconUsers, module: "students" },
+  { href: "/send-notification", label: "Send notification", Icon: IconBell, module: "notifications" },
+  { href: "/roles-access", label: "Roles & access", Icon: IconShield, module: "access" },
 ];
 
 const PAGE_TITLES: Record<string, string> = {
@@ -48,6 +55,7 @@ const PAGE_TITLES: Record<string, string> = {
   "assign-drivers": "Assign drivers",
   "assign-students": "Assign students",
   "send-notification": "Send notification",
+  "roles-access": "Roles & access",
   profile: "Profile",
 };
 
@@ -91,6 +99,10 @@ export function AdminShell({ children }: { children: ReactNode }) {
   const { colleges, selected, selectedId, selectCollege } = useColleges();
   const [confirmLogout, setConfirmLogout] = useState(false);
   const [supportOpen, setSupportOpen] = useState(false);
+  // Must sit above the early returns below: usePermissions calls useContext
+  // and useMemo, and a hook that only runs on some renders changes the hook
+  // order between them, which React refuses outright.
+  const perms = usePermissions();
 
   useEffect(() => {
     if (ready && !token) router.replace("/login");
@@ -117,13 +129,25 @@ export function AdminShell({ children }: { children: ReactNode }) {
   // /buses straight into the address bar would walk around the notice.
   // `=== false` rather than `!approved`: admins predating the field have no
   // value stored and are already trusted.
-  if (session?.admin?.approved === false) {
+  if (sessionAdmin(session)?.approved === false) {
     return <PendingApproval />;
   }
 
-  const admin = session?.admin;
-  const initial = (admin?.name ?? "A").trim().charAt(0).toUpperCase();
-  const firstName = (admin?.name ?? "").split(/\s+/)[0] || "Admin";
+  const who = sessionName(session);
+  const initial = (who || "A").trim().charAt(0).toUpperCase();
+  const firstName = who.split(/\s+/)[0] || "Admin";
+
+  // Only the pages this user can actually open. The server refuses the rest
+  // anyway; leaving them visible would just be a row of dead ends.
+  const visibleNav = NAV.filter((item) =>
+    item.module === null ? perms.isAdmin : perms.can(item.module, "read")
+  );
+
+  // Staff see the role they were given where an admin sees their admin id —
+  // it is the only cue explaining why their sidebar is shorter than a
+  // colleague's.
+  const roleLabel =
+    session?.role === "staff" ? session.staff.role?.name ?? "Staff" : null;
 
   function isActive(item: NavItem) {
     if (item.href === "/dashboard") return pathname === "/dashboard";
@@ -141,6 +165,16 @@ export function AdminShell({ children }: { children: ReactNode }) {
   // to reach their college list to correct the details under review, and their
   // profile. Everything else shows the wait notice.
   const COLLEGE_PENDING_EXEMPT = ["/colleges", "/profile"];
+  // A staff member who types a URL their role does not cover gets told so,
+  // rather than a page that renders and then fills with 403s.
+  const needed = moduleForPath(pathname);
+  const blocked =
+    needed === undefined
+      ? false
+      : needed === null
+      ? !perms.isAdmin
+      : !perms.can(needed, "read");
+
   const collegePending =
     selected?.approved === false &&
     !COLLEGE_PENDING_EXEMPT.some(
@@ -157,7 +191,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
           <span className="sidebar-brand-text">
             <span className="sidebar-brand-title">Bus Admin</span>
             <span className="sidebar-brand-sub">
-              {admin?.adminId ?? "Console"}
+              {roleLabel ?? sessionAdmin(session)?.adminId ?? "Console"}
             </span>
           </span>
         </Link>
@@ -177,7 +211,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
           <span>Workspace</span>
         </div>
         <nav className="sidebar-nav" aria-label="Primary">
-          {NAV.map((item) => {
+          {visibleNav.map((item) => {
             const Icon = item.Icon;
             return (
               <Link
@@ -250,7 +284,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
             <Link
               href="/profile"
               className="topbar-avatar"
-              title={admin?.name ?? "Profile"}
+              title={who || "Profile"}
               aria-label="Profile"
             >
               <span className="topbar-avatar-mark">{initial}</span>
@@ -260,7 +294,13 @@ export function AdminShell({ children }: { children: ReactNode }) {
         </header>
 
         <main className="page">
-          {collegePending ? <PendingCollege /> : children}
+          {collegePending ? (
+            <PendingCollege />
+          ) : blocked ? (
+            <NoAccess module={needed} roleName={perms.roleName} />
+          ) : (
+            children
+          )}
         </main>
       </div>
 

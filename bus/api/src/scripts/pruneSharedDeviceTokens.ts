@@ -4,6 +4,7 @@ import { connectDB } from "../db.js";
 import { AdminModel } from "../models/Admin.js";
 import { DriverModel } from "../models/Driver.js";
 import { StudentModel } from "../models/Student.js";
+import { StaffModel } from "../models/Staff.js";
 
 /**
  * One-off repair for device tokens that ended up on more than one account.
@@ -38,6 +39,7 @@ const MODELS: { name: string; model: TokenModel }[] = [
   { name: "admins", model: AdminModel as unknown as TokenModel },
   { name: "drivers", model: DriverModel as unknown as TokenModel },
   { name: "students", model: StudentModel as unknown as TokenModel },
+  { name: "staff", model: StaffModel as unknown as TokenModel },
 ];
 
 async function main(): Promise<void> {

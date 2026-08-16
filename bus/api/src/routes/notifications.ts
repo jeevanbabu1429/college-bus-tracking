@@ -4,12 +4,13 @@ import { isValidObjectId } from "mongoose";
 import { AdminModel } from "../models/Admin.js";
 import { DriverModel } from "../models/Driver.js";
 import { StudentModel } from "../models/Student.js";
+import { StaffModel } from "../models/Staff.js";
 import { sendPush } from "../services/notifications.js";
 import { isFirebaseReady } from "../services/firebase.js";
 
 const router = Router();
 
-type CallerRole = "admin" | "driver" | "student";
+type CallerRole = "admin" | "driver" | "student" | "staff";
 type Caller = { role: CallerRole; sub: string };
 
 // Accept any of the three role tokens. Admin tokens don't carry an explicit
@@ -39,6 +40,8 @@ const requireAnyAuth: RequestHandler = (req, res, next) => {
       ? "driver"
       : payload.role === "student"
       ? "student"
+      : payload.role === "staff"
+      ? "staff"
       : payload.adminId
       ? "admin"
       : null;
@@ -53,7 +56,10 @@ const requireAnyAuth: RequestHandler = (req, res, next) => {
 router.use(requireAnyAuth);
 
 function modelFor(role: CallerRole) {
-  return role === "admin" ? AdminModel : role === "driver" ? DriverModel : StudentModel;
+  if (role === "admin") return AdminModel;
+  if (role === "driver") return DriverModel;
+  if (role === "staff") return StaffModel;
+  return StudentModel;
 }
 
 router.post("/register-token", async (req, res) => {
@@ -79,6 +85,7 @@ router.post("/register-token", async (req, res) => {
     AdminModel.updateMany({ fcmTokens: value }, { $pull: { fcmTokens: value } }),
     DriverModel.updateMany({ fcmTokens: value }, { $pull: { fcmTokens: value } }),
     StudentModel.updateMany({ fcmTokens: value }, { $pull: { fcmTokens: value } }),
+    StaffModel.updateMany({ fcmTokens: value }, { $pull: { fcmTokens: value } }),
   ]);
 
   // Added after the sweep, never before — the sweep would otherwise strip the
