@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState, type ReactNode } from "react";
 import {
   ActivityIndicator,
+  Image,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
@@ -11,6 +12,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 
 type Role = "admin" | "student" | "driver";
 
@@ -24,24 +26,22 @@ type Props = {
 };
 
 const ACCENT = "#f5b700";
+// Brand gradients. Dark ink on amber rather than the reference's white on
+// purple — white on yellow does not carry enough contrast to read.
+const HERO_GRADIENT = ["#FFD75E", "#FFB300"] as const;
+const BUTTON_GRADIENT = ["#FFC61A", "#FF9E00"] as const;
+const INK = "#16160f";
 const OTP_LENGTH = 4;
 const MOBILE_LENGTH = 10;
 
 // Role-specific hero copy. Falls back to the "student" flavour when a caller
-// doesn't pass `role` (a few legacy places don't yet).
-const ROLE_META: Record<Role, { icon: string; hint: string }> = {
-  student: {
-    icon: "S",
-    hint: "You'll land straight on your bus tracker.",
-  },
-  driver: {
-    icon: "D",
-    hint: "You'll land on the trip controls for your assigned bus.",
-  },
-  admin: {
-    icon: "A",
-    hint: "You'll land on your fleet dashboard.",
-  },
+// doesn't pass `role` (a few legacy places don't yet). The per-role initial
+// that used to sit in the hero circle went with it — the circle shows the app
+// logo now, and the title already names the role.
+const ROLE_META: Record<Role, { hint: string }> = {
+  student: { hint: "You'll land straight on your bus tracker." },
+  driver: { hint: "You'll land on the trip controls for your assigned bus." },
+  admin: { hint: "You'll land on your fleet dashboard." },
 };
 
 function maskMobile(raw: string): string {
@@ -124,23 +124,37 @@ export function OtpLoginForm({
   return (
     <View style={styles.root}>
       {/* ── Hero panel ────────────────────────────────────── */}
-      <View style={styles.hero}>
+      <LinearGradient
+        colors={HERO_GRADIENT}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.hero}
+      >
         <Pressable onPress={onBack} style={styles.backBtn} hitSlop={12}>
           <Text style={styles.backText}>←</Text>
         </Pressable>
 
         <View style={styles.heroContent}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{meta.icon}</Text>
-          </View>
+          <Image
+            source={require("../../assets/brand-mark.png")}
+            style={styles.avatar}
+            resizeMode="contain"
+            accessibilityRole="image"
+            accessibilityLabel="BusBee"
+          />
           <Text style={styles.heroTitle}>{title}</Text>
+          <Text style={styles.heroSubtitle}>
+            {step === "mobile"
+              ? "Sign in to continue"
+              : "Almost there — one code to go"}
+          </Text>
           <View style={styles.stepPill}>
             <Text style={styles.stepText}>
               Step {step === "mobile" ? "1" : "2"} of 2
             </Text>
           </View>
         </View>
-      </View>
+      </LinearGradient>
 
       {/* ── White card ────────────────────────────────────── */}
       <KeyboardAvoidingView
@@ -169,6 +183,9 @@ export function OtpLoginForm({
                   mobile.length === MOBILE_LENGTH && styles.fieldRowFilled,
                 ]}
               >
+                <View style={styles.fieldIcon}>
+                  <Text style={styles.fieldIconText}>📱</Text>
+                </View>
                 <Text style={styles.countryCode}>+91</Text>
                 <TextInput
                   value={mobile}
@@ -275,7 +292,7 @@ export function OtpLoginForm({
           ) : (
             <Pressable
               style={({ pressed }) => [
-                styles.primary,
+                styles.primaryWrap,
                 pressed && styles.primaryPressed,
                 step === "mobile" &&
                   mobile.length !== MOBILE_LENGTH &&
@@ -284,9 +301,16 @@ export function OtpLoginForm({
               onPress={step === "mobile" ? onRequestOtp : onVerifyOtp}
               disabled={step === "mobile" && mobile.length !== MOBILE_LENGTH}
             >
-              <Text style={styles.primaryText}>
-                {step === "mobile" ? "Send code" : "Verify & sign in"}
-              </Text>
+              <LinearGradient
+                colors={BUTTON_GRADIENT}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.primary}
+              >
+                <Text style={styles.primaryText}>
+                  {step === "mobile" ? "Send code" : "Verify & sign in"}
+                </Text>
+              </LinearGradient>
             </Pressable>
           )}
 
@@ -302,8 +326,7 @@ const styles = StyleSheet.create({
 
   // ─── Hero panel ────────────────────────────────────────────────
   hero: {
-    height: 260,
-    backgroundColor: ACCENT,
+    height: 286,
     paddingTop: 56,
     paddingHorizontal: 20,
   },
@@ -318,25 +341,27 @@ const styles = StyleSheet.create({
   backText: { color: "#111", fontSize: 20, fontWeight: "800" },
   heroContent: { alignItems: "center", marginTop: 8 },
   avatar: {
-    width: 64,
-    height: 64,
-    borderRadius: 20,
-    backgroundColor: "#fff",
-    alignItems: "center",
-    justifyContent: "center",
+    width: 72,
+    height: 72,
+    borderRadius: 22,
     shadowColor: "#000",
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
+    shadowOpacity: 0.18,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 4,
   },
-  avatarText: { color: "#111", fontSize: 26, fontWeight: "900" },
   heroTitle: {
-    marginTop: 12,
-    fontSize: 22,
+    marginTop: 14,
+    fontSize: 24,
     fontWeight: "800",
-    color: "#111",
-    letterSpacing: -0.3,
+    color: INK,
+    letterSpacing: -0.4,
+  },
+  heroSubtitle: {
+    marginTop: 4,
+    fontSize: 13,
+    fontWeight: "600",
+    color: "rgba(22,22,15,0.62)",
   },
   stepPill: {
     marginTop: 8,
@@ -406,6 +431,15 @@ const styles = StyleSheet.create({
     borderColor: ACCENT,
     backgroundColor: "#fff8df",
   },
+  fieldIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: 10,
+    backgroundColor: "#fff3cc",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  fieldIconText: { fontSize: 15 },
   countryCode: {
     fontSize: 15,
     fontWeight: "700",
@@ -506,17 +540,21 @@ const styles = StyleSheet.create({
   },
 
   // ─── Primary CTA ───────────────────────────────────────────────
-  primary: {
+  // The shadow and spacing live on the Pressable; the gradient child paints
+  // the fill, so its corners can be clipped without cutting the shadow off.
+  primaryWrap: {
     marginTop: 28,
-    backgroundColor: ACCENT,
+    borderRadius: 999,
+    shadowColor: "#FF9E00",
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 5,
+  },
+  primary: {
     paddingVertical: 16,
     borderRadius: 999,
     alignItems: "center",
-    shadowColor: ACCENT,
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
   },
   primaryPressed: { opacity: 0.88, transform: [{ scale: 0.99 }] },
   primaryDisabled: {
