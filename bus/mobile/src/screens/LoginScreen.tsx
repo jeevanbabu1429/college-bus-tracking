@@ -1,5 +1,6 @@
 import { useState } from "react";
 import {
+  Image,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -120,9 +121,13 @@ export function LoginScreen({ navigation, route }: Props) {
 
           {/* Brand + hero */}
           <View style={styles.brandRow}>
-            <View style={styles.brandMark}>
-              <Text style={styles.brandMarkText}>🐝</Text>
-            </View>
+            <Image
+              source={require("../../assets/brand-mark.png")}
+              style={styles.brandMark}
+              resizeMode="contain"
+              accessibilityRole="image"
+              accessibilityLabel="BusBee"
+            />
             <Text style={styles.brandName}>BusBee</Text>
           </View>
 
@@ -248,17 +253,13 @@ const styles = StyleSheet.create({
     gap: 10,
     marginBottom: 24,
   },
+  // The app icon itself, so the first screen and the launcher agree. The
+  // artwork carries its own rounded border, so no container is needed.
   brandMark: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: "#fff8df",
-    borderWidth: 1,
-    borderColor: "#f5b700",
-    alignItems: "center",
-    justifyContent: "center",
+    width: 52,
+    height: 52,
+    borderRadius: 14,
   },
-  brandMarkText: { fontSize: 20 },
   brandName: {
     fontSize: 18,
     fontWeight: "800",
