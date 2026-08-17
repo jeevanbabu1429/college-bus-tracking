@@ -13,7 +13,9 @@
       "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\canya\\\\freelance\\\\college-bus-tracking\\\\college-bus-tracking\\\\bus\\\\bus-website\" -Force)",
       "Bash(Select-Object Name, FullName)",
       "Bash(ls -la assets)",
-      "Bash(find . -type f \\\\\\( -name \"*.png\" -o -name \"*.jpg\" \\\\\\) -not -path '*/node_modules/*')"
+      "Bash(find . -type f \\\\\\( -name \"*.png\" -o -name \"*.jpg\" \\\\\\) -not -path '*/node_modules/*')",
+      "Bash(git -C C:/Users/canya/freelance/college-bus-tracking/college-bus-tracking status --short)",
+      "Bash(git -C C:/Users/canya/freelance/college-bus-tracking/college-bus-tracking ls-files)"
     ]
   }
 }
