@@ -1,7 +1,7 @@
 import { IconMail, IconPhone } from "./icons";
 
 // Single source of truth for the support details shown on the auth screens.
-export const SUPPORT_EMAIL = "canyaman6701@gmail.com";
+export const SUPPORT_EMAIL = "twostackd@gmail.com";
 export const SUPPORT_MOBILE = "9360555572";
 
 // `tel:` wants an unpunctuated number; the +91 country code makes the link work
