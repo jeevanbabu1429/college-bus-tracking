@@ -7,7 +7,7 @@ import type { Metadata } from 'next';
 export const metadata: Metadata = {
   title: 'Privacy Policy',
   description:
-    'How BusTrack collects, uses and protects location and account data.',
+    'How BusBee collects, uses and protects location and account data.',
 };
 
 const updated = '2 August 2026';

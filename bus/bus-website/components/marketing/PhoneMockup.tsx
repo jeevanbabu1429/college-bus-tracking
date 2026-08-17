@@ -21,7 +21,7 @@ export default function PhoneMockup({ className = '' }: { className?: string }) 
             <span>9:41</span>
             <span className="flex items-center gap-1">
               <span className="h-2.5 w-2.5 rounded-full bg-coral-400" />
-              BusTrack
+              BusBee
             </span>
           </div>
 
