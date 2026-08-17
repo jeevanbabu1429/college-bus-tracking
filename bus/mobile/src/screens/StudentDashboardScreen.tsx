@@ -12,6 +12,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from "react-native-maps";
@@ -24,6 +25,7 @@ import { PhotoViewerModal } from "../components/PhotoViewerModal";
 import type { BusStop } from "../api/collegeBuses";
 import { distanceMeters, formatDistance } from "../lib/geo";
 import { RouteStops } from "../components/RouteStops";
+import { useMarkerTracking } from "../lib/useMarkerTracking";
 import type { StudentStackParamList } from "../navigation/types";
 
 const POLL_INTERVAL_MS = 5000;
@@ -196,6 +198,7 @@ export function StudentDashboardScreen() {
   const student = session?.role === "student" ? session.student : null;
   const { mode, colors, setMode } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
+  const insets = useSafeAreaInsets();
   const navigation =
     useNavigation<
       NativeStackNavigationProp<StudentStackParamList, "StudentDashboard">
@@ -285,7 +288,9 @@ export function StudentDashboardScreen() {
         />
       )}
 
-      <View style={styles.bottomBar}>
+      {/* Lifted clear of the system navigation bar. `bottom: 20` alone put
+          the pill underneath Android's button bar. */}
+      <View style={[styles.bottomBar, { bottom: 20 + insets.bottom }]}>
         <Pressable
           style={[styles.tab, tab === "home" && styles.tabActive]}
           onPress={() => setTab("home")}
@@ -342,11 +347,13 @@ const ISSUE_META: Record<
 };
 
 function HomeView({ styles, colors, student, busLocation, onTrackOther }: HomeViewProps) {
+  const insets = useSafeAreaInsets();
   // Tapping the driver's avatar opens it full-screen — a 36px circle is enough
   // to recognise a familiar face, not an unfamiliar one. Gated on the photo
   // actually being there so tapping the emoji fallback does nothing.
   const [driverPhotoOpen, setDriverPhotoOpen] = useState(false);
   const [driverHasPhoto, setDriverHasPhoto] = useState(false);
+  const trackMarker = useMarkerTracking();
   const bus = student?.bus ?? null;
   // Prefer fresh data from the live poll (notice/suspension can change during
   // the day) and fall back to the session copy.
@@ -482,7 +489,12 @@ function HomeView({ styles, colors, student, busLocation, onTrackOther }: HomeVi
     <>
       <ScrollView
         style={styles.body}
-        contentContainerStyle={styles.bodyContent}
+        contentContainerStyle={[
+          styles.bodyContent,
+          // The floating tab pill now clears the system navigation bar, so the
+          // scroll has to clear both.
+          { paddingBottom: 120 + insets.bottom },
+        ]}
         showsVerticalScrollIndicator={false}
       >
         {bus ? (
@@ -684,6 +696,7 @@ function HomeView({ styles, colors, student, busLocation, onTrackOther }: HomeVi
                       title={`Bus ${bus.busNumber}`}
                       description={`Updated ${new Date(liveLoc.updatedAt).toLocaleTimeString()}`}
                       anchor={{ x: 0.5, y: 0.5 }}
+                      tracksViewChanges={trackMarker}
                       flat
                     >
                       <View style={styles.busPin}>
@@ -898,10 +911,16 @@ function ProfileView({
   student,
   onLogout,
 }: ProfileViewProps) {
+  const insets = useSafeAreaInsets();
   return (
     <ScrollView
       style={styles.body}
-      contentContainerStyle={styles.bodyContent}
+      contentContainerStyle={[
+          styles.bodyContent,
+          // The floating tab pill now clears the system navigation bar, so the
+          // scroll has to clear both.
+          { paddingBottom: 120 + insets.bottom },
+        ]}
       showsVerticalScrollIndicator={false}
     >
       <View style={styles.phHero}>
@@ -1248,11 +1267,13 @@ function makeStyles(colors: Colors) {
       borderColor: "#fff",
       alignItems: "center",
       justifyContent: "center",
+      // No `elevation` here on purpose. Android draws an elevation shadow
+      // outside the view's own bounds, and a Marker's bitmap is cut to those
+      // bounds — the white ring is what separates the pin from the map.
       shadowColor: "#000",
       shadowOpacity: 0.25,
       shadowRadius: 4,
       shadowOffset: { width: 0, height: 2 },
-      elevation: 6,
     },
     busPinEmoji: { fontSize: 18 },
     recenterBtn: {

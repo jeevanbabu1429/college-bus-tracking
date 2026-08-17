@@ -16,6 +16,7 @@ import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from "react-native-maps";
 import { useTheme, type Colors } from "../theme/ThemeContext";
 import { studentAuthApi, type LiveBusItem } from "../api/studentAuth";
 import type { StudentStackParamList } from "../navigation/types";
+import { useMarkerTracking } from "../lib/useMarkerTracking";
 
 const POLL_MS = 5000;
 
@@ -34,6 +35,7 @@ export function TrackOtherBusMapScreen() {
   const [item, setItem] = useState<LiveBusItem | null | undefined>(undefined);
   const inFlight = useRef(false);
   const mapRef = useRef<MapView | null>(null);
+  const trackMarker = useMarkerTracking();
 
   const load = useCallback(async () => {
     if (inFlight.current) return;
@@ -184,6 +186,7 @@ export function TrackOtherBusMapScreen() {
                 title={`Bus ${bus?.busNumber ?? ""}`}
                 description={`Updated ${secondsAgo(loc.updatedAt)}s ago`}
                 anchor={{ x: 0.5, y: 0.5 }}
+                tracksViewChanges={trackMarker}
               >
                 <View style={styles.busMarker}>
                   <View style={styles.busMarkerHalo} />

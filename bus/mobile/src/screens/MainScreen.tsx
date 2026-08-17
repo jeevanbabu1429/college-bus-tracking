@@ -9,6 +9,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useColleges } from "../college/CollegeContext";
@@ -53,6 +54,7 @@ const ACTIONS: Action[] = [
 export function MainScreen({ navigation }: Props) {
   const { session, logout } = useAuth();
   const admin = session?.role === "admin" ? session.admin : null;
+  const insets = useSafeAreaInsets();
   const {
     colleges,
     selected,
@@ -163,7 +165,9 @@ export function MainScreen({ navigation }: Props) {
         />
       )}
 
-      <View style={styles.bottomBar}>
+      {/* Lifted clear of the system navigation bar. `bottom: 20` alone put
+          the pill underneath Android's button bar. */}
+      <View style={[styles.bottomBar, { bottom: 20 + insets.bottom }]}>
         <Pressable
           style={[styles.tab, tab === "home" && styles.tabActive]}
           onPress={() => setTab("home")}
@@ -217,10 +221,16 @@ function HomeView({
   onAddCollege,
   onAction,
 }: HomeViewProps) {
+  const insets = useSafeAreaInsets();
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: colors.background }}
-      contentContainerStyle={[styles.bodyContent, { paddingBottom: 120 }]}
+      contentContainerStyle={[
+        styles.bodyContent,
+        // The floating tab pill now clears the system navigation bar, so the
+        // scroll has to clear both.
+        { paddingBottom: 120 + insets.bottom },
+      ]}
       showsVerticalScrollIndicator={false}
     >
       <Text style={styles.heading}>Your Dashboard</Text>
@@ -441,10 +451,14 @@ function ProfileView({
   onClaimOrphans,
   onLogout,
 }: ProfileViewProps) {
+  const insets = useSafeAreaInsets();
   return (
     <ScrollView
       style={styles.profileScroll}
-      contentContainerStyle={styles.profileContent}
+      contentContainerStyle={[
+        styles.profileContent,
+        { paddingBottom: 120 + insets.bottom },
+      ]}
       showsVerticalScrollIndicator={false}
     >
       <Pressable
