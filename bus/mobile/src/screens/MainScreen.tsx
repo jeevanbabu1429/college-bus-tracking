@@ -1,7 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
+  ActivityIndicator,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -9,6 +8,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { AppAlert } from "../components/AppAlert";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -133,7 +133,7 @@ export function MainScreen({ navigation }: Props) {
             try {
               const { claimed } = await collegesApi.claimOrphans();
               await refresh();
-              Alert.alert(
+              AppAlert.alert(
                 claimed > 0 ? "Recovered" : "Nothing to recover",
                 claimed > 0
                   ? `${claimed} legacy ${
@@ -142,11 +142,11 @@ export function MainScreen({ navigation }: Props) {
                   : "No legacy colleges were found."
               );
             } catch (e) {
-              Alert.alert("Recovery failed", (e as Error).message);
+              AppAlert.alert("Recovery failed", (e as Error).message);
             }
           }}
           onLogout={() =>
-            Alert.alert(
+            AppAlert.alert(
               "Logout?",
               "Are you sure you want to log out?",
               [

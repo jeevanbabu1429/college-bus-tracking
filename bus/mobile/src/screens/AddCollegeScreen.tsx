@@ -1,13 +1,13 @@
 import { useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
+  ActivityIndicator,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
 } from "react-native";
+import { AppAlert } from "../components/AppAlert";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { collegesApi } from "../api/colleges";
 import type { AppStackParamList } from "../navigation/types";
@@ -53,7 +53,7 @@ export function AddCollegeScreen({ navigation }: Props) {
       // A college beyond the admin's first has to be verified before it can
       // be operated — say so here rather than letting them find out when the
       // dashboard actions refuse to open.
-      Alert.alert(
+      AppAlert.alert(
         college.approved === false ? "Sent for verification" : "College added",
         college.approved === false
           ? `${college.name} (${college.code}) has been created. Our team is reviewing its details — this usually completes within 24 hours. You can keep using your other colleges in the meantime.`

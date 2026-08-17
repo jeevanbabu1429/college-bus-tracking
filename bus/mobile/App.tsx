@@ -7,6 +7,7 @@ import { ThemeProvider, useTheme } from "./src/theme/ThemeContext";
 import { RootNavigator } from "./src/navigation/RootNavigator";
 import { useFcmRegistration } from "./src/notifications/useFcmRegistration";
 import { AnimatedSplash } from "./src/components/AnimatedSplash";
+import { AlertHost } from "./src/components/AppAlert";
 import { BannerModal } from "./src/components/BannerModal";
 import { OnboardingScreen } from "./src/screens/OnboardingScreen";
 import { useOnboarding } from "./src/onboarding/useOnboarding";
@@ -38,6 +39,9 @@ function ThemedRoot() {
       ) : (
         <RootNavigator />
       )}
+      {/* Mounted once, above the navigator, so AppAlert.alert() from anywhere
+          (screens, hooks, plain modules) draws the same popup on every OS. */}
+      <AlertHost />
       {splashDone && !showOnboarding && <BannerModal />}
       {!splashDone && (
         <AnimatedSplash

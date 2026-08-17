@@ -19,7 +19,8 @@ import { ButtonLink } from '@/components/marketing/ui/Button';
 import Badge from '@/components/marketing/ui/Badge';
 import Container from '@/components/marketing/ui/Container';
 import SectionHeading from '@/components/marketing/ui/SectionHeading';
-import PhoneMockup from '@/components/marketing/PhoneMockup';
+import PhoneShot from '@/components/marketing/PhoneShot';
+import AppShowcase from '@/components/marketing/AppShowcase';
 import { useScrollReveal } from '@/lib/marketing/useScrollReveal';
 import {
   features,
@@ -44,6 +45,7 @@ export default function Home() {
     <div ref={ref}>
       <Hero />
       <TrustBar />
+      <AppShowcase />
       <FeaturesSection />
       <TrackingSection />
       <NotificationsSection />
@@ -106,7 +108,32 @@ function Hero() {
 
         <div className="flex justify-center lg:justify-end">
           <div className="animate-scale-in [animation-delay:0.15s]">
-            <PhoneMockup />
+            <PhoneShot
+              src="/screens/student-home.jpg"
+              alt="BusBee student app showing a live bus on the map"
+              width={300}
+              glow
+            >
+              {/* Floating stat card */}
+              <div className="absolute -left-6 top-20 hidden animate-float rounded-2xl bg-cream-50 p-3 shadow-lift ring-1 ring-cream-200 sm:block">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-cream-500">Update rate</p>
+                <p className="text-xl font-extrabold text-coral-600">5s</p>
+                <p className="text-[9px] text-cream-600">while moving</p>
+              </div>
+
+              {/* Floating notification card */}
+              <div className="absolute -right-4 bottom-28 hidden animate-float-slow rounded-2xl bg-cream-50 p-3 shadow-lift ring-1 ring-cream-200 sm:block">
+                <div className="flex items-center gap-2">
+                  <div className="grid h-7 w-7 place-items-center rounded-lg bg-lavender-100">
+                    <BellRing className="h-3.5 w-3.5 text-lavender-600" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-cream-900">Push sent</p>
+                    <p className="text-[9px] text-cream-600">Trip started · Bus 21</p>
+                  </div>
+                </div>
+              </div>
+            </PhoneShot>
           </div>
         </div>
       </div>
@@ -352,7 +379,7 @@ function NonFeaturesSection() {
         <SectionHeading
           eyebrow="What it is not"
           title={<>Honest about the scope</>}
-          subtitle="We'd rather tell you up front what BusTrack doesn't do, so you're not surprised later."
+          subtitle="We'd rather tell you up front what BusBee doesn't do, so you're not surprised later."
         />
         <div className="mt-12 grid gap-4 sm:grid-cols-2">
           {nonFeatures.map((nf, i) => (
@@ -430,7 +457,7 @@ function FaqSection() {
       <SectionHeading
         eyebrow="FAQ"
         title={<>Questions, answered</>}
-        subtitle="The things people ask before they set up BusTrack for their college."
+        subtitle="The things people ask before they set up BusBee for their college."
       />
       <div className="mx-auto mt-12 max-w-3xl space-y-3">
         {faqs.map((faq, i) => {

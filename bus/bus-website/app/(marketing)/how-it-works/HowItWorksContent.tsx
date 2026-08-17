@@ -12,6 +12,7 @@ import { ButtonLink } from '@/components/marketing/ui/Button';
 import Badge from '@/components/marketing/ui/Badge';
 import Container from '@/components/marketing/ui/Container';
 import SectionHeading from '@/components/marketing/ui/SectionHeading';
+import AppShowcase from '@/components/marketing/AppShowcase';
 import { useScrollReveal } from '@/lib/marketing/useScrollReveal';
 import { setupSteps, brand } from '@/lib/marketing/content';
 
@@ -24,6 +25,12 @@ export default function HowItWorksContent() {
       <StopSuspensionSection />
       <CapacitySection />
       <ImportSection />
+      <AppShowcase
+        className="bg-cream-200"
+        eyebrow="On the phone"
+        title={<>What riders and drivers actually see</>}
+        subtitle="Once the fleet is set up, this is the app in everyone’s pocket — sign in, find the bus, and follow it live."
+      />
       <CtaSection />
     </div>
   );

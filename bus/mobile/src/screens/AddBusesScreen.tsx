@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -11,6 +10,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { AppAlert } from "../components/AppAlert";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { collegeBusesApi } from "../api/collegeBuses";
 import { useTheme, type Colors } from "../theme/ThemeContext";
@@ -46,7 +46,7 @@ export function AddBusesScreen({ navigation, route }: Props) {
         plateNumber: plateNumber.trim().toUpperCase(),
         capacity: cap,
       });
-      Alert.alert(
+      AppAlert.alert(
         "Bus added",
         `${bus.busNumber} (${bus.plateNumber}) saved.`,
         [{ text: "OK", onPress: () => navigation.goBack() }]

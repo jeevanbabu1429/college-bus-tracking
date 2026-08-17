@@ -96,7 +96,7 @@ export const nonFeatures: { title: string; desc: string }[] = [
   },
   {
     title: 'No attendance marking',
-    desc: 'BusTrack is about location, not roll call. Boarding attendance is out of scope.',
+    desc: 'BusBee is about location, not roll call. Boarding attendance is out of scope.',
   },
   {
     title: 'No fee collection',
@@ -269,7 +269,7 @@ export const faqs: FAQ[] = [
   },
   {
     q: 'Does the app predict an arrival time (ETA)?',
-    a: 'No. BusTrack shows you where the bus is right now on its route. We intentionally do not estimate an arrival time, because traffic makes those guesses unreliable.',
+    a: 'No. BusBee shows you where the bus is right now on its route. We intentionally do not estimate an arrival time, because traffic makes those guesses unreliable.',
   },
   {
     q: 'How often is the bus location updated?',
@@ -308,7 +308,7 @@ export const setupSteps: Step[] = [
   {
     num: '01',
     title: 'Super Admin onboards the college',
-    desc: 'The platform owner creates an admin account for the college and brings it onto BusTrack.',
+    desc: 'The platform owner creates an admin account for the college and brings it onto BusBee.',
     icon: ShieldAlert,
   },
   {
@@ -346,7 +346,7 @@ export const setupSteps: Step[] = [
 // Support details come from the same module the admin console uses, so the
 // marketing site and the login screens can never drift apart.
 export const brand = {
-  name: 'BusTrack',
+  name: 'BusBee',
   supportEmail: SUPPORT_EMAIL,
   supportPhone: SUPPORT_MOBILE_DISPLAY,
   supportTel: SUPPORT_TEL,

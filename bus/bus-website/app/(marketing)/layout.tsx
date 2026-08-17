@@ -7,8 +7,8 @@ import "../marketing.css";
 
 export const metadata: Metadata = {
   title: {
-    default: "BusTrack — Live College Bus Tracking",
-    template: "%s · BusTrack",
+    default: "BusBee — Live College Bus Tracking",
+    template: "%s · BusBee",
   },
   description:
     "Live college bus tracking for admins, dispatchers, drivers, and passengers. OTP login, real-time tracking, route & stop management, push notifications, and more.",

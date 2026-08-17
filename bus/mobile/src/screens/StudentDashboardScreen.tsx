@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
+  ActivityIndicator,
   Animated,
   Easing,
   Image,
@@ -13,6 +12,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { AppAlert } from "../components/AppAlert";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -238,7 +238,7 @@ export function StudentDashboardScreen() {
   }, [student?.bus, fetchLocation]);
 
   const onLogout = () =>
-    Alert.alert(
+    AppAlert.alert(
       "Logout?",
       "Are you sure you want to log out?",
       [
@@ -395,13 +395,13 @@ function HomeView({ styles, colors, student, busLocation, onTrackOther }: HomeVi
         if (can) return Linking.openURL(url);
         // Android emulators & tablets without a dialer just fail silently —
         // surface the number so the student can copy it manually.
-        Alert.alert(
+        AppAlert.alert(
           "Can't open dialer",
           `Call ${driverInfo.name} on ${driverInfo.mobile}?`
         );
       })
       .catch(() => {
-        Alert.alert(
+        AppAlert.alert(
           "Couldn't start the call",
           `Please dial ${driverInfo.mobile} manually.`
         );

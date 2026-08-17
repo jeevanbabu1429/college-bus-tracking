@@ -50,7 +50,7 @@ export default function Header() {
         <Link
           href="/"
           className="flex items-center transition-opacity hover:opacity-80"
-          aria-label="BusTrack home"
+          aria-label="BusBee home"
         >
           <Logo />
         </Link>

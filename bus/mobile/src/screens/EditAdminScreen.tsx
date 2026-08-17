@@ -1,7 +1,6 @@
 import { useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -11,6 +10,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { AppAlert } from "../components/AppAlert";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import DateTimePicker, {
   type DateTimePickerEvent,
@@ -79,7 +79,7 @@ export function EditAdminScreen({ navigation }: Props) {
         mobile: mobile.trim(),
         email: email.trim(),
       });
-      Alert.alert("Profile updated", "Your details have been saved.", [
+      AppAlert.alert("Profile updated", "Your details have been saved.", [
         { text: "OK", onPress: () => navigation.goBack() },
       ]);
     } catch (e) {

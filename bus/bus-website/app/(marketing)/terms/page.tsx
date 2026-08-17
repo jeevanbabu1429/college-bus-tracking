@@ -7,7 +7,7 @@ import type { Metadata } from 'next';
 export const metadata: Metadata = {
   title: 'Terms of Service',
   description:
-    'The terms that govern use of BusTrack by colleges, admins, dispatchers and drivers.',
+    'The terms that govern use of BusBee by colleges, admins, dispatchers and drivers.',
 };
 
 const updated = '2 August 2026';

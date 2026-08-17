@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { Alert } from "react-native";
+import { AppAlert } from "../components/AppAlert";
 import { useAuth } from "../auth/AuthContext";
 import { notificationsApi } from "../api/notifications";
 import {
@@ -77,7 +77,7 @@ export function useFcmRegistration() {
       const msg = raw as { notification?: { title?: string; body?: string } };
       const title = msg.notification?.title ?? "Notification";
       const body = msg.notification?.body ?? "";
-      Alert.alert(title, body);
+      AppAlert.alert(title, body);
     });
     return unsub;
   }, []);

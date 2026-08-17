@@ -175,7 +175,7 @@ export default function LoginPage() {
         <SupportContact />
         <p className="small muted" style={{ textAlign: "center", marginTop: 14 }}>
           <Link href="/" className="auth-link">
-            &larr; Back to the BusTrack site
+            &larr; Back to the BusBee site
           </Link>
         </p>
       </main>

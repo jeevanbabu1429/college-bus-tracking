@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
+  ActivityIndicator,
   FlatList,
   Linking,
   Pressable,
@@ -10,6 +9,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { AppAlert } from "../components/AppAlert";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useTheme, type Colors } from "../theme/ThemeContext";
@@ -281,10 +281,10 @@ function callDriver(name: string, mobile: string): void {
       if (can) return Linking.openURL(url);
       // Emulators or tablets without a dialer — show the number so the
       // student can copy or read it manually.
-      Alert.alert("Can't open dialer", `Call ${name} on ${mobile}?`);
+      AppAlert.alert("Can't open dialer", `Call ${name} on ${mobile}?`);
     })
     .catch(() => {
-      Alert.alert(
+      AppAlert.alert(
         "Couldn't start the call",
         `Please dial ${mobile} manually.`
       );

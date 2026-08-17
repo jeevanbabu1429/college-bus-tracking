@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
+  ActivityIndicator,
   Modal,
   Pressable,
   ScrollView,
@@ -11,6 +10,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { AppAlert } from "../components/AppAlert";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Location from "expo-location";
 import { RouteStops } from "../components/RouteStops";
@@ -136,7 +136,7 @@ export function DriverDashboardScreen() {
     try {
       const perm = await Location.requestForegroundPermissionsAsync();
       if (perm.status !== "granted") {
-        Alert.alert(
+        AppAlert.alert(
           "Location permission needed",
           "We need your location to share the bus position with students."
         );
@@ -255,7 +255,7 @@ export function DriverDashboardScreen() {
         showToast("Profile photo updated");
       }
     } catch (e) {
-      Alert.alert("Could not update photo", (e as Error).message);
+      AppAlert.alert("Could not update photo", (e as Error).message);
     } finally {
       setPhotoBusy(false);
     }
@@ -263,7 +263,7 @@ export function DriverDashboardScreen() {
 
   const handleRemovePhoto = useCallback(() => {
     if (photoBusy) return;
-    Alert.alert(
+    AppAlert.alert(
       "Remove photo?",
       "Your profile will show your initials instead.",
       [
@@ -278,7 +278,7 @@ export function DriverDashboardScreen() {
               setPhoto(res.image);
               showToast("Profile photo removed");
             } catch (e) {
-              Alert.alert("Could not remove photo", (e as Error).message);
+              AppAlert.alert("Could not remove photo", (e as Error).message);
             } finally {
               setPhotoBusy(false);
             }
@@ -328,7 +328,7 @@ export function DriverDashboardScreen() {
   }, []);
 
   const onLogout = () =>
-    Alert.alert(
+    AppAlert.alert(
       "Logout?",
       "Are you sure you want to log out?",
       [
