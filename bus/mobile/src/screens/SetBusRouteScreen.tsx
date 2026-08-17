@@ -1,7 +1,6 @@
 import { useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
+  ActivityIndicator,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -9,6 +8,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { AppAlert } from "../components/AppAlert";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { collegeBusesApi, type BusStop } from "../api/collegeBuses";
 import type { AppStackParamList } from "../navigation/types";
@@ -77,7 +77,7 @@ export function SetBusRouteScreen({ navigation, route }: Props) {
         stops: cleaned,
         notice: notice.trim(),
       });
-      Alert.alert(
+      AppAlert.alert(
         "Route saved",
         `Bus ${bus.busNumber}: ${cleaned.length} stop${cleaned.length === 1 ? "" : "s"}.`,
         [{ text: "OK", onPress: () => navigation.goBack() }]

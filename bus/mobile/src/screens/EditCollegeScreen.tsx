@@ -1,7 +1,6 @@
 import { useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -11,6 +10,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { AppAlert } from "../components/AppAlert";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { collegesApi } from "../api/colleges";
 import { useColleges } from "../college/CollegeContext";
@@ -60,7 +60,7 @@ export function EditCollegeScreen({ navigation, route }: Props) {
         driverCount: drivers,
       });
       await refresh();
-      Alert.alert(
+      AppAlert.alert(
         "College updated",
         `${updated.name} (${updated.code}) saved.`,
         [{ text: "OK", onPress: () => navigation.goBack() }]

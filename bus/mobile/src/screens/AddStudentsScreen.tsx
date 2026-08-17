@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
+  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -11,6 +10,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { AppAlert } from "../components/AppAlert";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import DateTimePicker, {
   type DateTimePickerEvent,
@@ -137,7 +137,7 @@ export function AddStudentsScreen({ navigation, route }: Props) {
             student.stop ? ` (${student.stop})` : ""
           }`
         : "";
-      Alert.alert(
+      AppAlert.alert(
         "Student added",
         `${student.name} (${student.rollNumber})${busLabel} saved.`,
         [{ text: "OK", onPress: () => navigation.goBack() }]

@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
+  ActivityIndicator,
   FlatList,
   Pressable,
   StyleSheet,
   Text,
   View,
 } from "react-native";
+import { AppAlert } from "../components/AppAlert";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { collegeBusesApi } from "../api/collegeBuses";
 import { collegeDriversApi, type Driver } from "../api/collegeDrivers";
@@ -39,7 +39,7 @@ export function SelectDriverForBusScreen({ navigation, route }: Props) {
     setBusy(true);
     try {
       await collegeBusesApi.assignDriver(collegeId, busId, driverId);
-      Alert.alert(
+      AppAlert.alert(
         driverId ? "Driver assigned" : "Driver unassigned",
         driverId
           ? `Driver assigned to Bus ${busNumber}.`

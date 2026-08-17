@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -11,6 +10,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { AppAlert } from "../components/AppAlert";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import DateTimePicker, {
   type DateTimePickerEvent,
@@ -85,7 +85,7 @@ export function EditDriverScreen({ navigation, route }: Props) {
         mobile: mobile.trim(),
         address: address.trim(),
       });
-      Alert.alert("Driver updated", `${name.trim()} saved.`, [
+      AppAlert.alert("Driver updated", `${name.trim()} saved.`, [
         { text: "OK", onPress: () => navigation.goBack() },
       ]);
     } catch (e) {
