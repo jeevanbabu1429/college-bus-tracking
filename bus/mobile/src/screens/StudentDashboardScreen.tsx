@@ -4,6 +4,7 @@ import {
   Alert,
   Animated,
   Easing,
+  Image,
   Linking,
   Pressable,
   ScrollView,
@@ -25,7 +26,6 @@ import { PhotoViewerModal } from "../components/PhotoViewerModal";
 import type { BusStop } from "../api/collegeBuses";
 import { distanceMeters, formatDistance } from "../lib/geo";
 import { RouteStops } from "../components/RouteStops";
-import { useMarkerTracking } from "../lib/useMarkerTracking";
 import type { StudentStackParamList } from "../navigation/types";
 
 const POLL_INTERVAL_MS = 5000;
@@ -353,7 +353,6 @@ function HomeView({ styles, colors, student, busLocation, onTrackOther }: HomeVi
   // actually being there so tapping the emoji fallback does nothing.
   const [driverPhotoOpen, setDriverPhotoOpen] = useState(false);
   const [driverHasPhoto, setDriverHasPhoto] = useState(false);
-  const trackMarker = useMarkerTracking();
   const bus = student?.bus ?? null;
   // Prefer fresh data from the live poll (notice/suspension can change during
   // the day) and fall back to the session copy.
@@ -696,16 +695,14 @@ function HomeView({ styles, colors, student, busLocation, onTrackOther }: HomeVi
                       title={`Bus ${bus.busNumber}`}
                       description={`Updated ${new Date(liveLoc.updatedAt).toLocaleTimeString()}`}
                       anchor={{ x: 0.5, y: 0.5 }}
-                      tracksViewChanges={trackMarker}
                       flat
-                    >
-                      <View style={styles.busPin}>
-                        <View style={styles.busPinHalo} />
-                        <View style={styles.busPinInner}>
-                          <Text style={styles.busPinEmoji}>🚌</Text>
-                        </View>
-                      </View>
-                    </Marker>
+                      // A static image, not a custom child view. Android draws a
+                      // Marker's children into a bitmap and had been cutting the
+                      // corner off it; an image becomes a bitmap descriptor
+                      // directly, with no view to rasterise, so both platforms
+                      // draw exactly this file.
+                      image={require("../../assets/bus-pin.png")}
+                    />
                   )}
                 </MapView>
                 {liveActive && pinPos && (
@@ -726,8 +723,17 @@ function HomeView({ styles, colors, student, busLocation, onTrackOther }: HomeVi
                       pressed && styles.recenterBtnPressed,
                     ]}
                     hitSlop={8}
+                    accessibilityRole="button"
+                    accessibilityLabel="Show the bus on the map"
                   >
-                    <Text style={styles.recenterIcon}>🚌</Text>
+                    <View style={styles.recenterChip}>
+                      <Image
+                        source={require("../../assets/bus-glyph.png")}
+                        style={styles.recenterIcon}
+                        resizeMode="contain"
+                      />
+                    </View>
+                    <Text style={styles.recenterLabel}>Find bus</Text>
                   </Pressable>
                 )}
                 <View style={styles.liveBanner}>
@@ -1245,47 +1251,20 @@ function makeStyles(colors: Colors) {
       elevation: 3,
     },
     map: { width: "100%", height: 280 },
-    busPin: {
-      width: 56,
-      height: 56,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    busPinHalo: {
-      position: "absolute",
-      width: 56,
-      height: 56,
-      borderRadius: 999,
-      backgroundColor: "rgba(245,183,0,0.25)",
-    },
-    busPinInner: {
-      width: 40,
-      height: 40,
-      borderRadius: 999,
-      backgroundColor: colors.accent,
-      borderWidth: 3,
-      borderColor: "#fff",
-      alignItems: "center",
-      justifyContent: "center",
-      // No `elevation` here on purpose. Android draws an elevation shadow
-      // outside the view's own bounds, and a Marker's bitmap is cut to those
-      // bounds — the white ring is what separates the pin from the map.
-      shadowColor: "#000",
-      shadowOpacity: 0.25,
-      shadowRadius: 4,
-      shadowOffset: { width: 0, height: 2 },
-    },
-    busPinEmoji: { fontSize: 18 },
+    // A pill rather than a bare circle: an icon alone left people guessing what
+    // tapping it would do, and the map has room for two words.
     recenterBtn: {
       position: "absolute",
       right: 12,
       top: 12,
-      width: 44,
-      height: 44,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 7,
+      paddingLeft: 5,
+      paddingRight: 14,
+      paddingVertical: 5,
       borderRadius: 999,
       backgroundColor: colors.accent,
-      alignItems: "center",
-      justifyContent: "center",
       shadowColor: "#000",
       shadowOpacity: 0.2,
       shadowRadius: 6,
@@ -1293,7 +1272,24 @@ function makeStyles(colors: Colors) {
       elevation: 6,
     },
     recenterBtnPressed: { opacity: 0.85 },
-    recenterIcon: { fontSize: 20 },
+    // The bus artwork is mostly yellow, so it sits on a white chip rather than
+    // straight on the accent pill where it would disappear. Same white-disc
+    // treatment as the map pin.
+    recenterChip: {
+      width: 30,
+      height: 30,
+      borderRadius: 15,
+      backgroundColor: "#fff",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    recenterIcon: { width: 21, height: 13 },
+    recenterLabel: {
+      fontSize: 13,
+      fontWeight: "800",
+      color: "#16160f",
+      letterSpacing: 0.2,
+    },
     liveBanner: {
       flexDirection: "row",
       alignItems: "center",
