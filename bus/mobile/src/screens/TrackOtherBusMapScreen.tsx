@@ -16,7 +16,6 @@ import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from "react-native-maps";
 import { useTheme, type Colors } from "../theme/ThemeContext";
 import { studentAuthApi, type LiveBusItem } from "../api/studentAuth";
 import type { StudentStackParamList } from "../navigation/types";
-import { useMarkerTracking } from "../lib/useMarkerTracking";
 
 const POLL_MS = 5000;
 
@@ -35,7 +34,6 @@ export function TrackOtherBusMapScreen() {
   const [item, setItem] = useState<LiveBusItem | null | undefined>(undefined);
   const inFlight = useRef(false);
   const mapRef = useRef<MapView | null>(null);
-  const trackMarker = useMarkerTracking();
 
   const load = useCallback(async () => {
     if (inFlight.current) return;
@@ -186,15 +184,10 @@ export function TrackOtherBusMapScreen() {
                 title={`Bus ${bus?.busNumber ?? ""}`}
                 description={`Updated ${secondsAgo(loc.updatedAt)}s ago`}
                 anchor={{ x: 0.5, y: 0.5 }}
-                tracksViewChanges={trackMarker}
-              >
-                <View style={styles.busMarker}>
-                  <View style={styles.busMarkerHalo} />
-                  <View style={styles.busMarkerInner}>
-                    <Text style={styles.busMarkerEmoji}>🚌</Text>
-                  </View>
-                </View>
-              </Marker>
+                // Static image rather than a custom child view — Android was
+                // clipping the rasterised view. See StudentDashboardScreen.
+                image={require("../../assets/bus-pin.png")}
+              />
             )}
           </MapView>
 
@@ -282,26 +275,6 @@ function makeStyles(colors: Colors) {
     ctaText: { color: colors.textOnAccent, fontWeight: "700" },
     mapWrap: { flex: 1 },
     map: { flex: 1 },
-    busMarker: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
-    busMarkerHalo: {
-      position: "absolute",
-      width: 44,
-      height: 44,
-      borderRadius: 22,
-      backgroundColor: colors.accent,
-      opacity: 0.25,
-    },
-    busMarkerInner: {
-      width: 32,
-      height: 32,
-      borderRadius: 16,
-      backgroundColor: colors.accent,
-      borderWidth: 2,
-      borderColor: "#fff",
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    busMarkerEmoji: { fontSize: 14 },
     banner: {
       position: "absolute",
       top: 12,

@@ -15,7 +15,6 @@ import { useTheme, type Colors } from "../theme/ThemeContext";
 import { studentAuthApi, type LiveBusItem } from "../api/studentAuth";
 import { distanceMeters, formatDistance, type LatLng } from "../lib/geo";
 import type { StudentStackParamList } from "../navigation/types";
-import { useMarkerTracking } from "../lib/useMarkerTracking";
 
 const POLL_MS = 5000;
 const RADIUS_M = 5000;
@@ -121,12 +120,6 @@ export function NearbyBusesScreen() {
 
   const selected = nearby.find((n) => n.item.bus._id === selectedId) ?? null;
 
-  // Re-armed when the set of buses changes, so a pin that appears mid-poll is
-  // captured in full rather than reusing a bitmap taken before it existed.
-  // Must stay above the early returns below — it is a hook.
-  const trackMarker = useMarkerTracking(
-    nearby.map((n) => n.item.bus._id).join(",")
-  );
 
   // Drop the selection when the chosen bus leaves the radius or ends its
   // trip, so the card can never describe a bus that is no longer on the map.
@@ -254,36 +247,21 @@ export function NearbyBusesScreen() {
             }}
             title="You are here"
             anchor={{ x: 0.5, y: 0.5 }}
-            tracksViewChanges={trackMarker}
-          >
-            <View style={styles.meMarker}>
-              <View style={styles.meMarkerHalo} />
-              <View style={styles.meMarkerDot} />
-            </View>
-          </Marker>
+            image={require("../../assets/me-pin.png")}
+          />
 
           {nearby.map(({ item, at }) => (
             <Marker
               key={item.bus._id}
               coordinate={{ latitude: at.lat, longitude: at.lng }}
               anchor={{ x: 0.5, y: 0.5 }}
-              tracksViewChanges={trackMarker}
+              // The number used to ride under the pin on a custom view, which
+              // Android clipped. Tapping names the bus in the card below, and
+              // this title covers the same ground on a long press.
+              title={`Bus ${item.bus.busNumber}`}
+              image={require("../../assets/bus-pin.png")}
               onPress={() => setSelectedId(item.bus._id)}
-            >
-              {/* The number rides with the pin rather than hiding in a
-                  callout — the whole point of this screen is telling several
-                  buses apart at a glance. */}
-              <View style={styles.busMarker}>
-                <View style={styles.busMarkerInner}>
-                  <Text style={styles.busMarkerEmoji}>🚌</Text>
-                </View>
-                <View style={styles.busMarkerLabel}>
-                  <Text style={styles.busMarkerLabelText} numberOfLines={1}>
-                    {item.bus.busNumber}
-                  </Text>
-                </View>
-              </View>
-            </Marker>
+            />
           ))}
         </MapView>
 
@@ -475,51 +453,7 @@ function makeStyles(colors: Colors) {
     mapWrap: { flex: 1 },
     map: { flex: 1 },
 
-    meMarker: { width: 40, height: 40, alignItems: "center", justifyContent: "center" },
-    meMarkerHalo: {
-      position: "absolute",
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      backgroundColor: "#1976d2",
-      opacity: 0.22,
-    },
-    meMarkerDot: {
-      width: 16,
-      height: 16,
-      borderRadius: 8,
-      backgroundColor: "#1976d2",
-      borderWidth: 2,
-      borderColor: "#fff",
-    },
 
-    busMarker: { alignItems: "center" },
-    busMarkerInner: {
-      width: 34,
-      height: 34,
-      borderRadius: 17,
-      backgroundColor: colors.accent,
-      borderWidth: 2,
-      borderColor: "#fff",
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    busMarkerEmoji: { fontSize: 15 },
-    busMarkerLabel: {
-      marginTop: -4,
-      maxWidth: 96,
-      paddingHorizontal: 7,
-      paddingVertical: 2,
-      borderRadius: 999,
-      backgroundColor: "#111111",
-      borderWidth: 1,
-      borderColor: "#ffffff",
-    },
-    busMarkerLabelText: {
-      color: "#ffffff",
-      fontSize: 11,
-      fontWeight: "800",
-    },
 
     banner: {
       position: "absolute",
