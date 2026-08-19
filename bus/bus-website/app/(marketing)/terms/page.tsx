@@ -33,11 +33,13 @@ export default function Terms() {
       </LegalSection>
 
       <LegalSection id="accounts-roles" title="Accounts & roles">
-        <p>The Service has four roles, each with a different login method and scope of access:</p>
+        <p>
+          Your college&rsquo;s Admin creates the roles it needs and assigns the access each one
+          should have. Roles and their permissions are dynamic; typical roles include:
+        </p>
         <ul className="space-y-2">
           {[
-            ['Super Admin', 'Email + password console login. Manages admins and colleges, publishes app-wide banners.'],
-            ['Admin', 'Email + password console login. Manages their college\'s buses, routes, drivers, and capacity.'],
+            ['Admin', 'Web console login. Creates roles and access, and manages the college\'s buses, routes, drivers, and capacity.'],
             ['Dispatcher', 'Phone OTP app login. Monitors the live map, assigns drivers, edits routes, suspends stops.'],
             ['Driver', 'Phone OTP app login. Starts and ends trips and shares live location during an active trip.'],
           ].map(([role, desc]) => (
@@ -57,16 +59,16 @@ export default function Terms() {
       <LegalSection id="license" title="License to use the Service">
         <p>
           We grant you a limited, non-exclusive, non-transferable license to use {brand.name} for
-          your college transport operations, subject to these Terms and the one-time activation fee.
+          your college transport operations, subject to these Terms and the applicable fees.
           This license does not include the right to resell, sublicense, or modify the Service.
         </p>
       </LegalSection>
 
-      <LegalSection id="fees" title="Fees & activation">
+      <LegalSection id="fees" title="Fees">
         <p>
-          Use of the Service requires a one-time activation fee of <strong>{brand.price}</strong> ({brand.priceNote}).
-          There are no per-bus or per-seat recurring charges for the features described in these
-          Terms. The activation fee is non-refundable except where required by law.
+          Pricing for the Service is based on your college&rsquo;s student count, so your plan scales
+          with the size of your campus. The applicable fees are agreed with your college before
+          activation and, except where required by law, are non-refundable.
         </p>
         <p>
           The features included are those described on our website and in the app. Specifically, the
@@ -142,8 +144,8 @@ export default function Terms() {
           even if advised of the possibility of such damages.
         </p>
         <p>
-          Our total liability for any claim arising from the Service shall not exceed the activation
-          fee you paid.
+          Our total liability for any claim arising from the Service shall not exceed the fees your
+          college paid for the Service.
         </p>
       </LegalSection>
 

@@ -6,7 +6,7 @@ import Badge from '@/components/marketing/ui/Badge';
 import Container from '@/components/marketing/ui/Container';
 import SectionHeading from '@/components/marketing/ui/SectionHeading';
 import { useScrollReveal } from '@/lib/marketing/useScrollReveal';
-import { roles, roleCapabilities, brand } from '@/lib/marketing/content';
+import { roles, roleCapabilities } from '@/lib/marketing/content';
 
 const accentMap: Record<string, { bg: string; text: string; ring: string; border: string }> = {
   coral: { bg: 'bg-coral-100', text: 'text-coral-600', ring: 'ring-coral-200', border: 'border-coral-300' },
@@ -38,11 +38,11 @@ function PageHero() {
           <Badge icon={<Users className="h-3.5 w-3.5" />}>Roles & access</Badge>
         </div>
         <h1 className="mt-5 animate-fade-in-up text-fluid-4xl font-extrabold leading-[1.05] tracking-tight text-cream-900 text-balance">
-          Four roles, each scoped to the job
+          Roles built around your team
         </h1>
         <p className="mx-auto mt-5 max-w-xl animate-fade-in-up text-fluid-lg text-cream-700 text-pretty [animation-delay:0.1s]">
-          Super Admins run the platform, Admins run their college, Dispatchers run the day, and
-          Drivers run the route. Here’s exactly who can do what.
+          Your Admin creates the roles your college needs and decides exactly what each one can
+          access. Dispatchers run the day, Drivers run the route — here’s who can do what.
         </p>
       </div>
     </section>
@@ -97,7 +97,6 @@ function RoleCards() {
 
 function CapabilityTable() {
   const cols = [
-    { key: 'superAdmin', label: 'Super Admin', icon: ShieldAlert },
     { key: 'admin', label: 'Admin', icon: UserCog },
     { key: 'dispatcher', label: 'Dispatcher', icon: Map },
     { key: 'driver', label: 'Driver', icon: Users },
@@ -189,14 +188,14 @@ function LoginSection() {
           <div className="grid h-12 w-12 place-items-center rounded-xl bg-amber-100 text-amber-600 ring-1 ring-amber-200">
             <ShieldAlert className="h-6 w-6" />
           </div>
-          <h3 className="mt-5 text-xl font-bold text-cream-900">Console login (email + password)</h3>
+          <h3 className="mt-5 text-xl font-bold text-cream-900">Console login (Admin)</h3>
           <p className="mt-2 text-sm leading-relaxed text-cream-700">
-            Super Admins and Admins sign in through a secure web console with an email and password.
-            This is the management layer — onboarding colleges, setting up fleets, and publishing
-            banners. No phone number required.
+            Your Admin signs in through a secure web console. This is the management layer — creating
+            roles, deciding what each one can access, setting up the fleet, and building routes. Roles
+            and their access are dynamic, so you shape the team around how your college actually runs.
           </p>
           <ul className="mt-4 space-y-2 text-sm text-cream-800">
-            {['Super Admin — platform-wide access', 'Admin — scoped to their college'].map((line) => (
+            {['Admin — full control of the college', 'Dynamic roles — created and scoped by the Admin'].map((line) => (
               <li key={line} className="flex items-center gap-2.5">
                 <Check className="h-4 w-4 text-emerald-500" /> {line}
               </li>
@@ -237,7 +236,7 @@ function CtaSection() {
           The right access for every member of your team
         </h2>
         <p className="reveal reveal-delay-1 mx-auto mt-4 max-w-xl text-fluid-base text-cream-300 text-pretty">
-          One-time {brand.price} activation. All four roles included.
+          Pricing based on your student count. Dynamic roles and access, all included.
         </p>
         <div className="reveal reveal-delay-2 mt-8 flex flex-wrap justify-center gap-3">
           <ButtonLink size="lg" href="/how-it-works">

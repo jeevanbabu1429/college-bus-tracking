@@ -100,7 +100,7 @@ export const nonFeatures: { title: string; desc: string }[] = [
   },
   {
     title: 'No fee collection',
-    desc: 'Transport fees are handled elsewhere. The only payment here is a one-time activation.',
+    desc: 'Transport fees are handled elsewhere. BusBee\'s own pricing is based on your student count.',
   },
   {
     title: 'No SOS / panic button',
@@ -160,26 +160,23 @@ export const notifications: Notification[] = [
 
 export type RoleCapability = {
   label: string;
-  superAdmin: boolean;
   admin: boolean;
   dispatcher: boolean;
   driver: boolean;
 };
 
 export const roleCapabilities: RoleCapability[] = [
-  { label: 'Email + password console login', superAdmin: true, admin: false, dispatcher: false, driver: false },
-  { label: 'Mobile OTP login (console or app)', superAdmin: false, admin: true, dispatcher: true, driver: true },
-  { label: 'Manage admins & colleges', superAdmin: true, admin: false, dispatcher: false, driver: false },
-  { label: 'Publish app-wide banner', superAdmin: true, admin: false, dispatcher: false, driver: false },
-  { label: 'Manage college buses, routes, drivers', superAdmin: false, admin: true, dispatcher: false, driver: false },
-  { label: 'XLSX bulk import', superAdmin: false, admin: true, dispatcher: false, driver: false },
-  { label: 'Set bus capacity', superAdmin: false, admin: true, dispatcher: false, driver: false },
-  { label: 'View all-fleet live map', superAdmin: false, admin: true, dispatcher: true, driver: false },
-  { label: 'Assign driver to bus (one driver per bus)', superAdmin: false, admin: true, dispatcher: true, driver: false },
-  { label: 'Build & edit routes and stops', superAdmin: false, admin: true, dispatcher: true, driver: false },
-  { label: 'Suspend stops (nearest-active fallback)', superAdmin: false, admin: true, dispatcher: true, driver: false },
-  { label: 'Start / end trip & share location', superAdmin: false, admin: false, dispatcher: false, driver: true },
-  { label: 'Track any bus by number', superAdmin: false, admin: true, dispatcher: true, driver: true },
+  { label: 'Create roles & assign access', admin: true, dispatcher: false, driver: false },
+  { label: 'Mobile OTP login (console or app)', admin: true, dispatcher: true, driver: true },
+  { label: 'Manage college buses, routes, drivers', admin: true, dispatcher: false, driver: false },
+  { label: 'XLSX bulk import', admin: true, dispatcher: false, driver: false },
+  { label: 'Set bus capacity', admin: true, dispatcher: false, driver: false },
+  { label: 'View all-fleet live map', admin: true, dispatcher: true, driver: false },
+  { label: 'Assign driver to bus (one driver per bus)', admin: true, dispatcher: true, driver: false },
+  { label: 'Build & edit routes and stops', admin: true, dispatcher: true, driver: false },
+  { label: 'Suspend stops (nearest-active fallback)', admin: true, dispatcher: true, driver: false },
+  { label: 'Start / end trip & share location', admin: false, dispatcher: false, driver: true },
+  { label: 'Track any bus by number', admin: true, dispatcher: true, driver: true },
 ];
 
 export type Role = {
@@ -195,31 +192,16 @@ export type Role = {
 
 export const roles: Role[] = [
   {
-    key: 'super-admin',
-    name: 'Super Admin',
-    tagline: 'The platform owner',
-    login: 'Email + password console',
-    icon: ShieldAlert,
-    accent: 'amber',
-    blurb:
-      'Runs the whole platform. Manages which colleges are onboard and which admins represent them, and can push an app-wide banner to every user.',
-    responsibilities: [
-      'Create and manage admin accounts for each college',
-      'Onboard or remove colleges from the platform',
-      'Publish an app-wide announcement banner',
-      'Console-only access (email + password)',
-    ],
-  },
-  {
     key: 'admin',
     name: 'Admin',
     tagline: 'The college transport head',
     login: 'Mobile OTP on the web console',
     icon: UserCog,
-    accent: 'coral',
+    accent: 'amber',
     blurb:
-      'Owns their college\'s entire fleet. Sets up buses, routes, and drivers, imports a semester in one spreadsheet, and sets capacity limits.',
+      'Owns their college\'s entire setup. Creates the roles their team needs and decides exactly what each one can access — then sets up buses, routes, and drivers.',
     responsibilities: [
+      'Create roles and assign the right access to each',
       'Add and manage buses and drivers',
       'Build routes and stops on the map',
       'Bulk-import routes, stops & assignments via XLSX',
@@ -285,7 +267,7 @@ export const faqs: FAQ[] = [
   },
   {
     q: 'How much does it cost?',
-    a: 'A one-time activation fee of ₹90. There are no per-seat or per-bus recurring charges for the features listed here.',
+    a: 'Pricing is based on your college\'s student count, so the plan scales with the size of your campus. Get in touch and we\'ll put together a quote that fits your numbers.',
   },
   {
     q: 'Can a bus have more than one driver?',
@@ -307,8 +289,8 @@ export type Step = {
 export const setupSteps: Step[] = [
   {
     num: '01',
-    title: 'Super Admin onboards the college',
-    desc: 'The platform owner creates an admin account for the college and brings it onto BusBee.',
+    title: 'Your college comes onboard',
+    desc: 'Your college is set up on BusBee with an Admin account for your transport head.',
     icon: ShieldAlert,
   },
   {
@@ -350,6 +332,6 @@ export const brand = {
   supportEmail: SUPPORT_EMAIL,
   supportPhone: SUPPORT_MOBILE_DISPLAY,
   supportTel: SUPPORT_TEL,
-  price: '₹90',
-  priceNote: 'one-time activation',
+  price: 'Based on your student count',
+  priceNote: 'a plan that scales with your college',
 };

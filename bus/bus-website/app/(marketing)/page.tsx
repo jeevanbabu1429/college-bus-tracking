@@ -95,7 +95,7 @@ function Hero() {
           </div>
           <div className="mt-8 flex animate-fade-in-up flex-wrap items-center gap-x-6 gap-y-2 text-sm text-cream-700 [animation-delay:0.3s]">
             <span className="inline-flex items-center gap-1.5">
-              <Check className="h-4 w-4 text-emerald-500" /> One-time {brand.price} activation
+              <Check className="h-4 w-4 text-emerald-500" /> Pricing based on your student count
             </span>
             <span className="inline-flex items-center gap-1.5">
               <Check className="h-4 w-4 text-emerald-500" /> No parent login needed
@@ -148,7 +148,7 @@ function TrustBar() {
     { value: '5s', label: 'Live update interval' },
     { value: '4', label: 'Roles, one app' },
     { value: '6', label: 'Push notification triggers' },
-    { value: '₹90', label: 'One-time activation' },
+    { value: 'Flexible', label: 'Priced by student count' },
   ];
   return (
     <div className="border-y border-cream-300/70 bg-cream-100/60 backdrop-blur">
@@ -334,11 +334,11 @@ function RolesPreview() {
   return (
     <Container id="roles-preview" className="bg-cream-100/50">
       <SectionHeading
-        eyebrow="Four roles, one app"
+        eyebrow="Roles, one app"
         title={<>Everyone sees what they need to</>}
-        subtitle="Super Admins, Admins, Dispatchers, and Drivers — each with a scoped login and the right powers for the job."
+        subtitle="Your Admin creates the roles your college needs — Dispatchers, Drivers, and more — each with a scoped login and exactly the access it should have."
       />
-      <div className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {roles.map((r, i) => {
           const a = accentMap[r.accent];
           return (
@@ -409,15 +409,15 @@ function PricingSection() {
     <Container id="get-started" className="bg-cream-100/50">
       <SectionHeading
         eyebrow="Pricing"
-        title={<>One activation. No per-seat fees.</>}
-        subtitle="A single one-time activation gets your college the full feature set. No recurring charges for the capabilities listed here."
+        title={<>Pricing that fits your campus</>}
+        subtitle="Your plan is based on your student count, so it scales with the size of your college. Talk to us for a quote that fits your numbers — the full feature set is included."
       />
       <div className="mx-auto mt-12 max-w-md">
         <div className="reveal relative overflow-hidden rounded-3xl border border-coral-300 bg-cream-50 p-8 text-center shadow-glow-coral">
           <div className="pointer-events-none absolute -right-20 -top-20 h-40 w-40 rounded-full bg-coral-100 blur-2xl" />
           <div className="relative">
-            <Badge icon={<Sparkles className="h-3.5 w-3.5" />}>One-time activation</Badge>
-            <p className="mt-6 text-5xl font-extrabold text-cream-900">
+            <Badge icon={<Sparkles className="h-3.5 w-3.5" />}>Simple pricing</Badge>
+            <p className="mt-6 text-3xl font-extrabold text-cream-900">
               {brand.price}
             </p>
             <p className="mt-1 text-sm text-cream-600">{brand.priceNote}</p>
@@ -425,7 +425,7 @@ function PricingSection() {
               {[
                 'All features in the list above',
                 'All four roles included',
-                'No per-bus or per-seat recurring fee',
+                'Pricing that scales with your student count',
                 'No parent login required',
               ].map((line) => (
                 <li key={line} className="flex items-center gap-2.5">
@@ -511,7 +511,7 @@ function FinalCta() {
           Bring live bus tracking to your campus
         </h2>
         <p className="reveal reveal-delay-1 mx-auto mt-4 max-w-xl text-fluid-base text-cream-300 text-pretty">
-          One-time {brand.price} activation. Set up your fleet in an afternoon and stop answering
+          Pricing based on your student count. Set up your fleet in an afternoon and stop answering
           “where is the bus?” calls.
         </p>
         <div className="reveal reveal-delay-2 mt-8 flex flex-wrap justify-center gap-3">

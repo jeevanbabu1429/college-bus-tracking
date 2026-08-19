@@ -4,7 +4,7 @@ import RolesContent from "./RolesContent";
 export const metadata: Metadata = {
   title: "Roles",
   description:
-    "Super Admin, Admin, Dispatcher and Driver — what each role can do in BusBee, side by side.",
+    "Admins create dynamic roles with dynamic access — Dispatcher, Driver and more. See what each role can do in BusBee, side by side.",
 };
 
 export default function RolesPage() {

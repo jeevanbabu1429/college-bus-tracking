@@ -14,7 +14,7 @@ import Container from '@/components/marketing/ui/Container';
 import SectionHeading from '@/components/marketing/ui/SectionHeading';
 import AppShowcase from '@/components/marketing/AppShowcase';
 import { useScrollReveal } from '@/lib/marketing/useScrollReveal';
-import { setupSteps, brand } from '@/lib/marketing/content';
+import { setupSteps } from '@/lib/marketing/content';
 
 export default function HowItWorksContent() {
   const { ref } = useScrollReveal<HTMLDivElement>();
@@ -347,7 +347,7 @@ function CtaSection() {
           Ready to set up your fleet?
         </h2>
         <p className="reveal reveal-delay-1 mx-auto mt-4 max-w-xl text-fluid-base text-cream-300 text-pretty">
-          One-time {brand.price} activation. Your whole transport team on one shared live map.
+          Pricing based on your student count. Your whole transport team on one shared live map.
         </p>
         <div className="reveal reveal-delay-2 mt-8 flex flex-wrap justify-center gap-3">
           <ButtonLink size="lg" href="/roles">

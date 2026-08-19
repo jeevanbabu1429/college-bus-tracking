@@ -60,9 +60,9 @@ export default function Privacy() {
               <tr>
                 <td className="px-4 py-3">
                   <span className="font-semibold text-cream-900">Email + password</span>
-                  <br /><span className="text-cream-600">For console login (super admins & admins)</span>
+                  <br /><span className="text-cream-600">For console login (admins)</span>
                 </td>
-                <td className="px-4 py-3">Super Admin / Admin</td>
+                <td className="px-4 py-3">Admin</td>
                 <td className="px-4 py-3">At login</td>
               </tr>
               <tr className="bg-cream-100/40">
@@ -99,7 +99,7 @@ export default function Privacy() {
           <span>
             Location data is collected <strong>only from the Driver role</strong>, and only while a
             trip is actively running (from “start trip” to “end trip”). No location is collected
-            from dispatchers, admins, super admins, or passengers.
+            from dispatchers, admins, or passengers.
           </span>
         </p>
         <p>
