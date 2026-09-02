@@ -14,3 +14,10 @@ local.properties
 
 # Bundle artifacts
 *.jsbundle
+
+# Upload signing key — never commit. Distribute out of band and back it up:
+# losing it (or its passwords) means asking Google to reset the upload key.
+key.properties
+*.jks
+*.keystore
+!app/debug.keystore
