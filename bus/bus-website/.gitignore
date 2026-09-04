@@ -39,3 +39,11 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# deploy build artifacts
+/.deploy-stage/
+bus-website-dev*.tar.gz
+
+# deploy/.env.production holds the real values and is covered by .env* above.
+# The template must stay committed, so re-include it explicitly.
+!deploy/.env.production.example
