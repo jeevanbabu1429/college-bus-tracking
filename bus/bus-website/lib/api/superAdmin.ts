@@ -62,6 +62,16 @@ function fetchSuper<T>(path: string, init: RequestInit = {}): Promise<T> {
   return apiFetch<T>(path, init, getCurrentSuperToken);
 }
 
+
+/** Which role cards the mobile sign-in screen offers. Product-wide. */
+export type LoginRoles = {
+  student: boolean;
+  driver: boolean;
+  admin: boolean;
+};
+
+export type LoginRoleKey = keyof LoginRoles;
+
 export const superAdminApi = {
   login: (email: string, password: string) =>
     apiFetch<{ token: string; superAdmin: SuperAdmin }>(
@@ -132,6 +142,15 @@ export const superAdminApi = {
       `/api/super/colleges/${id}?confirm=${encodeURIComponent(confirmCode)}`,
       { method: "DELETE" }
     ),
+
+  getLoginRoles: () => fetchSuper<LoginRoles>("/api/super/login-roles"),
+  // Partial update — send only the flags that changed. The server rejects a
+  // payload that would leave all three off.
+  putLoginRoles: (input: Partial<LoginRoles>) =>
+    fetchSuper<LoginRoles>("/api/super/login-roles", {
+      method: "PUT",
+      body: JSON.stringify(input),
+    }),
 
   getBanner: () => fetchSuper<Banner | null>("/api/super/banner"),
   putBanner: (imageDataUrl: string, active: boolean) =>

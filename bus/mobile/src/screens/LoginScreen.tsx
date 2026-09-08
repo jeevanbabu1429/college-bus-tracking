@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Image,
   Pressable,
@@ -13,6 +13,11 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useAuth } from "../auth/AuthContext";
 import { OtpLoginForm } from "../auth/OtpLoginForm";
+import {
+  ALL_ROLES_ENABLED,
+  loginRolesApi,
+  type LoginRoles,
+} from "../api/loginRoles";
 import type { AuthStackParamList } from "../navigation/types";
 
 type Props = NativeStackScreenProps<AuthStackParamList, "Login">;
@@ -85,6 +90,24 @@ export function LoginScreen({ navigation, route }: Props) {
   } = useAuth();
   const [role, setRole] = useState<Role | null>(route.params?.role ?? null);
 
+  // Which cards to offer. Starts as all three so the screen paints
+  // immediately — this is the first thing a user sees, and blocking it on a
+  // network round trip would mean a spinner on every cold start. The super
+  // admin's setting lands a moment later and removes any hidden card.
+  const [enabled, setEnabled] = useState<LoginRoles>(ALL_ROLES_ENABLED);
+
+  useEffect(() => {
+    let cancelled = false;
+    loginRolesApi.get().then((roles) => {
+      if (!cancelled) setEnabled(roles);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const visibleRoles = ROLES.filter((r) => enabled[r.key]);
+
   if (role === null) {
     return (
       <SafeAreaView style={styles.safe}>
@@ -146,7 +169,7 @@ export function LoginScreen({ navigation, route }: Props) {
           </Text>
 
           {/* Role cards */}
-          {ROLES.map((r) => (
+          {visibleRoles.map((r) => (
             <Pressable
               key={r.key}
               onPress={() => setRole(r.key)}

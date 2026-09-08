@@ -16,6 +16,7 @@ import {
 import staffAuthRouter from "./routes/staffAuth.js";
 import notificationsRouter from "./routes/notifications.js";
 import superAdminRouter from "./routes/superAdmin.js";
+import loginRolesRouter from "./routes/loginRoles.js";
 import bannerRouter from "./routes/banner.js";
 import driverPhotoRouter from "./routes/driverPhoto.js";
 
@@ -48,6 +49,7 @@ export function createApp(): Express {
   app.use("/api/notifications", notificationsRouter);
   app.use("/api/super", superAdminRouter);
   app.use("/api/banner", bannerRouter);
+  app.use("/api/login-roles", loginRolesRouter);
   app.use("/api/drivers", driverPhotoRouter);
 
   const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
