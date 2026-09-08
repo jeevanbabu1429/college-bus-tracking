@@ -1,0 +1,5 @@
+# macOS Finder metadata — appears in every directory you browse.
+.DS_Store
+
+# Editor/tooling backups (app.json.bak, package.json.bak, Info.plist.bak …).
+*.bak
