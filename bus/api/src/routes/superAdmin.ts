@@ -9,6 +9,10 @@ import { BusModel } from "../models/Bus.js";
 import { DriverModel } from "../models/Driver.js";
 import { StudentModel } from "../models/Student.js";
 import { BannerModel } from "../models/Banner.js";
+import {
+  LoginRolesModel,
+  readLoginRoles,
+} from "../models/LoginRoles.js";
 import { requireSuperAdmin } from "../middleware/superAuth.js";
 import {
   deleteAdminCascade,
@@ -581,6 +585,58 @@ router.patch("/banner/active", requireSuperAdmin, async (req, res) => {
 router.delete("/banner", requireSuperAdmin, async (_req, res) => {
   await BannerModel.deleteMany({});
   res.json({ ok: true });
+});
+
+// ─── app sign-in roles ─────────────────────────────────────────────────────
+// Singleton, like the banner. Controls which role cards the mobile app shows
+// on its sign-in screen.
+//
+// Presentation only, and deliberately so: /api/auth/request-otp is shared by
+// the mobile app AND the website console, so refusing a disabled role at the
+// endpoint would lock admins out of the web console too. Turning "admin" off
+// hides the card in the app; it does not disable the account.
+
+router.get("/login-roles", requireSuperAdmin, async (_req, res) => {
+  res.json(await readLoginRoles());
+});
+
+// Body: { student?: boolean, driver?: boolean, admin?: boolean }
+router.put("/login-roles", requireSuperAdmin, async (req, res) => {
+  const body = req.body ?? {};
+  const next: Record<string, boolean> = {};
+  for (const key of ["student", "driver", "admin"] as const) {
+    if (body[key] === undefined) continue;
+    if (typeof body[key] !== "boolean") {
+      res.status(400).json({ error: `${key} must be a boolean` });
+      return;
+    }
+    next[key] = body[key];
+  }
+  if (Object.keys(next).length === 0) {
+    res
+      .status(400)
+      .json({ error: "at least one of student, driver or admin is required" });
+    return;
+  }
+
+  // Refuse to switch the last one off. An empty sign-in screen is a locked
+  // door for every user of the app, including the admin who would have to
+  // undo it — and the only way back would be a database edit.
+  const merged = { ...(await readLoginRoles()), ...next };
+  if (!merged.student && !merged.driver && !merged.admin) {
+    res.status(400).json({
+      error:
+        "At least one sign-in role must stay enabled — turning all three off would leave the app with no way in.",
+    });
+    return;
+  }
+
+  await LoginRolesModel.findOneAndUpdate({}, next, {
+    new: true,
+    upsert: true,
+    setDefaultsOnInsert: true,
+  });
+  res.json(merged);
 });
 
 export default router;
