@@ -2,7 +2,7 @@
   "expo": {
     "name": "Bus",
     "slug": "bus",
-    "version": "0.1.0",
+    "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -15,13 +15,23 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.yourcollege.bustracking",
-      "googleServicesFile": "./GoogleService-Info.plist",
       "config": {
         "googleMapsApiKey": "AIzaSyAvCmL9l8PXps8b7wWCmavTuwjeoLpkfrs"
       },
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "Allow Bus to access your location while driving so students can see the bus on the map."
-      }
+        "NSLocationWhenInUseUsageDescription": "Allow Bus to access your location while driving so students can see the bus on the map.",
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSAppTransportSecurity": {
+          "NSAllowsLocalNetworking": true,
+          "NSExceptionDomains": {
+            "89.116.134.28": {
+              "NSExceptionAllowsInsecureHTTPLoads": true,
+              "NSIncludesSubdomains": false
+            }
+          }
+        }
+      },
+      "buildNumber": "3"
     },
     "android": {
       "adaptiveIcon": {
@@ -64,14 +74,7 @@
           "photosPermission": "Allow Bus to access your photos so you can set a profile picture."
         }
       ],
-      "@react-native-community/datetimepicker",
-      "@react-native-firebase/app",
-      [
-        "expo-build-properties",
-        {
-          "ios": { "useFrameworks": "static" }
-        }
-      ]
+      "@react-native-community/datetimepicker"
     ]
   }
 }
