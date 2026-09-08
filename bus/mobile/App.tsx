@@ -45,12 +45,16 @@ function ThemedRoot() {
       {splashDone && !showOnboarding && <BannerModal />}
       {!splashDone && (
         <AnimatedSplash
-          onFinish={() => {
+          onReady={() => {
+            // Drop the native splash the moment the Lottie overlay is on
+            // screen. Waiting until onFinish means iOS — where the native
+            // splash sits above the React root — shows a frozen still image
+            // for the animation's whole run.
             SplashScreen.hideAsync().catch(() => {
               // ignore
             });
-            setSplashDone(true);
           }}
+          onFinish={() => setSplashDone(true)}
         />
       )}
     </>

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import {
   Animated,
   Easing,
@@ -10,17 +10,39 @@ import {
 import LottieView from "lottie-react-native";
 
 type Props = {
+  // Fired once this overlay has been laid out. On iOS the native splash is a
+  // view stacked *above* the React root, so it has to come down here — not on
+  // onFinish — or the whole animation plays underneath it, unseen.
+  onReady: () => void;
   // Fired when the Lottie animation reaches its final frame. The parent
-  // hides the native splash + swaps to the real app UI.
+  // swaps to the real app UI.
   onFinish: () => void;
 };
+
+// rastreo.json is 150 frames @ 30fps. If onAnimationFinish never arrives
+// (it is unreliable on iOS when the app is backgrounded mid-play) this is the
+// backstop that keeps the splash from becoming a dead end.
+const ANIMATION_TIMEOUT_MS = 6000;
 
 // Full-screen splash overlay. Plays the rastreo Lottie once, then fades out.
 // The "BusBee" wordmark under the animation is styled to match the yellow
 // accent used across the mobile app.
-export function AnimatedSplash({ onFinish }: Props) {
+export function AnimatedSplash({ onReady, onFinish }: Props) {
   const wordmarkOpacity = useRef(new Animated.Value(0)).current;
   const wordmarkTranslate = useRef(new Animated.Value(10)).current;
+  const finished = useRef(false);
+
+  // onFinish must run exactly once — the timeout and onAnimationFinish race.
+  const finish = useCallback(() => {
+    if (finished.current) return;
+    finished.current = true;
+    onFinish();
+  }, [onFinish]);
+
+  useEffect(() => {
+    const timer = setTimeout(finish, ANIMATION_TIMEOUT_MS);
+    return () => clearTimeout(timer);
+  }, [finish]);
 
   // Fade the wordmark in shortly after the animation kicks off — feels less
   // "poster-y" than everything appearing on frame 0.
@@ -44,12 +66,12 @@ export function AnimatedSplash({ onFinish }: Props) {
   }, [wordmarkOpacity, wordmarkTranslate]);
 
   return (
-    <View style={styles.container as ViewStyle}>
+    <View style={styles.container as ViewStyle} onLayout={onReady}>
       <LottieView
         source={require("../../assets/rastreo.json")}
         autoPlay
         loop={false}
-        onAnimationFinish={onFinish}
+        onAnimationFinish={finish}
         resizeMode="contain"
         style={styles.animation}
       />
