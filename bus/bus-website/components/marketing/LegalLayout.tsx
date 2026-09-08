@@ -8,10 +8,20 @@ type LegalLayoutProps = {
   badge: string;
   title: string;
   updated: string;
+  /** The "template, not legal advice" banner. Off for pages that are finished
+   *  and carry no [bracketed] placeholders left to fill in. */
+  showTemplateNotice?: boolean;
   children: ReactNode;
 };
 
-export default function LegalLayout({ badgeIcon, badge, title, updated, children }: LegalLayoutProps) {
+export default function LegalLayout({
+  badgeIcon,
+  badge,
+  title,
+  updated,
+  showTemplateNotice = true,
+  children,
+}: LegalLayoutProps) {
   const Icon = badgeIcon === 'lock' ? Lock : FileText;
   return (
     <>
@@ -28,16 +38,18 @@ export default function LegalLayout({ badgeIcon, badge, title, updated, children
 
       <div className="container-x max-w-3xl py-12 lg:py-16">
         {/* Not legal advice banner */}
-        <div className="mb-10 flex gap-3 rounded-2xl border border-amber-300 bg-amber-50 p-4">
-          <AlertTriangle className="h-5 w-5 shrink-0 text-amber-600" />
-          <p className="text-sm text-amber-800">
-            <strong>This is a template, not legal advice.</strong> It’s structured for Google Play
-            Store review, but you should have a qualified lawyer review and finalize it before
-            relying on it. Replace every{' '}
-            <code className="rounded bg-amber-100 px-1.5 py-0.5 text-xs font-semibold">[bracketed]</code>{' '}
-            placeholder with your real details.
-          </p>
-        </div>
+        {showTemplateNotice && (
+          <div className="mb-10 flex gap-3 rounded-2xl border border-amber-300 bg-amber-50 p-4">
+            <AlertTriangle className="h-5 w-5 shrink-0 text-amber-600" />
+            <p className="text-sm text-amber-800">
+              <strong>This is a template, not legal advice.</strong> It’s structured for Google Play
+              Store review, but you should have a qualified lawyer review and finalize it before
+              relying on it. Replace every{' '}
+              <code className="rounded bg-amber-100 px-1.5 py-0.5 text-xs font-semibold">[bracketed]</code>{' '}
+              placeholder with your real details.
+            </p>
+          </div>
+        )}
         <div className="space-y-8">{children}</div>
 
         <div className="mt-12 border-t border-cream-300 pt-6 text-sm text-cream-600">
