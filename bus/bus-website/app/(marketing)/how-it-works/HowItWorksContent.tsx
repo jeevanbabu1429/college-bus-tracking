@@ -347,7 +347,7 @@ function CtaSection() {
           Ready to set up your fleet?
         </h2>
         <p className="reveal reveal-delay-1 mx-auto mt-4 max-w-xl text-fluid-base text-cream-300 text-pretty">
-          One-time {brand.price} activation. Your whole transport team on one shared live map.
+          {brand.pricingLabel}, {brand.pricingNote}. Your whole transport team on one shared live map.
         </p>
         <div className="reveal reveal-delay-2 mt-8 flex flex-wrap justify-center gap-3">
           <ButtonLink size="lg" href="/roles">

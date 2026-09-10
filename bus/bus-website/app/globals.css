@@ -159,6 +159,19 @@ input, select, textarea { font: inherit; color: inherit; }
   letter-spacing: -0.01em;
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.25), 0 1px 2px rgba(180, 70, 30, 0.25);
 }
+/* The Busszo mark stands in for the letter tile. The artwork brings its own
+   colour, so the accent fill and its inset highlight come off and the tile
+   becomes a plain white chip. */
+.sidebar-brand-mark--logo {
+  background: #fff;
+  padding: 3px;
+  box-shadow: inset 0 0 0 1px var(--border), 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+.sidebar-brand-mark--logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
 .sidebar-brand-text {
   display: flex;
   flex-direction: column;

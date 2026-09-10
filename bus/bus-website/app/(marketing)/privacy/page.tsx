@@ -6,7 +6,7 @@ import { brand } from '@/lib/marketing/content';
 export const metadata: Metadata = {
   title: 'Privacy Policy',
   description:
-    'How BusBee collects, uses and protects location and account data.',
+    'How Busszo collects, uses and protects location and account data.',
 };
 
 const updated = '6 September 2026';
