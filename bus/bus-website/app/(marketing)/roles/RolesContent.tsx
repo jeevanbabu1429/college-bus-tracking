@@ -237,7 +237,7 @@ function CtaSection() {
           The right access for every member of your team
         </h2>
         <p className="reveal reveal-delay-1 mx-auto mt-4 max-w-xl text-fluid-base text-cream-300 text-pretty">
-          One-time {brand.price} activation. All four roles included.
+          {brand.pricingLabel}, {brand.pricingNote}. All four roles included.
         </p>
         <div className="reveal reveal-delay-2 mt-8 flex flex-wrap justify-center gap-3">
           <ButtonLink size="lg" href="/how-it-works">

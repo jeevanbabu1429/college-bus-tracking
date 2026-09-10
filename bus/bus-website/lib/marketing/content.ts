@@ -96,11 +96,11 @@ export const nonFeatures: { title: string; desc: string }[] = [
   },
   {
     title: 'No attendance marking',
-    desc: 'BusBee is about location, not roll call. Boarding attendance is out of scope.',
+    desc: 'Busszo is about location, not roll call. Boarding attendance is out of scope.',
   },
   {
     title: 'No fee collection',
-    desc: 'Transport fees are handled elsewhere. The only payment here is a one-time activation.',
+    desc: 'Student transport fees are handled elsewhere. The only payment here is what your college pays for Busszo itself.',
   },
   {
     title: 'No SOS / panic button',
@@ -269,7 +269,7 @@ export const faqs: FAQ[] = [
   },
   {
     q: 'Does the app predict an arrival time (ETA)?',
-    a: 'No. BusBee shows you where the bus is right now on its route. We intentionally do not estimate an arrival time, because traffic makes those guesses unreliable.',
+    a: 'No. Busszo shows you where the bus is right now on its route. We intentionally do not estimate an arrival time, because traffic makes those guesses unreliable.',
   },
   {
     q: 'How often is the bus location updated?',
@@ -285,7 +285,7 @@ export const faqs: FAQ[] = [
   },
   {
     q: 'How much does it cost?',
-    a: 'A one-time activation fee of ₹90. There are no per-seat or per-bus recurring charges for the features listed here.',
+    a: 'Pricing is based on the number of students your college enrols — there is no separate charge per bus, route or stop. Tell us your student count and we will send back a figure for your college.',
   },
   {
     q: 'Can a bus have more than one driver?',
@@ -308,7 +308,7 @@ export const setupSteps: Step[] = [
   {
     num: '01',
     title: 'Super Admin onboards the college',
-    desc: 'The platform owner creates an admin account for the college and brings it onto BusBee.',
+    desc: 'The platform owner creates an admin account for the college and brings it onto Busszo.',
     icon: ShieldAlert,
   },
   {
@@ -346,10 +346,13 @@ export const setupSteps: Step[] = [
 // Support details come from the same module the admin console uses, so the
 // marketing site and the login screens can never drift apart.
 export const brand = {
-  name: 'BusBee',
+  name: 'Busszo',
   supportEmail: SUPPORT_EMAIL,
   supportPhone: SUPPORT_MOBILE_DISPLAY,
   supportTel: SUPPORT_TEL,
-  price: '₹90',
-  priceNote: 'one-time activation',
+  // Pricing scales with the number of students a college enrols, so there is
+  // no single figure to print. Every surface states the model and points at
+  // support for the actual number.
+  pricingLabel: 'Priced per student',
+  pricingNote: 'based on how many students you enrol',
 };

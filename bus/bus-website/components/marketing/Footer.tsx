@@ -116,8 +116,7 @@ export default function Footer() {
                 <span className="text-sm font-bold">Ready to track your fleet?</span>
               </div>
               <p className="mt-2 text-sm text-cream-700">
-                One-time activation. No per-seat fees. Built for college transport
-                teams.
+                Priced on your student count. Built for college transport teams.
               </p>
               <Link
                 href="/#get-started"

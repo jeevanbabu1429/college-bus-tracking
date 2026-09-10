@@ -44,7 +44,7 @@ export default function AppShowcase({
             key={s.src}
             className={`reveal reveal-delay-${(i % 3) + 1} flex flex-col items-center text-center`}
           >
-            <PhoneShot src={s.src} alt={`${s.title} — BusBee app screen`} width={256} />
+            <PhoneShot src={s.src} alt={`${s.title} — Busszo app screen`} width={256} />
             <h3 className="mt-7 text-lg font-bold text-cream-900">{s.title}</h3>
             <p className="mt-2 max-w-xs text-sm leading-relaxed text-cream-700">{s.desc}</p>
           </div>

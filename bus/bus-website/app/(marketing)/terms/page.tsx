@@ -7,7 +7,7 @@ import type { Metadata } from 'next';
 export const metadata: Metadata = {
   title: 'Terms of Service',
   description:
-    'The terms that govern use of BusBee by colleges, admins, dispatchers and drivers.',
+    'The terms that govern use of Busszo by colleges, admins, dispatchers and drivers.',
 };
 
 const updated = '2 August 2026';
@@ -57,16 +57,23 @@ export default function Terms() {
       <LegalSection id="license" title="License to use the Service">
         <p>
           We grant you a limited, non-exclusive, non-transferable license to use {brand.name} for
-          your college transport operations, subject to these Terms and the one-time activation fee.
+          your college transport operations, subject to these Terms and the fees agreed with us.
           This license does not include the right to resell, sublicense, or modify the Service.
         </p>
       </LegalSection>
 
-      <LegalSection id="fees" title="Fees & activation">
+      <LegalSection id="fees" title="Fees">
         <p>
-          Use of the Service requires a one-time activation fee of <strong>{brand.price}</strong> ({brand.priceNote}).
-          There are no per-bus or per-seat recurring charges for the features described in these
-          Terms. The activation fee is non-refundable except where required by law.
+          Fees for the Service are calculated from the number of students your college
+          enrols on the Service. The applicable rate, billing period and payment terms are
+          those set out in the quotation or order form agreed between your college and
+          <strong>[Company Legal Name]</strong>. There is no separate charge per bus, route
+          or stop for the features described in these Terms. Fees already paid are
+          non-refundable except where required by law.
+        </p>
+        <p>
+          If your enrolled student count changes materially, we may adjust the fee for the
+          following billing period on written notice.
         </p>
         <p>
           The features included are those described on our website and in the app. Specifically, the
@@ -142,8 +149,8 @@ export default function Terms() {
           even if advised of the possibility of such damages.
         </p>
         <p>
-          Our total liability for any claim arising from the Service shall not exceed the activation
-          fee you paid.
+          Our total liability for any claim arising from the Service shall not exceed the fees
+          you have paid for the Service.
         </p>
       </LegalSection>
 

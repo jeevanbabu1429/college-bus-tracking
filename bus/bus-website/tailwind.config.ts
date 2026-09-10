@@ -49,6 +49,15 @@ const config: Config = {
           800: "#9c3015",
           900: "#7e2a14",
         },
+        // Sampled straight off the logo artwork (public/brand/busszo-logo.png).
+        // `yellow` is the artwork's own value — it only has contrast on the dark
+        // ink, never on cream — so `gold` is the deepened version the HTML
+        // wordmark uses on light backgrounds.
+        busszo: {
+          yellow: "#fdc802",
+          gold: "#a06a00",
+          ink: "#1d2129",
+        },
         lavender: {
           50: "#f6f4ff",
           100: "#ede9ff",

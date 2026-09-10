@@ -95,7 +95,7 @@ function Hero() {
           </div>
           <div className="mt-8 flex animate-fade-in-up flex-wrap items-center gap-x-6 gap-y-2 text-sm text-cream-700 [animation-delay:0.3s]">
             <span className="inline-flex items-center gap-1.5">
-              <Check className="h-4 w-4 text-emerald-500" /> One-time {brand.price} activation
+              <Check className="h-4 w-4 text-emerald-500" /> {brand.pricingLabel}
             </span>
             <span className="inline-flex items-center gap-1.5">
               <Check className="h-4 w-4 text-emerald-500" /> No parent login needed
@@ -110,7 +110,7 @@ function Hero() {
           <div className="animate-scale-in [animation-delay:0.15s]">
             <PhoneShot
               src="/screens/student-home.jpg"
-              alt="BusBee student app showing a live bus on the map"
+              alt="Busszo student app showing a live bus on the map"
               width={300}
               glow
             >
@@ -148,7 +148,7 @@ function TrustBar() {
     { value: '5s', label: 'Live update interval' },
     { value: '4', label: 'Roles, one app' },
     { value: '6', label: 'Push notification triggers' },
-    { value: '₹90', label: 'One-time activation' },
+    { value: 'Per student', label: 'Pricing that scales' },
   ];
   return (
     <div className="border-y border-cream-300/70 bg-cream-100/60 backdrop-blur">
@@ -379,7 +379,7 @@ function NonFeaturesSection() {
         <SectionHeading
           eyebrow="What it is not"
           title={<>Honest about the scope</>}
-          subtitle="We'd rather tell you up front what BusBee doesn't do, so you're not surprised later."
+          subtitle="We'd rather tell you up front what Busszo doesn't do, so you're not surprised later."
         />
         <div className="mt-12 grid gap-4 sm:grid-cols-2">
           {nonFeatures.map((nf, i) => (
@@ -409,23 +409,26 @@ function PricingSection() {
     <Container id="get-started" className="bg-cream-100/50">
       <SectionHeading
         eyebrow="Pricing"
-        title={<>One activation. No per-seat fees.</>}
-        subtitle="A single one-time activation gets your college the full feature set. No recurring charges for the capabilities listed here."
+        title={<>Priced per student. Nothing per bus.</>}
+        subtitle="What your college pays scales with the number of students you enrol — one figure for the full feature set, with no separate charge per bus, route or stop."
       />
       <div className="mx-auto mt-12 max-w-md">
         <div className="reveal relative overflow-hidden rounded-3xl border border-coral-300 bg-cream-50 p-8 text-center shadow-glow-coral">
           <div className="pointer-events-none absolute -right-20 -top-20 h-40 w-40 rounded-full bg-coral-100 blur-2xl" />
           <div className="relative">
-            <Badge icon={<Sparkles className="h-3.5 w-3.5" />}>One-time activation</Badge>
-            <p className="mt-6 text-5xl font-extrabold text-cream-900">
-              {brand.price}
+            <Badge icon={<Sparkles className="h-3.5 w-3.5" />}>{brand.pricingLabel}</Badge>
+            <p className="mt-6 text-fluid-2xl font-extrabold leading-tight text-cream-900 text-balance">
+              Based on your student count
             </p>
-            <p className="mt-1 text-sm text-cream-600">{brand.priceNote}</p>
+            <p className="mt-2 text-sm text-cream-600">
+              Tell us how many students you enrol and we&rsquo;ll send back a figure
+              for your college.
+            </p>
             <ul className="mt-7 space-y-3 text-left text-sm">
               {[
                 'All features in the list above',
                 'All four roles included',
-                'No per-bus or per-seat recurring fee',
+                'No separate charge per bus, route or stop',
                 'No parent login required',
               ].map((line) => (
                 <li key={line} className="flex items-center gap-2.5">
@@ -434,12 +437,16 @@ function PricingSection() {
                 </li>
               ))}
             </ul>
-            <ButtonLink className="mt-7 w-full" size="lg" href="/how-it-works">
-              Get started
+            <ButtonLink
+              className="mt-7 w-full"
+              size="lg"
+              href={`mailto:${brand.supportEmail}?subject=Busszo%20pricing%20enquiry`}
+            >
+              Get a quote
               <ArrowRight className="h-4 w-4" />
             </ButtonLink>
             <p className="mt-3 text-xs text-cream-500">
-              Have questions? Email {brand.supportEmail}
+              Or call {brand.supportPhone}
             </p>
           </div>
         </div>
@@ -457,7 +464,7 @@ function FaqSection() {
       <SectionHeading
         eyebrow="FAQ"
         title={<>Questions, answered</>}
-        subtitle="The things people ask before they set up BusBee for their college."
+        subtitle="The things people ask before they set up Busszo for their college."
       />
       <div className="mx-auto mt-12 max-w-3xl space-y-3">
         {faqs.map((faq, i) => {
@@ -511,8 +518,8 @@ function FinalCta() {
           Bring live bus tracking to your campus
         </h2>
         <p className="reveal reveal-delay-1 mx-auto mt-4 max-w-xl text-fluid-base text-cream-300 text-pretty">
-          One-time {brand.price} activation. Set up your fleet in an afternoon and stop answering
-          “where is the bus?” calls.
+          {brand.pricingLabel}, {brand.pricingNote}. Set up your fleet in an afternoon
+          and stop answering “where is the bus?” calls.
         </p>
         <div className="reveal reveal-delay-2 mt-8 flex flex-wrap justify-center gap-3">
           <ButtonLink size="lg" href="/how-it-works">

@@ -18,8 +18,8 @@ const jakarta = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Bus Admin",
-  description: "College bus management — admin console",
+  title: "Busszo Admin",
+  description: "College bus management — Busszo admin console",
 };
 
 export default function RootLayout({

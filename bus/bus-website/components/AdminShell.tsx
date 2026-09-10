@@ -187,9 +187,12 @@ export function AdminShell({ children }: { children: ReactNode }) {
     <div className="app">
       <aside className="sidebar">
         <Link href="/dashboard" className="sidebar-brand">
-          <span className="sidebar-brand-mark">B</span>
+          <span className="sidebar-brand-mark sidebar-brand-mark--logo">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/brand/busszo-mark.png" alt="" width={512} height={431} />
+          </span>
           <span className="sidebar-brand-text">
-            <span className="sidebar-brand-title">Bus Admin</span>
+            <span className="sidebar-brand-title">Busszo Admin</span>
             <span className="sidebar-brand-sub">
               {roleLabel ?? sessionAdmin(session)?.adminId ?? "Console"}
             </span>
