@@ -25,7 +25,7 @@ type Props = {
 const ANIMATION_TIMEOUT_MS = 6000;
 
 // Full-screen splash overlay. Plays the rastreo Lottie once, then fades out.
-// The "BusBee" wordmark under the animation is styled to match the yellow
+// The "Busszo" wordmark under the animation is styled to match the yellow
 // accent used across the mobile app.
 export function AnimatedSplash({ onReady, onFinish }: Props) {
   const wordmarkOpacity = useRef(new Animated.Value(0)).current;
@@ -84,7 +84,7 @@ export function AnimatedSplash({ onReady, onFinish }: Props) {
           },
         ]}
       >
-        BusBee
+        Busszo
       </Animated.Text>
       <Animated.Text
         style={[

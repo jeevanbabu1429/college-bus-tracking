@@ -151,9 +151,11 @@ export function LoginScreen({ navigation, route }: Props) {
               style={styles.brandMark}
               resizeMode="contain"
               accessibilityRole="image"
-              accessibilityLabel="BusBee"
+              accessibilityLabel="Busszo"
             />
-            <Text style={styles.brandName}>BusBee</Text>
+            <Text style={styles.brandName}>
+              Buss<Text style={styles.brandNameAccent}>zo</Text>
+            </Text>
           </View>
 
           <Text style={styles.heroTitle}>Welcome aboard</Text>
@@ -279,17 +281,25 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   // The app icon itself, so the first screen and the launcher agree. The
-  // artwork carries its own rounded border, so no container is needed.
+  // artwork sits on a white tile, and this screen is white too, so a hairline
+  // is what gives the tile an edge — same treatment as the website header.
   brandMark: {
     width: 52,
     height: 52,
     borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#E7E2D6",
   },
   brandName: {
     fontSize: 18,
     fontWeight: "800",
     letterSpacing: 1,
     color: "#111",
+  },
+  // Matches the website lockup: a deepened brand gold rather than the
+  // artwork's #fdc802, which has no contrast as text on a white card.
+  brandNameAccent: {
+    color: "#a06a00",
   },
 
   // ─── Hero copy ──────────────────────────────────────────────────

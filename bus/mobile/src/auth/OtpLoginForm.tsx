@@ -144,7 +144,7 @@ export function OtpLoginForm({
             style={styles.avatar}
             resizeMode="contain"
             accessibilityRole="image"
-            accessibilityLabel="BusBee"
+            accessibilityLabel="Busszo"
           />
           <Text style={styles.heroTitle}>{title}</Text>
           <Text style={styles.heroSubtitle}>
