@@ -12,6 +12,8 @@ import {
 } from "react-native";
 import { AppAlert } from "../components/AppAlert";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import * as Location from "expo-location";
 import { RouteStops } from "../components/RouteStops";
 import { useAuth } from "../auth/AuthContext";
@@ -26,6 +28,7 @@ import { driverAuthApi, type DriverCollege } from "../api/driverAuth";
 import { pickSquareAvatar } from "../lib/images";
 import { Avatar } from "../components/Avatar";
 import { Toast } from "../components/Toast";
+import type { DriverStackParamList } from "../navigation/types";
 
 const ISSUE_OPTIONS: { type: IssueType; emoji: string; label: string }[] = [
   { type: "breakdown", emoji: "🚨", label: "Breakdown" },
@@ -48,6 +51,10 @@ type Tab = "home" | "profile";
 type Styles = ReturnType<typeof makeStyles>;
 
 export function DriverDashboardScreen() {
+  const navigation =
+    useNavigation<
+      NativeStackNavigationProp<DriverStackParamList, "DriverDashboard">
+    >();
   const { session, logout } = useAuth();
   const driver = session?.role === "driver" ? session.driver : null;
   const { mode, colors, setMode } = useTheme();
@@ -386,6 +393,7 @@ export function DriverDashboardScreen() {
           photoBusy={photoBusy}
           onChangePhoto={handleChangePhoto}
           onRemovePhoto={handleRemovePhoto}
+          onSupport={() => navigation.navigate("MyComplaints")}
           onLogout={onLogout}
         />
       )}
@@ -1097,6 +1105,7 @@ type ProfileViewProps = {
   photoBusy: boolean;
   onChangePhoto: () => void;
   onRemovePhoto: () => void;
+  onSupport: () => void;
   onLogout: () => void;
 };
 
@@ -1111,6 +1120,7 @@ function ProfileView({
   photoBusy,
   onChangePhoto,
   onRemovePhoto,
+  onSupport,
   onLogout,
 }: ProfileViewProps) {
   const insets = useSafeAreaInsets();
@@ -1278,6 +1288,25 @@ function ProfileView({
             thumbColor="#fff"
           />
         </View>
+      </View>
+
+      <Text style={styles.phSectionHeader}>Support</Text>
+      <View style={styles.phCard}>
+        <Pressable
+          onPress={onSupport}
+          style={({ pressed }) => [
+            styles.phToggleRow,
+            pressed && styles.phSupportPressed,
+          ]}
+        >
+          <View style={{ flex: 1 }}>
+            <Text style={styles.phToggleLabel}>Help &amp; support</Text>
+            <Text style={styles.phToggleHelp}>
+              Report a problem with the app
+            </Text>
+          </View>
+          <Text style={styles.phSupportChevron}>&#8250;</Text>
+        </Pressable>
       </View>
 
       <View style={{ marginTop: 24, marginBottom: 24 }}>
@@ -1778,6 +1807,8 @@ function makeStyles(colors: Colors) {
       marginTop: 10,
       marginHorizontal: 4,
     },
+    phSupportPressed: { opacity: 0.55 },
+    phSupportChevron: { fontSize: 22, color: colors.textMuted, marginLeft: 8 },
     phLogout: {
       paddingVertical: 14,
       borderRadius: 14,

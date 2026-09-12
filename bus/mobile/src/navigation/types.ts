@@ -1,9 +1,18 @@
+// Help & support is reachable from every role, and each role runs its own
+// stack, so these two routes are mixed into all three param lists below rather
+// than living in one of them. The screens are typed off SupportRoutes alone so
+// neither has to know which stack it was pushed onto.
+export type SupportRoutes = {
+  ReportProblem: undefined;
+  MyComplaints: undefined;
+};
+
 export type AuthStackParamList = {
   Login: { role?: "admin" | "driver" | "student" } | undefined;
   Register: undefined;
 };
 
-export type AppStackParamList = {
+export type AppStackParamList = SupportRoutes & {
   Main: undefined;
   AddCollege: undefined;
   EditCollege: { college: import("../api/colleges").College };
@@ -41,11 +50,11 @@ export type AppStackParamList = {
   EditStudent: { collegeId: string; student: import("../api/collegeStudents").Student };
 };
 
-export type DriverStackParamList = {
+export type DriverStackParamList = SupportRoutes & {
   DriverDashboard: undefined;
 };
 
-export type StudentStackParamList = {
+export type StudentStackParamList = SupportRoutes & {
   StudentDashboard: undefined;
   TrackOtherBuses: undefined;
   NearbyBuses: undefined;

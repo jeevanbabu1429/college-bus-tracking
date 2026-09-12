@@ -10,6 +10,12 @@ import { DriverModel } from "../models/Driver.js";
 import { StudentModel } from "../models/Student.js";
 import { BannerModel } from "../models/Banner.js";
 import {
+  COMPLAINT_STATUSES,
+  ComplaintModel,
+  MAX_COMPLAINT_REPLY,
+  type ComplaintStatus,
+} from "../models/Complaint.js";
+import {
   LoginRolesModel,
   readLoginRoles,
 } from "../models/LoginRoles.js";
@@ -19,6 +25,10 @@ import {
   deleteCollegeCascade,
 } from "../lib/cascades.js";
 import { sendPushSafe } from "../services/notifications.js";
+import {
+  consoleComplaint,
+  consoleComplaintDetail,
+} from "../lib/complaints.js";
 
 const router = Router();
 
@@ -638,5 +648,187 @@ router.put("/login-roles", requireSuperAdmin, async (req, res) => {
   });
   res.json(merged);
 });
+
+// ─── app complaints ────────────────────────────────────────────────────────
+// The other end of /api/complaints: support tickets raised from inside the
+// mobile app by any signed-in role. Unlike the bus issues in driverTrip.ts,
+// these are about the app itself and only the super admin ever sees them.
+//
+// Screenshots are stored inline on the document but never returned in a JSON
+// body — see lib/complaints.ts for why, and the /screenshot route below for
+// how they are served instead.
+
+const PAGE_SIZE = 25;
+
+function parseStatus(value: unknown): ComplaintStatus | null {
+  if (typeof value !== "string") return null;
+  return (COMPLAINT_STATUSES as readonly string[]).includes(value)
+    ? (value as ComplaintStatus)
+    : null;
+}
+
+router.get("/complaints", requireSuperAdmin, async (req, res) => {
+  const status = parseStatus(req.query.status);
+  const page = Math.max(1, Number(req.query.page) || 1);
+
+  // The tab counts come back with every page so the console never has to make
+  // a second round trip just to label its own tabs.
+  const [rows, total, counts] = await Promise.all([
+    ComplaintModel.find(status ? { status } : {})
+      .select("-screenshot")
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * PAGE_SIZE)
+      .limit(PAGE_SIZE)
+      .lean(),
+    ComplaintModel.countDocuments(status ? { status } : {}),
+    ComplaintModel.aggregate<{ _id: ComplaintStatus; n: number }>([
+      { $group: { _id: "$status", n: { $sum: 1 } } },
+    ]),
+  ]);
+
+  const byStatus: Record<string, number> = { open: 0, in_progress: 0, resolved: 0 };
+  for (const c of counts) byStatus[c._id] = c.n;
+
+  res.json({
+    complaints: rows.map(consoleComplaint),
+    page,
+    pageSize: PAGE_SIZE,
+    total,
+    counts: byStatus,
+  });
+});
+
+router.get("/complaints/:id", requireSuperAdmin, async (req, res) => {
+  const { id } = req.params;
+  if (!isValidObjectId(id)) {
+    res.status(400).json({ error: "Invalid complaint id" });
+    return;
+  }
+  // Unlike the list, this one carries the screenshot bytes: it is a single
+  // record on a page that exists to show it.
+  const complaint = await ComplaintModel.findById(id).lean();
+  if (!complaint) {
+    res.status(404).json({ error: "Complaint not found" });
+    return;
+  }
+  res.json(consoleComplaintDetail(complaint));
+});
+
+router.patch("/complaints/:id/status", requireSuperAdmin, async (req, res) => {
+  const { id } = req.params;
+  if (!isValidObjectId(id)) {
+    res.status(400).json({ error: "Invalid complaint id" });
+    return;
+  }
+  const status = parseStatus(req.body?.status);
+  if (!status) {
+    res.status(400).json({
+      error: `status must be one of: ${COMPLAINT_STATUSES.join(", ")}`,
+    });
+    return;
+  }
+
+  const before = await ComplaintModel.findById(id).select("status reporter").lean();
+  if (!before) {
+    res.status(404).json({ error: "Complaint not found" });
+    return;
+  }
+
+  const complaint = await ComplaintModel.findByIdAndUpdate(
+    id,
+    { status },
+    { new: true }
+  )
+    .select("-screenshot")
+    .lean();
+
+  // Only on the transition into resolved, so re-saving the same status does
+  // not push the reporter a second time.
+  if (status === "resolved" && before.status !== "resolved") {
+    notifyReporter(before.reporter, {
+      title: "Your report has been resolved",
+      body: "Tap to see what support said about the problem you reported.",
+      complaintId: id,
+    });
+  }
+
+  res.json(consoleComplaint(complaint!));
+});
+
+router.post("/complaints/:id/replies", requireSuperAdmin, async (req, res) => {
+  const { id } = req.params;
+  if (!isValidObjectId(id)) {
+    res.status(400).json({ error: "Invalid complaint id" });
+    return;
+  }
+  const body = typeof req.body?.body === "string" ? req.body.body.trim() : "";
+  if (!body) {
+    res.status(400).json({ error: "A reply cannot be empty." });
+    return;
+  }
+  if (body.length > MAX_COMPLAINT_REPLY) {
+    res
+      .status(400)
+      .json({ error: `Please keep the reply under ${MAX_COMPLAINT_REPLY} characters.` });
+    return;
+  }
+
+  const complaint = await ComplaintModel.findByIdAndUpdate(
+    id,
+    { $push: { replies: { body, at: new Date() } } },
+    { new: true }
+  )
+    .select("-screenshot")
+    .lean();
+  if (!complaint) {
+    res.status(404).json({ error: "Complaint not found" });
+    return;
+  }
+
+  notifyReporter(complaint.reporter, {
+    title: "Support replied to your report",
+    // The reply itself, trimmed to something a notification can hold. The
+    // full text is in the app.
+    body: body.length > 120 ? `${body.slice(0, 117)}...` : body,
+    complaintId: id,
+  });
+
+  res.json(consoleComplaint(complaint));
+});
+
+router.delete("/complaints/:id", requireSuperAdmin, async (req, res) => {
+  const { id } = req.params;
+  if (!isValidObjectId(id)) {
+    res.status(400).json({ error: "Invalid complaint id" });
+    return;
+  }
+  const result = await ComplaintModel.findByIdAndDelete(id);
+  if (!result) {
+    res.status(404).json({ error: "Complaint not found" });
+    return;
+  }
+  res.json({ ok: true });
+});
+
+// Fire-and-forget, like every other push in the app: a notification failure
+// must never fail the super admin's write.
+function notifyReporter(
+  reporter: { role?: string; id?: unknown } | null | undefined,
+  opts: { title: string; body: string; complaintId: string }
+): void {
+  if (!reporter?.id) return;
+  const role = reporter.role;
+  if (role !== "admin" && role !== "driver" && role !== "student" && role !== "staff") {
+    return;
+  }
+  sendPushSafe(
+    { role, id: String(reporter.id) },
+    {
+      title: opts.title,
+      body: opts.body,
+      data: { kind: "complaint-reply", complaintId: opts.complaintId, url: "/" },
+    }
+  );
+}
 
 export default router;

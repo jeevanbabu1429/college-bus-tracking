@@ -284,6 +284,7 @@ export function StudentDashboardScreen() {
           mode={mode}
           setMode={setMode}
           student={student}
+          onSupport={() => navigation.navigate("MyComplaints")}
           onLogout={onLogout}
         />
       )}
@@ -906,6 +907,7 @@ type ProfileViewProps = {
   mode: "light" | "dark";
   setMode: (m: "light" | "dark") => Promise<void>;
   student: Student | null;
+  onSupport: () => void;
   onLogout: () => void;
 };
 
@@ -915,6 +917,7 @@ function ProfileView({
   mode,
   setMode,
   student,
+  onSupport,
   onLogout,
 }: ProfileViewProps) {
   const insets = useSafeAreaInsets();
@@ -994,6 +997,25 @@ function ProfileView({
             thumbColor="#fff"
           />
         </View>
+      </View>
+
+      <Text style={styles.phSectionHeader}>Support</Text>
+      <View style={styles.phCard}>
+        <Pressable
+          onPress={onSupport}
+          style={({ pressed }) => [
+            styles.phToggleRow,
+            pressed && styles.phSupportPressed,
+          ]}
+        >
+          <View style={{ flex: 1 }}>
+            <Text style={styles.phToggleLabel}>Help &amp; support</Text>
+            <Text style={styles.phToggleHelp}>
+              Report a problem with the app
+            </Text>
+          </View>
+          <Text style={styles.phSupportChevron}>&#8250;</Text>
+        </Pressable>
       </View>
 
       <View style={{ marginTop: 24, marginBottom: 24 }}>
@@ -1661,6 +1683,8 @@ function makeStyles(colors: Colors) {
       marginTop: 10,
       marginHorizontal: 4,
     },
+    phSupportPressed: { opacity: 0.55 },
+    phSupportChevron: { fontSize: 22, color: colors.textMuted, marginLeft: 8 },
     phLogout: {
       paddingVertical: 14,
       borderRadius: 14,

@@ -18,6 +18,7 @@ import notificationsRouter from "./routes/notifications.js";
 import superAdminRouter from "./routes/superAdmin.js";
 import loginRolesRouter from "./routes/loginRoles.js";
 import bannerRouter from "./routes/banner.js";
+import complaintsRouter from "./routes/complaints.js";
 import driverPhotoRouter from "./routes/driverPhoto.js";
 
 // Pure app factory — no DB connect, no listen. `index.ts` wires
@@ -49,6 +50,7 @@ export function createApp(): Express {
   app.use("/api/notifications", notificationsRouter);
   app.use("/api/super", superAdminRouter);
   app.use("/api/banner", bannerRouter);
+  app.use("/api/complaints", complaintsRouter);
   app.use("/api/login-roles", loginRolesRouter);
   app.use("/api/drivers", driverPhotoRouter);
 
