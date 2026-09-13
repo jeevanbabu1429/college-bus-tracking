@@ -1,4 +1,5 @@
 import Expo
+import FirebaseCore
 import React
 import ReactAppDependencyProvider
 
@@ -18,6 +19,19 @@ public class AppDelegate: ExpoAppDelegate {
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
   ) -> Bool {
+    // Added by hand. The @react-native-firebase/app config plugin gives up on
+    // this file — "Unable to determine correct Firebase insertion point in
+    // AppDelegate.swift" — because react-native-maps has already rewritten it.
+    // It still adds the `import FirebaseCore` above, so without this line the
+    // app compiles perfectly and messaging simply never initialises.
+    //
+    // Guarded rather than called outright: if a future prebuild does manage to
+    // insert its own call, configuring twice throws "Default app has already
+    // been configured".
+    if FirebaseApp.app() == nil {
+      FirebaseApp.configure()
+    }
+
     let delegate = ReactNativeDelegate()
     let factory = ExpoReactNativeFactory(delegate: delegate)
     delegate.dependencyProvider = RCTAppDependencyProvider()

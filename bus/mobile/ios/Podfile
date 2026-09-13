@@ -44,6 +44,32 @@ target 'Bus' do
 # @generated end react-native-maps
   config = use_native_modules!(config_command)
 
+  # Firebase's Swift pods (FirebaseCoreInternal) can only import these
+  # Objective-C pods when they generate module maps. The usual fix is
+  # use_frameworks! :static, but that breaks react-native-maps — its headers
+  # are non-modular and AIRGoogleMapMarkerManager.h fails to compile. Scoping
+  # modular headers to just the pods that need them keeps Firebase happy and
+  # leaves the maps build exactly as it was.
+  # The whole Firebase Messaging dependency tree, declared together. Each of
+  # these is imported as a module by a Swift pod above it, and a static library
+  # only exposes a module map when asked. Discovering them one failed build at
+  # a time is the alternative; the list comes straight from Podfile.lock.
+  #
+  # No versions here on purpose — RNFBApp already pins Firebase to ~> 11.11.0
+  # and CocoaPods resolves against that.
+  %w[
+    FirebaseCore
+    FirebaseCoreExtension
+    FirebaseCoreInternal
+    FirebaseInstallations
+    FirebaseMessaging
+    GoogleDataTransport
+    GoogleUtilities
+    PromisesObjC
+    nanopb
+  ].each { |name| pod name, :modular_headers => true }
+
+
   use_frameworks! :linkage => podfile_properties['ios.useFrameworks'].to_sym if podfile_properties['ios.useFrameworks']
   use_frameworks! :linkage => ENV['USE_FRAMEWORKS'].to_sym if ENV['USE_FRAMEWORKS']
 
