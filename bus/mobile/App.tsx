@@ -9,6 +9,7 @@ import { useFcmRegistration } from "./src/notifications/useFcmRegistration";
 import { AnimatedSplash } from "./src/components/AnimatedSplash";
 import { AlertHost } from "./src/components/AppAlert";
 import { BannerModal } from "./src/components/BannerModal";
+import { AndroidNavigationBar } from "./src/components/AndroidNavigationBar";
 import { OnboardingScreen } from "./src/screens/OnboardingScreen";
 import { useOnboarding } from "./src/onboarding/useOnboarding";
 
@@ -39,6 +40,11 @@ function ThemedRoot() {
       ) : (
         <RootNavigator />
       )}
+      {/* Mounted once rather than per screen: every screen scrolls its
+          content under Android's transparent navigation bar, so every screen
+          needs the band. Sits above the navigator and below the overlays, so a
+          modal still covers the full window. */}
+      <AndroidNavigationBar />
       {/* Mounted once, above the navigator, so AppAlert.alert() from anywhere
           (screens, hooks, plain modules) draws the same popup on every OS. */}
       <AlertHost />
