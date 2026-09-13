@@ -129,6 +129,7 @@ export function MainScreen({ navigation }: Props) {
           onEditCollege={(c) => navigation.navigate("EditCollege", { college: c })}
           onAddCollege={() => navigation.navigate("AddCollege")}
           onEditAdmin={() => navigation.navigate("EditAdmin")}
+          onSupport={() => navigation.navigate("MyComplaints")}
           onClaimOrphans={async () => {
             try {
               const { claimed } = await collegesApi.claimOrphans();
@@ -361,6 +362,7 @@ type ProfileViewProps = {
   onAddCollege: () => void;
   onEditAdmin: () => void;
   onClaimOrphans: () => Promise<void>;
+  onSupport: () => void;
   onLogout: () => Promise<void> | void;
 };
 
@@ -449,6 +451,7 @@ function ProfileView({
   onAddCollege,
   onEditAdmin,
   onClaimOrphans,
+  onSupport,
   onLogout,
 }: ProfileViewProps) {
   const insets = useSafeAreaInsets();
@@ -568,6 +571,19 @@ function ProfileView({
           label="Recover legacy colleges"
           sublabel="Claim colleges created before per-admin scoping"
           onPress={onClaimOrphans}
+          isLast
+        />
+      </View>
+
+      <Text style={styles.groupLabel}>Support</Text>
+      <View style={styles.groupCard}>
+        <Row
+          styles={styles}
+          colors={colors}
+          icon="💬"
+          label="Help & support"
+          sublabel="Report a problem with the app"
+          onPress={onSupport}
           isLast
         />
       </View>

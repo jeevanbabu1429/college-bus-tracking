@@ -61,3 +61,67 @@ export async function pickSquareAvatar(): Promise<string | null> {
   }
   return dataUrl;
 }
+
+// Longest edge of an uploaded screenshot. Big enough that UI text in the shot
+// stays readable to whoever reads the complaint, small enough that a JPEG of it
+// lands well inside MAX_IMAGE_CHARS.
+export const SCREENSHOT_MAX_EDGE = 1080;
+
+// Companion to pickSquareAvatar for complaint screenshots.
+//
+// Two differences, both deliberate. There is no `aspect` — forcing a square
+// crop on a screenshot would cut off the very part of the screen the person is
+// trying to show. And the resize constrains the longest edge rather than
+// forcing dimensions, so a portrait phone screenshot keeps its shape.
+//
+// Resolves to null when the user backs out. Throws with a user-facing message
+// on a real failure.
+export async function pickScreenshot(): Promise<string | null> {
+  const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+  if (!permission.granted) {
+    throw new Error(
+      "Photo library access is needed to attach a screenshot. You can enable it in Settings."
+    );
+  }
+
+  const result = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: "images",
+    quality: 1,
+  });
+
+  if (result.canceled || !result.assets?.length) return null;
+
+  const asset = result.assets[0];
+
+  // Only scale down. Enlarging a small screenshot would cost bytes and add
+  // nothing to read.
+  const longest = Math.max(asset.width ?? 0, asset.height ?? 0);
+  const scale = longest > SCREENSHOT_MAX_EDGE ? SCREENSHOT_MAX_EDGE / longest : 1;
+
+  const context = ImageManipulator.manipulate(asset.uri);
+  if (scale < 1) {
+    context.resize({
+      width: Math.round((asset.width ?? SCREENSHOT_MAX_EDGE) * scale),
+      height: Math.round((asset.height ?? SCREENSHOT_MAX_EDGE) * scale),
+    });
+  }
+  const rendered = await context.renderAsync();
+
+  const saved = await rendered.saveAsync({
+    format: SaveFormat.JPEG,
+    compress: 0.6,
+    base64: true,
+  });
+
+  if (!saved.base64) {
+    throw new Error("Could not process that image. Please try another one.");
+  }
+
+  const dataUrl = `data:image/jpeg;base64,${saved.base64}`;
+  if (dataUrl.length > MAX_IMAGE_CHARS) {
+    throw new Error(
+      "That screenshot is too large. Please crop it or pick a smaller one."
+    );
+  }
+  return dataUrl;
+}
