@@ -136,15 +136,34 @@ describe("driver profile photo", () => {
 
       assert.equal(res.status, 200);
       const updated = await DriverModel.findById(driver._id).lean();
-      assert.equal(updated?.image, OTHER_PHOTO);
+      // Stored as a file path now, not as the data URL itself.
+      assert.match(updated?.image ?? "", new RegExp(`^drivers/${college._id}/${driver._id}/`));
     });
 
-    it("rejects a non-data-URL string", async () => {
+    it("never stores a URL — an https value leaves the photo unchanged", async () => {
+      // Reads hand clients a signed URL now, and the website's driver form
+      // posts back whatever image it was given. So a URL means "unchanged",
+      // not an error — but it must never be written, or a client could point
+      // a driver's photo at any address it liked.
       const { college, driver, token } = await seedDriver();
+      await DriverModel.findByIdAndUpdate(driver._id, { image: PHOTO });
+
       const res = await request(app)
         .put(`/api/colleges/${college._id}/drivers/${driver._id}`)
         .set("Authorization", `Bearer ${token}`)
         .send({ ...driverBody, image: "https://example.com/photo.jpg" });
+
+      assert.equal(res.status, 200);
+      const stored = await DriverModel.findById(driver._id).lean();
+      assert.equal(stored?.image, PHOTO);
+    });
+
+    it("still rejects a string that is neither a data URL nor a URL", async () => {
+      const { college, driver, token } = await seedDriver();
+      const res = await request(app)
+        .put(`/api/colleges/${college._id}/drivers/${driver._id}`)
+        .set("Authorization", `Bearer ${token}`)
+        .send({ ...driverBody, image: "not-an-image" });
 
       assert.equal(res.status, 400);
       assert.match(res.body.error, /data URL/);
@@ -161,7 +180,7 @@ describe("driver profile photo", () => {
         .set("Authorization", `Bearer ${token}`)
         .send({ image: PHOTO });
       assert.equal(set.status, 200);
-      assert.equal(set.body.image, PHOTO);
+      assert.match(set.body.image, /^http:\/\/localhost\/images\/drivers\//);
 
       const cleared = await request(app)
         .put("/api/driver-auth/me/photo")
@@ -200,7 +219,7 @@ describe("driver profile photo", () => {
         .get("/api/driver-auth/me")
         .set("Authorization", `Bearer ${token}`);
       assert.equal(me.status, 200);
-      assert.equal(me.body.image, PHOTO);
+      assert.match(me.body.image, /^http:\/\/localhost\/images\/drivers\//);
 
       // The login response is persisted to SecureStore, so it must stay small.
       await request(app)

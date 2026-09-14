@@ -26,6 +26,12 @@ import {
 } from "../lib/cascades.js";
 import { sendPushSafe } from "../services/notifications.js";
 import {
+  deleteImage,
+  imageUrlFor,
+  isImageDataUrl,
+  storeImage,
+} from "../lib/images.js";
+import {
   consoleComplaint,
   consoleComplaintDetail,
 } from "../lib/complaints.js";
@@ -546,13 +552,24 @@ async function countBy(
 // ─── banner ────────────────────────────────────────────────────────────────
 // Singleton — always upserts / reads a single row. No id needed.
 
+// `imageDataUrl` in the database is a legacy data URL or a storage path; the field
+// name stays the same in responses so shipped apps keep reading it.
+async function bannerResponse(banner: InstanceType<typeof BannerModel>) {
+  return { ...banner.toJSON(), imageDataUrl: await imageUrlFor(banner.imageDataUrl) };
+}
+
+// The banner is a full-screen poster, so it gets far more room than a driver
+// photo or screenshot — but no longer an unlimited amount. ~7.5 MB of base64
+// is ~5.6 MB of image, matching the 5 MB file the console already allows.
+const MAX_BANNER_CHARS = 7_500_000;
+
 router.get("/banner", requireSuperAdmin, async (_req, res) => {
   const banner = await BannerModel.findOne();
   if (!banner) {
     res.json(null);
     return;
   }
-  res.json(banner);
+  res.json(await bannerResponse(banner));
 });
 
 // Full replace / create. Body: { imageDataUrl: string, active?: boolean }
@@ -564,13 +581,29 @@ router.put("/banner", requireSuperAdmin, async (req, res) => {
       .json({ error: "imageDataUrl (data: URL string) is required" });
     return;
   }
+  if (imageDataUrl.length > MAX_BANNER_CHARS) {
+    res.status(400).json({ error: "Banner image is too large — please use one under 5 MB" });
+    return;
+  }
+  if (!isImageDataUrl(imageDataUrl)) {
+    res.status(400).json({
+      error: "imageDataUrl must be a base64 data URL (png, jpeg, webp or gif)",
+    });
+    return;
+  }
+
+  const previous = await BannerModel.findOne().select("imageDataUrl").lean();
+  const stored = await storeImage(imageDataUrl, "banner");
   const nextActive = typeof active === "boolean" ? active : true;
   const banner = await BannerModel.findOneAndUpdate(
     {},
-    { imageDataUrl, active: nextActive },
+    { imageDataUrl: stored, active: nextActive },
     { new: true, upsert: true, setDefaultsOnInsert: true }
   );
-  res.json(banner);
+  if (previous?.imageDataUrl && previous.imageDataUrl !== stored) {
+    await deleteImage(previous.imageDataUrl);
+  }
+  res.json(await bannerResponse(banner));
 });
 
 // Toggle only. Body: { active: boolean }
@@ -589,11 +622,13 @@ router.patch("/banner/active", requireSuperAdmin, async (req, res) => {
     res.status(404).json({ error: "No banner uploaded yet" });
     return;
   }
-  res.json(banner);
+  res.json(await bannerResponse(banner));
 });
 
 router.delete("/banner", requireSuperAdmin, async (_req, res) => {
+  const existing = await BannerModel.find().select("imageDataUrl").lean();
   await BannerModel.deleteMany({});
+  await Promise.all(existing.map((b) => deleteImage(b.imageDataUrl)));
   res.json({ ok: true });
 });
 
@@ -711,7 +746,8 @@ router.get("/complaints/:id", requireSuperAdmin, async (req, res) => {
     res.status(404).json({ error: "Complaint not found" });
     return;
   }
-  res.json(consoleComplaintDetail(complaint));
+  const detail = consoleComplaintDetail(complaint);
+  res.json({ ...detail, screenshot: await imageUrlFor(detail.screenshot) });
 });
 
 router.patch("/complaints/:id/status", requireSuperAdmin, async (req, res) => {
@@ -807,6 +843,7 @@ router.delete("/complaints/:id", requireSuperAdmin, async (req, res) => {
     res.status(404).json({ error: "Complaint not found" });
     return;
   }
+  await deleteImage(result.screenshot);
   res.json({ ok: true });
 });
 

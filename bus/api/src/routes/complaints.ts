@@ -1,8 +1,8 @@
 import { Router } from "express";
 import { createHash } from "node:crypto";
-import { isValidObjectId } from "mongoose";
+import { isValidObjectId, Types } from "mongoose";
 import { requireAppUser } from "../lib/appUser.js";
-import { decodeDataUrl, parseImageField } from "../lib/images.js";
+import { deleteImage, parseImageField, readImage, storeImage } from "../lib/images.js";
 import {
   parseCategory,
   parseDiagnostics,
@@ -58,20 +58,35 @@ router.post("/", async (req, res) => {
     return;
   }
 
-  const complaint = await ComplaintModel.create({
-    reporter: {
-      role: user.role,
-      id: user.id,
-      name: user.name,
-      mobile: user.mobile,
-    },
-    college: user.college,
-    category: parsedCategory,
-    message: parsedMessage.value,
-    screenshot: image.kind === "set" ? image.value : null,
-    hasScreenshot: image.kind === "set" && Boolean(image.value),
-    diagnostics: parseDiagnostics(diagnostics),
-  });
+  // Minted first so the screenshot is filed under the complaint it belongs to.
+  const complaintId = new Types.ObjectId();
+  const storedScreenshot =
+    image.kind === "set" && image.value
+      ? await storeImage(image.value, `complaints/${complaintId}`)
+      : null;
+
+  let complaint;
+  try {
+    complaint = await ComplaintModel.create({
+      _id: complaintId,
+      reporter: {
+        role: user.role,
+        id: user.id,
+        name: user.name,
+        mobile: user.mobile,
+      },
+      college: user.college,
+      category: parsedCategory,
+      message: parsedMessage.value,
+      screenshot: storedScreenshot,
+      hasScreenshot: Boolean(storedScreenshot),
+      diagnostics: parseDiagnostics(diagnostics),
+    });
+  } catch (err) {
+    // Uploaded, but the complaint never saved — don't strand the object.
+    await deleteImage(storedScreenshot);
+    throw err;
+  }
 
   res.status(201).json(publicComplaint(complaint.toObject()));
 });
@@ -107,7 +122,7 @@ router.get("/:id/screenshot", async (req, res) => {
     return;
   }
 
-  const decoded = decodeDataUrl(complaint.screenshot);
+  const decoded = await readImage(complaint.screenshot);
   if (!decoded) {
     res.status(404).json({ error: "No screenshot on this complaint" });
     return;

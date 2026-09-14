@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import jwt from "jsonwebtoken";
 import { isValidObjectId } from "mongoose";
 import { DriverModel } from "../models/Driver.js";
-import { decodeDataUrl } from "../lib/images.js";
+import { readImage } from "../lib/images.js";
 
 // Driver photos are served as real image responses rather than inlined into
 // JSON. The student dashboard polls /api/student-auth/bus-location every 5
@@ -48,7 +48,11 @@ router.get("/:driverId/photo", requireAnyAuth, async (req, res) => {
     return;
   }
 
-  const decoded = decodeDataUrl(driver.image);
+  // Served from here rather than redirected to a signed S3 URL: this URL must
+  // stay stable for the ETag below to work (the student dashboard polls every
+  // few seconds), and a redirect would carry the app's Authorization header
+  // along to S3, which rejects a request with two auth mechanisms.
+  const decoded = await readImage(driver.image);
   if (!decoded) {
     res.status(404).json({ error: "No photo for this driver" });
     return;

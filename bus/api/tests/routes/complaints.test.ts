@@ -293,7 +293,7 @@ describe("super admin complaint inbox", () => {
       .get(`/api/super/complaints/${created.body._id}`)
       .set("Authorization", `Bearer ${token}`);
     assert.equal(detail.status, 200);
-    assert.equal(detail.body.screenshot, TINY_PNG);
+    assert.match(detail.body.screenshot, /^http:\/\/localhost\/images\/complaints\//);
     assert.equal(detail.body.hasScreenshot, true);
     assert.ok(detail.body.reporter.name);
 

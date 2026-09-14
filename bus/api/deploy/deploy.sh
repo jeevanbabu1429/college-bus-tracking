@@ -36,6 +36,9 @@ NODE_ENV='development'
 VPS_HOST="${VPS_HOST:-89.116.134.28}"
 VPS_USER="${VPS_USER:-root}"
 REMOTE_DIR="${REMOTE_DIR:-/opt/bus-api-dev}"
+# Uploaded images (local storage). Deliberately NOT under $REMOTE_DIR — the
+# remote step below empties that directory on every deploy.
+IMAGE_DIR="${IMAGE_DIR:-/var/lib/bus-api-dev/images}"
 
 SSH_KEY="${SSH_KEY:-}"                         # optional: path to a private key
 TARBALL='bus-api-dev.tar.gz'
@@ -78,6 +81,16 @@ FIREBASE_JSON="$API_DIR/firebase-service-account.json"
 
 if grep -qE '^(MONGODB_URI|JWT_SECRET)=[[:space:]]*$' "$DEV_ENV"; then
   fail "$DEV_ENV has an empty MONGODB_URI or JWT_SECRET."
+fi
+
+# S3 image storage: when switched on, every value it needs must be there.
+# Caught here rather than on the server, where it would surface as the first
+# photo upload failing after the deploy had already reported success.
+if grep -qE '^STORAGE_DRIVER=s3[[:space:]]*$' "$DEV_ENV"; then
+  for var in AWS_REGION AWS_S3_BUCKET AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY; do
+    grep -qE "^${var}=[^[:space:]]+" "$DEV_ENV" \
+      || fail "$DEV_ENV has STORAGE_DRIVER=s3 but $var is empty."
+  done
 fi
 
 MONGO_URI="$(grep -m1 '^MONGODB_URI=' "$DEV_ENV" | cut -d= -f2- || true)"
@@ -179,6 +192,14 @@ else
   echo "FIREBASE_SERVICE_ACCOUNT_PATH=$REMOTE_DIR/firebase-service-account.json" >> "$STAGE_DIR/.env"
 fi
 
+# Local image storage needs to know where files live and where they are served
+# from. Fill in the server defaults unless .env.dev chose otherwise; with S3 the
+# values are ignored, so writing them does no harm.
+grep -q '^IMAGE_SERVER_PATH=' "$STAGE_DIR/.env" \
+  || echo "IMAGE_SERVER_PATH=$IMAGE_DIR" >> "$STAGE_DIR/.env"
+grep -q '^IMAGE_SERVER_URL=' "$STAGE_DIR/.env" \
+  || echo "IMAGE_SERVER_URL=http://$VPS_HOST:$API_PORT/images" >> "$STAGE_DIR/.env"
+
 # PM2 config is rendered here rather than on the server, so there are no nested
 # heredocs to escape. Two things matter:
 #   * .cjs extension — package.json is "type": "module", so a .js config using
@@ -224,7 +245,7 @@ scp "${SSH_OPTS[@]}" "$API_DIR/$TARBALL" "$REMOTE:$REMOTE_DIR/"
 step 'Deploying on VPS'
 ssh "${SSH_OPTS[@]}" "$REMOTE" \
   "REMOTE_DIR='$REMOTE_DIR' TARBALL='$TARBALL' PM2_NAME='$PM2_NAME' \
-   API_PORT='$API_PORT' NODE_BIN='$REMOTE_NODE_BIN' bash -s" \
+   API_PORT='$API_PORT' NODE_BIN='$REMOTE_NODE_BIN' IMAGE_DIR='$IMAGE_DIR' bash -s" \
   <<'REMOTE_SCRIPT'
 set -euo pipefail
 
@@ -234,6 +255,10 @@ export PATH="$(dirname "$NODE_BIN"):$PATH"
 echo "Building with $(node -v) ($NODE_BIN)"
 
 cd "$REMOTE_DIR"
+
+# Created before the clean-up below and never touched by it, so uploaded
+# images survive every deploy.
+mkdir -p "$IMAGE_DIR"
 
 echo "Cleaning previous deploy (keeping the uploaded tarball)..."
 find . -maxdepth 1 -mindepth 1 ! -name 'bus-api-dev*.tar.gz' -exec rm -rf {} +

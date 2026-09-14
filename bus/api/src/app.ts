@@ -19,6 +19,7 @@ import superAdminRouter from "./routes/superAdmin.js";
 import loginRolesRouter from "./routes/loginRoles.js";
 import bannerRouter from "./routes/banner.js";
 import complaintsRouter from "./routes/complaints.js";
+import { fileStorageRoute } from "./fileStorage/fileRoute/fileStorageRoute.js";
 import driverPhotoRouter from "./routes/driverPhoto.js";
 
 // Pure app factory — no DB connect, no listen. `index.ts` wires
@@ -51,6 +52,11 @@ export function createApp(): Express {
   app.use("/api/super", superAdminRouter);
   app.use("/api/banner", bannerRouter);
   app.use("/api/complaints", complaintsRouter);
+  // Uploaded images, when they are kept on this server's disk rather than in
+  // S3. Outside /api on purpose: these are plain static files, as in kareez.
+  if (process.env.STORAGE_DRIVER !== "s3" && process.env.IMAGE_SERVER_PATH) {
+    app.use("/images", fileStorageRoute());
+  }
   app.use("/api/login-roles", loginRolesRouter);
   app.use("/api/drivers", driverPhotoRouter);
 
