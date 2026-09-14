@@ -1,4 +1,5 @@
-import express, { type ErrorRequestHandler, type Express } from "express";
+import "./lib/asyncErrors.js";
+import express, { type Express } from "express";
 import cors from "cors";
 import authRouter from "./routes/auth.js";
 import driverAuthRouter from "./routes/driverAuth.js";
@@ -21,6 +22,7 @@ import bannerRouter from "./routes/banner.js";
 import complaintsRouter from "./routes/complaints.js";
 import { fileStorageRoute } from "./fileStorage/fileRoute/fileStorageRoute.js";
 import driverPhotoRouter from "./routes/driverPhoto.js";
+import { errorHandler, notFoundHandler } from "./lib/httpErrors.js";
 
 // Pure app factory — no DB connect, no listen. `index.ts` wires
 // connectDB + seed + listen around it; the test suite imports it
@@ -60,11 +62,8 @@ export function createApp(): Express {
   app.use("/api/login-roles", loginRolesRouter);
   app.use("/api/drivers", driverPhotoRouter);
 
-  const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
-    console.error(err);
-    const status = typeof err?.status === "number" ? err.status : 500;
-    res.status(status).json({ error: err?.message ?? "Internal server error" });
-  };
+  // Anything unmatched, and every error, answers in JSON the clients can show.
+  app.use(notFoundHandler);
   app.use(errorHandler);
 
   return app;

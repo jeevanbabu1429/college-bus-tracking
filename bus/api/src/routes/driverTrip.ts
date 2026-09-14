@@ -11,6 +11,7 @@ import {
   sendSuspended,
 } from "../lib/suspension.js";
 import { haversineMeters } from "../lib/geo.js";
+import { isLatitude, isLongitude } from "../lib/httpErrors.js";
 
 const router = Router();
 
@@ -208,7 +209,7 @@ router.post("/issue", async (req, res) => {
   const { type, message } = req.body ?? {};
   if (typeof type !== "string" || !ISSUE_TYPES.has(type)) {
     res.status(400).json({
-      error: "type must be one of breakdown, flat_tyre, refuelling, traffic, mechanical, weather, other",
+      error: "Please choose what the issue is.",
     });
     return;
   }
@@ -494,8 +495,8 @@ function notifyStopArrival(
 router.post("/location", async (req, res) => {
   const driverId = (req as unknown as { driverId: string }).driverId;
   const { lat, lng } = req.body ?? {};
-  if (typeof lat !== "number" || typeof lng !== "number") {
-    res.status(400).json({ error: "lat and lng (numbers) are required" });
+  if (!isLatitude(lat) || !isLongitude(lng)) {
+    res.status(400).json({ error: "The location from this phone is not valid." });
     return;
   }
   const driver = await DriverModel.findById(driverId);

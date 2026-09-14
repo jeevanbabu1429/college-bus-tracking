@@ -10,6 +10,7 @@ import { AnimatedSplash } from "./src/components/AnimatedSplash";
 import { AlertHost } from "./src/components/AppAlert";
 import { BannerModal } from "./src/components/BannerModal";
 import { AndroidNavigationBar } from "./src/components/AndroidNavigationBar";
+import { ErrorBoundary } from "./src/components/ErrorBoundary";
 import { OnboardingScreen } from "./src/screens/OnboardingScreen";
 import { useOnboarding } from "./src/onboarding/useOnboarding";
 
@@ -71,9 +72,13 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <ThemeProvider>
-        <AuthProvider>
-          <ThemedRoot />
-        </AuthProvider>
+        {/* Inside the theme so the crash screen matches light/dark mode, and
+            around everything else so no screen can close the app. */}
+        <ErrorBoundary>
+          <AuthProvider>
+            <ThemedRoot />
+          </AuthProvider>
+        </ErrorBoundary>
       </ThemeProvider>
     </SafeAreaProvider>
   );

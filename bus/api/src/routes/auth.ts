@@ -9,12 +9,19 @@ import {
 } from "../lib/suspension.js";
 import { generateOtp } from "../lib/otp.js";
 import {
+  isText,
+  MOBILE_MESSAGE,
+  normaliseMobile,
+  parseDate,
+} from "../lib/httpErrors.js";
+import {
   checkAdminApproval,
   sendPendingApproval,
 } from "../lib/approval.js";
 
 const router = Router();
 
+const GENDERS = ["male", "female", "other"];
 const OTP_TTL_MS = 5 * 60 * 1000;
 const TOKEN_TTL = "7d";
 
@@ -43,20 +50,39 @@ function publicAdmin(admin: InstanceType<typeof AdminModel>) {
 }
 
 router.post("/register", async (req, res) => {
-  const { name, gender, dob, mobile, email } = req.body ?? {};
-  if (!name || !gender || !dob || !mobile || !email) {
-    res
-      .status(400)
-      .json({ error: "name, gender, dob, mobile, email are required" });
+  const body = req.body ?? {};
+  const { name, gender, email } = body;
+  if (!isText(name) || !isText(gender) || !body.dob || !body.mobile || !isText(email)) {
+    res.status(400).json({
+      error: "Please fill in your name, gender, date of birth, mobile number and email.",
+    });
+    return;
+  }
+  if (!GENDERS.includes(gender)) {
+    res.status(400).json({ error: "Please choose a gender." });
+    return;
+  }
+  const dob = parseDate(body.dob);
+  if (!dob) {
+    res.status(400).json({ error: "Please enter a valid date of birth." });
+    return;
+  }
+  const mobile = normaliseMobile(body.mobile);
+  if (!mobile) {
+    res.status(400).json({ error: MOBILE_MESSAGE });
     return;
   }
 
   const existing = await AdminModel.findOne({
-    $or: [{ mobile }, { email: String(email).toLowerCase() }],
+    $or: [{ mobile }, { email: email.trim().toLowerCase() }],
   });
   if (existing) {
-    const field = existing.mobile === mobile ? "mobile" : "email";
-    res.status(409).json({ error: `${field} already registered` });
+    res.status(409).json({
+      error:
+        existing.mobile === mobile
+          ? "This mobile number is already registered."
+          : "This email address is already registered.",
+    });
     return;
   }
 
@@ -86,8 +112,9 @@ router.post("/register", async (req, res) => {
 
 router.post("/request-otp", async (req, res) => {
   const { mobile } = req.body ?? {};
-  if (!mobile) {
-    res.status(400).json({ error: "mobile is required" });
+  // A string only: an object here would be run as a query operator.
+  if (!isText(mobile)) {
+    res.status(400).json({ error: MOBILE_MESSAGE });
     return;
   }
 
@@ -109,12 +136,12 @@ router.post("/request-otp", async (req, res) => {
 
 router.post("/verify-otp", async (req, res) => {
   const { mobile, otp } = req.body ?? {};
-  if (!mobile || !otp) {
-    res.status(400).json({ error: "mobile and otp are required" });
+  if (!isText(mobile) || !isText(String(otp ?? ""))) {
+    res.status(400).json({ error: "Enter your mobile number and the code we sent you." });
     return;
   }
 
-  const admin = await AdminModel.findOne({ mobile });
+  const admin = await AdminModel.findOne({ mobile }).select("+otp +otpExpiresAt");
   if (!admin || !admin.otp || !admin.otpExpiresAt) {
     res.status(400).json({ error: "Request an OTP first" });
     return;
@@ -208,20 +235,26 @@ router.get("/me", requireAdminToken, async (req, res) => {
 
 router.put("/me", requireApprovedAdmin, async (req, res) => {
   const adminSubId = (req as unknown as { adminSubId: string }).adminSubId;
-  const { name, gender, dob, mobile, email } = req.body ?? {};
-  if (!name || !gender || !dob || !mobile || !email) {
-    res
-      .status(400)
-      .json({ error: "name, gender, dob, mobile, email are required" });
+  const body = req.body ?? {};
+  const { name, gender, email } = body;
+  if (!isText(name) || !isText(gender) || !body.dob || !body.mobile || !isText(email)) {
+    res.status(400).json({
+      error: "Please fill in your name, gender, date of birth, mobile number and email.",
+    });
     return;
   }
-  if (!["male", "female", "other"].includes(gender)) {
-    res.status(400).json({ error: "gender must be male, female or other" });
+  if (!GENDERS.includes(gender)) {
+    res.status(400).json({ error: "Please choose a gender." });
     return;
   }
-  const dobDate = new Date(dob);
-  if (Number.isNaN(dobDate.getTime())) {
-    res.status(400).json({ error: "dob is invalid" });
+  const dobDate = parseDate(body.dob);
+  if (!dobDate) {
+    res.status(400).json({ error: "Please enter a valid date of birth." });
+    return;
+  }
+  const mobile = normaliseMobile(body.mobile);
+  if (!mobile) {
+    res.status(400).json({ error: MOBILE_MESSAGE });
     return;
   }
 
@@ -239,7 +272,7 @@ router.put("/me", requireApprovedAdmin, async (req, res) => {
       _id: { $ne: admin._id },
     });
     if (dup) {
-      res.status(409).json({ error: "mobile already registered" });
+      res.status(409).json({ error: "This mobile number is already registered." });
       return;
     }
   }
@@ -249,13 +282,13 @@ router.put("/me", requireApprovedAdmin, async (req, res) => {
       _id: { $ne: admin._id },
     });
     if (dup) {
-      res.status(409).json({ error: "email already registered" });
+      res.status(409).json({ error: "This email address is already registered." });
       return;
     }
   }
 
   admin.name = name;
-  admin.gender = gender;
+  admin.gender = gender as "male" | "female" | "other";
   admin.dob = dobDate;
   admin.mobile = mobile;
   admin.email = newEmail;

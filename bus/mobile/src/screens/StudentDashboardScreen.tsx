@@ -13,6 +13,7 @@ import {
   View,
 } from "react-native";
 import { AppAlert } from "../components/AppAlert";
+import { isStale, timeAgo, useNow } from "../lib/time";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -354,6 +355,7 @@ function HomeView({ styles, colors, student, busLocation, onTrackOther }: HomeVi
   // actually being there so tapping the emoji fallback does nothing.
   const [driverPhotoOpen, setDriverPhotoOpen] = useState(false);
   const [driverHasPhoto, setDriverHasPhoto] = useState(false);
+  const now = useNow();
   const bus = student?.bus ?? null;
   // Prefer fresh data from the live poll (notice/suspension can change during
   // the day) and fall back to the session copy.
@@ -478,6 +480,9 @@ function HomeView({ styles, colors, student, busLocation, onTrackOther }: HomeVi
   }, [liveLoc?.lat, liveLoc?.lng, liveLoc?.updatedAt]);
 
   const liveActive = Boolean(tripActive && liveLoc && pinPos);
+  // The trip is on but nothing new has arrived for a while — the driver's
+  // phone may have lost signal, or this one has. Don't call that "Live".
+  const liveStale = Boolean(liveActive && liveLoc && isStale(liveLoc.updatedAt, now));
   // Show the map if the bus is live OR we have at least one placed stop to draw.
   const mapCenter = pinPos
     ? pinPos
@@ -739,11 +744,13 @@ function HomeView({ styles, colors, student, busLocation, onTrackOther }: HomeVi
                 )}
                 <View style={styles.liveBanner}>
                   <View
-                    style={[styles.liveDot, !liveActive && styles.liveDotIdle]}
+                    style={[styles.liveDot, (!liveActive || liveStale) && styles.liveDotIdle]}
                   />
                   <Text style={styles.liveText}>
                     {liveActive && liveLoc
-                      ? `Live · updated ${new Date(liveLoc.updatedAt).toLocaleTimeString()}`
+                      ? liveStale
+                        ? `Last update ${timeAgo(liveLoc.updatedAt, now)} · waiting for the next one`
+                        : `Live · updated ${new Date(liveLoc.updatedAt).toLocaleTimeString()}`
                       : tripActive
                       ? "Waiting for the driver's first location…"
                       : "Route shown · bus is idle"}

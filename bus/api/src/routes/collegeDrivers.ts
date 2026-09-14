@@ -1,4 +1,14 @@
 import { Router } from "express";
+import {
+  duplicateField,
+  duplicateMessage,
+  isDuplicateKeyError,
+  isText,
+  MOBILE_MESSAGE,
+  normaliseMobile,
+  parseDate,
+  rowErrorMessage,
+} from "../lib/httpErrors.js";
 import { isValidObjectId, Types } from "mongoose";
 import { DriverModel } from "../models/Driver.js";
 import { CollegeModel } from "../models/College.js";
@@ -62,23 +72,30 @@ router.post("/", async (req, res) => {
   } = req.body ?? {};
 
   if (
-    !name ||
+    ![name, gender, licenceNumber, address].every(isText) ||
     !dob ||
-    !gender ||
-    !licenceNumber ||
     !aadharNumber ||
-    !mobile ||
-    !address
+    !mobile
   ) {
-    res.status(400).json({ error: "All fields are required" });
+    res.status(400).json({ error: "Please fill in every field." });
     return;
   }
   if (!GENDERS.includes(gender)) {
-    res.status(400).json({ error: "Invalid gender" });
+    res.status(400).json({ error: "Please choose a gender." });
     return;
   }
   if (!/^\d{12}$/.test(String(aadharNumber))) {
-    res.status(400).json({ error: "Aadhar must be 12 digits" });
+    res.status(400).json({ error: "Aadhaar number must be 12 digits." });
+    return;
+  }
+  const dobDate = parseDate(dob);
+  if (!dobDate) {
+    res.status(400).json({ error: "Please enter a valid date of birth." });
+    return;
+  }
+  const mobileNumber = normaliseMobile(mobile);
+  if (!mobileNumber) {
+    res.status(400).json({ error: MOBILE_MESSAGE });
     return;
   }
   const photo = parseImageField(image);
@@ -101,11 +118,11 @@ router.post("/", async (req, res) => {
       _id: driverId,
       college: college._id,
       name,
-      dob,
+      dob: dobDate,
       gender,
       licenceNumber,
-      aadharNumber,
-      mobile,
+      aadharNumber: String(aadharNumber),
+      mobile: mobileNumber,
       address,
       image: storedImage,
     });
@@ -114,10 +131,8 @@ router.post("/", async (req, res) => {
     // The upload already happened; don't leave it behind for a driver that
     // was never created.
     await deleteImage(storedImage);
-    if ((err as { code?: number }).code === 11000) {
-      const dup = (err as { keyPattern?: Record<string, number> }).keyPattern;
-      const field = dup ? Object.keys(dup)[0] : "field";
-      res.status(409).json({ error: `${field} already exists` });
+    if (isDuplicateKeyError(err)) {
+      res.status(409).json({ error: duplicateMessage(duplicateField(err)) });
       return;
     }
     throw err;
@@ -169,50 +184,56 @@ router.post("/bulk", async (req, res) => {
     const gender = str(row.gender).toLowerCase();
     const licenceNumber = str(row.licenceNumber).toUpperCase();
     const aadharNumber = str(row.aadharNumber);
-    const mobile = str(row.mobile);
+    const mobile = normaliseMobile(row.mobile) ?? "";
+    const typedMobile = str(row.mobile);
     const address = str(row.address);
 
     if (!name) {
-      failed.push({ row: i + 1, error: "name is required" });
+      failed.push({ row: i + 1, error: "Name is missing" });
       continue;
     }
     if (!dob) {
-      failed.push({ row: i + 1, name, error: "dob is required" });
+      failed.push({ row: i + 1, name, error: "Date of birth is missing" });
       continue;
     }
     const dobDate = new Date(dob);
     if (Number.isNaN(dobDate.getTime())) {
-      failed.push({ row: i + 1, name, error: "dob must be a valid date" });
+      failed.push({ row: i + 1, name, error: "Date of birth is not a valid date" });
       continue;
     }
     if (!GENDERS.includes(gender)) {
       failed.push({
         row: i + 1,
         name,
-        mobile,
-        error: "gender must be male, female or other",
+        mobile: typedMobile,
+        error: "Gender must be male, female or other",
       });
       continue;
     }
     if (!licenceNumber) {
-      failed.push({ row: i + 1, name, mobile, error: "licenceNumber is required" });
+      failed.push({ row: i + 1, name, mobile: typedMobile, error: "Licence number is missing" });
       continue;
     }
     if (!/^\d{12}$/.test(aadharNumber)) {
       failed.push({
         row: i + 1,
         name,
-        mobile,
-        error: "aadharNumber must be 12 digits",
+        mobile: typedMobile,
+        error: "Aadhaar number must be 12 digits",
       });
       continue;
     }
     if (!mobile) {
-      failed.push({ row: i + 1, name, error: "mobile is required" });
+      failed.push({
+        row: i + 1,
+        name,
+        mobile: typedMobile,
+        error: typedMobile ? "Mobile number must be 10 digits" : "Mobile number is missing",
+      });
       continue;
     }
     if (!address) {
-      failed.push({ row: i + 1, name, mobile, error: "address is required" });
+      failed.push({ row: i + 1, name, mobile, error: "Address is missing" });
       continue;
     }
 
@@ -229,23 +250,7 @@ router.post("/bulk", async (req, res) => {
       });
       created.push(driver);
     } catch (err) {
-      if ((err as { code?: number }).code === 11000) {
-        const dup = (err as { keyPattern?: Record<string, number> }).keyPattern;
-        const field = dup ? Object.keys(dup)[0] : "field";
-        failed.push({
-          row: i + 1,
-          name,
-          mobile,
-          error: `${field} already exists`,
-        });
-      } else {
-        failed.push({
-          row: i + 1,
-          name,
-          mobile,
-          error: (err as Error).message || "Failed to create",
-        });
-      }
+      failed.push({ row: i + 1, name, mobile, error: rowErrorMessage(err) });
     }
   }
 
@@ -283,23 +288,30 @@ router.put("/:driverId", async (req, res) => {
   } = req.body ?? {};
 
   if (
-    !name ||
+    ![name, gender, licenceNumber, address].every(isText) ||
     !dob ||
-    !gender ||
-    !licenceNumber ||
     !aadharNumber ||
-    !mobile ||
-    !address
+    !mobile
   ) {
-    res.status(400).json({ error: "All fields are required" });
+    res.status(400).json({ error: "Please fill in every field." });
     return;
   }
   if (!GENDERS.includes(gender)) {
-    res.status(400).json({ error: "Invalid gender" });
+    res.status(400).json({ error: "Please choose a gender." });
     return;
   }
   if (!/^\d{12}$/.test(String(aadharNumber))) {
-    res.status(400).json({ error: "Aadhar must be 12 digits" });
+    res.status(400).json({ error: "Aadhaar number must be 12 digits." });
+    return;
+  }
+  const dobDate = parseDate(dob);
+  if (!dobDate) {
+    res.status(400).json({ error: "Please enter a valid date of birth." });
+    return;
+  }
+  const mobileNumber = normaliseMobile(mobile);
+  if (!mobileNumber) {
+    res.status(400).json({ error: MOBILE_MESSAGE });
     return;
   }
   const photo = parseImageField(image);
@@ -318,11 +330,11 @@ router.put("/:driverId", async (req, res) => {
 
   driver.set({
     name,
-    dob,
+    dob: dobDate,
     gender,
     licenceNumber,
-    aadharNumber,
-    mobile,
+    aadharNumber: String(aadharNumber),
+    mobile: mobileNumber,
     address,
     // Only touch the photo when the caller actually sent the field. Clients
     // that don't know about photos (the mobile admin edit screen) must not
@@ -339,10 +351,8 @@ router.put("/:driverId", async (req, res) => {
     res.json(await withImageUrl(driver));
   } catch (err) {
     if (nextImage) await deleteImage(nextImage);
-    if ((err as { code?: number }).code === 11000) {
-      const dup = (err as { keyPattern?: Record<string, number> }).keyPattern;
-      const field = dup ? Object.keys(dup)[0] : "field";
-      res.status(409).json({ error: `${field} already exists` });
+    if (isDuplicateKeyError(err)) {
+      res.status(409).json({ error: duplicateMessage(duplicateField(err)) });
       return;
     }
     throw err;

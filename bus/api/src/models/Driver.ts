@@ -36,8 +36,8 @@ const driverSchema = new Schema(
     // upload; `normaliseDriverImage` caps the size server-side too. Excluded
     // from the bus populate so bus payloads stay lean.
     image: { type: String, default: null },
-    otp: { type: String, default: null },
-    otpExpiresAt: { type: Date, default: null },
+    otp: { type: String, default: null, select: false },
+    otpExpiresAt: { type: Date, default: null, select: false },
     tripActive: { type: Boolean, default: false },
     // Indexed because every sign-in sweeps all three collections for this
     // device's token to take it off its previous owner.

@@ -13,8 +13,8 @@ const staffSchema = new Schema(
     role: { type: Schema.Types.ObjectId, ref: "Role", required: true, index: true },
     name: { type: String, required: true, trim: true },
     mobile: { type: String, required: true, trim: true, index: true },
-    otp: { type: String, default: null },
-    otpExpiresAt: { type: Date, default: null },
+    otp: { type: String, default: null, select: false },
+    otpExpiresAt: { type: Date, default: null, select: false },
     // Revoking access without deleting the record, so who-did-what stays
     // answerable and the same person can be switched back on later.
     active: { type: Boolean, default: true },

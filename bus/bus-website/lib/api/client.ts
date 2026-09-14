@@ -1,5 +1,10 @@
 import { getCurrentToken } from "../auth/tokenStore";
 import { getCurrentSuperToken } from "../super-auth/superTokenStore";
+import {
+  messageForResponse,
+  NETWORK_MESSAGE,
+  UNEXPECTED_REPLY_MESSAGE,
+} from "./errorMessages";
 
 const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -28,23 +33,32 @@ export async function apiFetch<T>(
   tokenGetter: () => string | null = getCurrentToken
 ): Promise<T> {
   const token = tokenGetter();
-  const res = await fetch(`${baseUrl}${path}`, {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(init.headers ?? {}),
-    },
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${baseUrl}${path}`, {
+      ...init,
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(init.headers ?? {}),
+      },
+    });
+  } catch (err) {
+    // A caller that cancelled the request wants to know it was cancelled.
+    if ((err as Error)?.name === "AbortError") throw err;
+    // Offline, DNS failure, server down, CORS: the browser says only
+    // "Failed to fetch".
+    throw new ApiError(0, NETWORK_MESSAGE);
+  }
 
   if (!res.ok) {
-    let body: { error?: string; suspended?: boolean } | null = null;
+    let body: { error?: unknown; suspended?: boolean } | null = null;
     try {
       body = await res.json();
     } catch {
-      // ignore
+      // Not JSON — a proxy error page or an empty body.
     }
-    const message = body?.error ?? res.statusText;
+    const message = messageForResponse(res.status, body?.error);
 
     // Suspension is fatal to the session — clear it, stash the message, and
     // hard-navigate to /login so the whole in-memory admin state is
@@ -89,5 +103,12 @@ export async function apiFetch<T>(
   }
 
   if (res.status === 204) return undefined as T;
-  return (await res.json()) as T;
+  const text = await res.text();
+  if (!text) return undefined as T;
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    // A 200 that is not JSON: a captive portal or maintenance page.
+    throw new ApiError(res.status, UNEXPECTED_REPLY_MESSAGE);
+  }
 }

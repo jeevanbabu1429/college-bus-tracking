@@ -106,7 +106,9 @@ describe("admin OTP auth flow", () => {
       .post("/api/auth/verify-otp")
       .send({ mobile: adminInput.mobile, otp: "0000" })
       .expect(200);
-    const admin = await AdminModel.findOne({ mobile: adminInput.mobile });
+    const admin = await AdminModel.findOne({ mobile: adminInput.mobile }).select(
+      "+otp +otpExpiresAt"
+    );
     assert.equal(admin?.otp, null);
     assert.equal(admin?.otpExpiresAt, null);
   });

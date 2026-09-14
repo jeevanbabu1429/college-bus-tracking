@@ -25,8 +25,8 @@ const studentSchema = new Schema(
       index: true,
     },
     stop: { type: String, default: null, trim: true },
-    otp: { type: String, default: null },
-    otpExpiresAt: { type: Date, default: null },
+    otp: { type: String, default: null, select: false },
+    otpExpiresAt: { type: Date, default: null, select: false },
     // Indexed because every sign-in sweeps all three collections for this
     // device's token to take it off its previous owner.
     fcmTokens: { type: [String], default: [], index: true },
