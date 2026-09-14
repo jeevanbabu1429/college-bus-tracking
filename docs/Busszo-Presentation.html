@@ -1,0 +1,1020 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Busszo for Colleges</title>
+<meta name="description" content="How Busszo gives a college live bus tracking for its transport office, drivers and students.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Overpass:wght@500;700;800;900&family=Overpass+Mono:wght@500;700&family=Instrument+Sans:wght@400;500;600&display=swap">
+
+<style>
+:root {
+  --ground:      #f1f2f4;
+  --surface:     #ffffff;
+  --surface-2:   #f6f7f8;
+  --ink:         #1d2129;
+  --ink-2:       #4a5160;
+  --ink-3:       #7d8494;
+  --rule:        #dde0e5;
+  --rule-strong: #b9bec8;
+  --bus:         #fdc802;   /* the artwork's yellow — fills only */
+  --bus-soft:    #fff3c2;
+  --bus-text:    #8a5d00;   /* the yellow, deepened until it reads as text on white */
+  --on-bus:      #1d2129;
+  --live:        #1d8a4a;
+  --live-soft:   #e3f4ea;
+  --alert:       #c2412d;
+  --alert-soft:  #fbe9e5;
+  --shadow:      0 1px 2px rgba(29,33,41,.06), 0 12px 32px rgba(29,33,41,.08);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground:      #0f1114;
+    --surface:     #181b20;
+    --surface-2:   #1f2329;
+    --ink:         #eef0f3;
+    --ink-2:       #b0b6c1;
+    --ink-3:       #8a91a0;
+    --rule:        #2a2e36;
+    --rule-strong: #454b56;
+    --bus:         #fdc802;
+    --bus-soft:    #332a0c;
+    --bus-text:    #fdc802;
+    --on-bus:      #1d2129;
+    --live:        #4cc27c;
+    --live-soft:   #14281c;
+    --alert:       #ef7a64;
+    --alert-soft:  #331b16;
+    --shadow:      0 1px 2px rgba(0,0,0,.4), 0 16px 40px rgba(0,0,0,.35);
+  }
+}
+:root[data-theme="dark"] {
+  --ground:      #0f1114;
+  --surface:     #181b20;
+  --surface-2:   #1f2329;
+  --ink:         #eef0f3;
+  --ink-2:       #b0b6c1;
+  --ink-3:       #8a91a0;
+  --rule:        #2a2e36;
+  --rule-strong: #454b56;
+  --bus:         #fdc802;
+  --bus-soft:    #332a0c;
+  --bus-text:    #fdc802;
+  --on-bus:      #1d2129;
+  --live:        #4cc27c;
+  --live-soft:   #14281c;
+  --alert:       #ef7a64;
+  --alert-soft:  #331b16;
+  --shadow:      0 1px 2px rgba(0,0,0,.4), 0 16px 40px rgba(0,0,0,.35);
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: "Instrument Sans", "Segoe UI", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--bus); outline-offset: 2px; }
+
+/* ---------- app frame (presenting) ---------- */
+.app {
+  min-height: 100%;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  padding: 12px 24px 14px;
+  gap: 10px;
+}
+.topbar { display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; font-family: Overpass, sans-serif; font-weight: 800; font-size: 18px; letter-spacing: -.01em; }
+.brand img { width: 34px; height: 34px; border-radius: 9px; background: #fff; padding: 3px; border: 1px solid var(--rule); }
+.brand b { color: var(--bus-text); font-weight: 800; }
+.topbar .spacer { flex: 1; }
+.counter { font-family: "Overpass Mono", monospace; font-size: 13px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.tbtn {
+  border: 1px solid var(--rule); background: var(--surface); border-radius: 8px;
+  padding: 6px 11px; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
+}
+.tbtn:hover { border-color: var(--rule-strong); }
+.hint { font-size: 12px; color: var(--ink-3); }
+
+.stage { display: grid; place-items: center; min-height: 0; }
+
+/* ---------- the slide ---------- */
+.slide {
+  --slide-w: min(calc(100vw - 48px), calc((100vh - 142px) * 16 / 9));
+  width: var(--slide-w);
+  aspect-ratio: 16 / 9;
+  container-type: size;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  padding: 4.4cqh 4.6cqw 4cqh;
+  display: none;
+  grid-template-rows: auto 1fr;
+  gap: 2.6cqh;
+  position: relative;
+  overflow: hidden;
+
+  --fs-hero: 5cqw;
+  --fs-h2: 3.15cqw;
+  --fs-lead: 1.62cqw;
+  --fs-body: 1.36cqw;
+  --fs-small: 1.12cqw;
+  --fs-label: .92cqw;
+  --fs-stat: 4.2cqw;
+}
+.slide.is-current { display: grid; animation: enter .35s ease both; }
+@keyframes enter { from { opacity: .001; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .slide.is-current { animation: none; } }
+
+.slide-head { display: grid; gap: .8cqh; max-width: 78%; }
+.eyebrow {
+  font-family: "Overpass Mono", monospace; font-size: var(--fs-label); font-weight: 700;
+  letter-spacing: .12em; text-transform: uppercase; color: var(--bus-text);
+}
+h1, h2, h3 { font-family: Overpass, "Arial Narrow", sans-serif; margin: 0; text-wrap: balance; }
+h1 { font-size: var(--fs-hero); font-weight: 900; line-height: .98; letter-spacing: -.025em; }
+h2 { font-size: var(--fs-h2); font-weight: 800; line-height: 1.04; letter-spacing: -.02em; }
+h3 { font-size: var(--fs-lead); font-weight: 800; letter-spacing: -.01em; line-height: 1.15; }
+.lead { font-size: var(--fs-lead); line-height: 1.4; color: var(--ink-2); margin: 0; max-width: 60ch; }
+p { margin: 0; }
+.body { font-size: var(--fs-body); line-height: 1.45; color: var(--ink-2); }
+.small { font-size: var(--fs-small); line-height: 1.4; color: var(--ink-3); }
+.mono { font-family: "Overpass Mono", monospace; font-variant-numeric: tabular-nums; }
+.hl { background: linear-gradient(transparent 58%, var(--bus-soft) 58%); padding: 0 .1em; }
+
+.slide-body { min-height: 0; display: grid; gap: 3cqw; }
+.two { grid-template-columns: 1fr 1.1fr; align-items: center; }
+.two-r { grid-template-columns: 1.15fr 1fr; align-items: center; }
+.col { display: grid; gap: 2cqh; align-content: center; }
+
+/* diagrams */
+figure { margin: 0; display: grid; gap: 1cqh; min-height: 0; }
+figure svg { width: 100%; height: auto; max-height: 100%; display: block; color: var(--ink); overflow: visible; }
+figcaption { font-size: var(--fs-small); color: var(--ink-3); line-height: 1.35; }
+.d-text   { fill: var(--ink); font-family: "Instrument Sans", sans-serif; }
+.d-muted  { fill: var(--ink-3); font-family: "Instrument Sans", sans-serif; }
+.d-mono   { fill: var(--ink-2); font-family: "Overpass Mono", monospace; }
+.d-head   { fill: var(--ink); font-family: Overpass, sans-serif; font-weight: 800; }
+.d-line   { stroke: var(--rule-strong); fill: none; }
+.d-ink    { stroke: var(--ink); fill: none; }
+.d-road   { stroke: var(--ink); fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.d-dash   { stroke: var(--surface); fill: none; stroke-dasharray: 10 12; }
+.d-box    { fill: var(--surface); stroke: var(--rule-strong); }
+.d-soft   { fill: var(--surface-2); stroke: var(--rule); }
+.d-bus    { fill: var(--bus); }
+.d-busline{ stroke: var(--bus); fill: none; }
+.d-onbus  { fill: var(--on-bus); font-family: Overpass, sans-serif; font-weight: 800; }
+.d-live   { fill: var(--live); }
+.d-alert  { fill: var(--alert); }
+.d-alertline { stroke: var(--alert); fill: none; }
+.d-stop   { fill: var(--surface); stroke: var(--ink); }
+.d-ground { fill: var(--surface); }
+.d-arrow  { fill: var(--ink-2); }
+.d-arrowa { fill: var(--alert); }
+.d-arrowb { fill: var(--bus-text); }
+
+/* feature lists */
+.feats { list-style: none; margin: 0; padding: 0; display: grid; gap: 1.7cqh; }
+.feats li { display: grid; grid-template-columns: 2.3cqw 1fr; gap: 1cqw; align-items: start; }
+.feats .dot {
+  width: 2.3cqw; height: 2.3cqw; border-radius: 50%; background: var(--bus-soft);
+  display: grid; place-items: center; margin-top: .15cqh;
+}
+.feats .dot svg { width: 1.3cqw; height: 1.3cqw; color: var(--bus-text); }
+.feats b { display: block; font-family: Overpass, sans-serif; font-weight: 800; font-size: var(--fs-body); color: var(--ink); line-height: 1.2; }
+.feats span { font-size: var(--fs-small); color: var(--ink-2); line-height: 1.38; }
+
+/* stats */
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.4cqw; }
+.stat { border-top: 3px solid var(--bus); padding-top: 1.4cqh; display: grid; gap: .5cqh; }
+.stat .n { font-family: "Overpass Mono", monospace; font-weight: 700; font-size: var(--fs-stat); line-height: 1; letter-spacing: -.03em; }
+.stat .n small { font-size: .45em; color: var(--ink-3); margin-left: .15em; letter-spacing: 0; }
+.stat .l { font-size: var(--fs-small); color: var(--ink-2); line-height: 1.35; }
+
+/* phone mock */
+.phone {
+  justify-self: center; width: 25cqw; aspect-ratio: 9 / 18.5; border-radius: 3.4cqw;
+  background: #111317; padding: .9cqw; box-shadow: var(--shadow);
+}
+.screen {
+  height: 100%; border-radius: 2.6cqw; background: #f5f4f7; color: #111; overflow: hidden;
+  display: grid; grid-template-rows: auto auto 1fr auto; font-size: 1cqw;
+}
+.scr-top { padding: 1.6em 1.4em .9em; display: flex; align-items: center; gap: .9em; background: #fff; }
+.avatar { width: 2.8em; height: 2.8em; border-radius: 50%; background: var(--bus); display: grid; place-items: center; font-family: Overpass, sans-serif; font-weight: 900; font-size: 1.05em; color: #1d2129; }
+.scr-top .t { font-family: Overpass, sans-serif; font-weight: 800; font-size: 1.35em; line-height: 1.1; }
+.scr-top .s { color: #777; font-size: .85em; }
+.buscard { margin: .9em 1.1em; background: #111; color: #fff; border-radius: 1.4em; padding: 1.1em 1.2em; display: grid; gap: .7em; }
+.buscard .row { display: flex; justify-content: space-between; align-items: center; }
+.buscard .num { font-family: Overpass, sans-serif; font-weight: 900; font-size: 1.9em; line-height: 1; }
+.buscard .plate { color: var(--bus); font-family: "Overpass Mono", monospace; font-size: .85em; }
+.pill-live { background: #16351f; color: #5fd08a; border-radius: 99em; padding: .3em .75em; font-size: .8em; font-weight: 600; }
+.drv { display: flex; align-items: center; gap: .7em; border-top: 1px solid #2a2a2e; padding-top: .7em; font-size: .9em; }
+.drv .call { margin-left: auto; background: #1d8a4a; color: #fff; border-radius: 99em; padding: .35em .9em; font-weight: 600; }
+.minimap { margin: 0 1.1em; border-radius: 1.2em; background: #e9ece6; position: relative; overflow: hidden; }
+.minimap svg { width: 100%; height: 100%; display: block; }
+.navbar { margin: .9em 1.1em 1.1em; background: #111; border-radius: 99em; display: grid; grid-template-columns: 1fr 1fr; padding: .35em; font-size: .9em; }
+.navbar span { text-align: center; padding: .55em; border-radius: 99em; color: #aaa; font-weight: 600; }
+.navbar .on { background: var(--bus); color: #1d2129; }
+.toast {
+  position: absolute; left: 1.1em; right: 1.1em; top: .9em; background: #fff; color: #111; border-radius: 1em;
+  padding: .7em .9em; box-shadow: 0 6px 18px rgba(0,0,0,.18); font-size: .88em; display: grid; gap: .15em;
+}
+.toast b { font-family: Overpass, sans-serif; font-weight: 800; }
+.driver-screen { grid-template-rows: auto 1fr auto; }
+.startbtn { margin: 0 1.1em; border-radius: 1.2em; background: var(--bus); color: #1d2129; text-align: center; padding: 1.1em; font-family: Overpass, sans-serif; font-weight: 900; font-size: 1.5em; }
+.stoplist { margin: .9em 1.1em; display: grid; gap: .45em; font-size: .92em; }
+.stoplist div { background: #fff; border-radius: .8em; padding: .6em .8em; display: flex; justify-content: space-between; align-items: center; }
+.stoplist .done { color: #1d8a4a; font-weight: 600; }
+.stoplist .next { outline: 2px solid var(--bus); }
+.issue-row { margin: 0 1.1em; display: flex; flex-wrap: wrap; gap: .4em; }
+.issue-row span { background: #fff; border: 1px solid #ddd; border-radius: 99em; padding: .3em .7em; font-size: .82em; }
+
+/* console mock */
+.console { border: 1px solid var(--rule); border-radius: 1.2cqw; overflow: hidden; display: grid; grid-template-columns: 17cqw 1fr; background: var(--surface-2); box-shadow: var(--shadow); font-size: var(--fs-small); height: 100%; min-height: 0; }
+.side { background: var(--surface); border-right: 1px solid var(--rule); padding: 1.4cqh 1cqw; display: grid; align-content: start; gap: .3cqh; }
+.side .item { padding: .7cqh .8cqw; border-radius: .6cqw; color: var(--ink-2); display: flex; justify-content: space-between; gap: .5cqw; }
+.side .item.on { background: var(--bus-soft); color: var(--ink); font-weight: 600; }
+.side .tag { font-family: "Overpass Mono", monospace; font-size: .8em; color: var(--ink-3); }
+.panel { padding: 1.8cqh 1.6cqw; display: grid; grid-template-rows: auto auto 1fr; gap: 1.4cqh; min-height: 0; }
+.panel .ttl { font-family: Overpass, sans-serif; font-weight: 800; font-size: var(--fs-lead); }
+.kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: .8cqw; }
+.kpi { background: var(--surface); border: 1px solid var(--rule); border-radius: .8cqw; padding: 1cqh .9cqw; }
+.kpi .v { font-family: "Overpass Mono", monospace; font-weight: 700; font-size: 1.9cqw; line-height: 1.1; }
+.kpi .k { color: var(--ink-3); font-size: .85em; }
+.mapbox { background: var(--surface); border: 1px solid var(--rule); border-radius: .8cqw; overflow: hidden; min-height: 0; position: relative; }
+.mapbox svg { position: absolute; inset: 0; }
+.mapbox svg { width: 100%; height: 100%; display: block; }
+
+/* matrix */
+.matrix { border-collapse: collapse; width: 100%; font-size: var(--fs-small); }
+.matrix th, .matrix td { padding: .95cqh .9cqw; border-bottom: 1px solid var(--rule); text-align: left; }
+.matrix thead th { font-family: "Overpass Mono", monospace; font-size: var(--fs-label); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); border-bottom: 2px solid var(--ink); font-weight: 700; }
+.matrix tbody th { font-weight: 600; color: var(--ink); }
+.chip { display: inline-block; border-radius: 99em; padding: .2em .7em; font-size: .88em; font-weight: 600; white-space: nowrap; }
+.c-full { background: var(--bus); color: var(--on-bus); }
+.c-edit { background: var(--bus-soft); color: var(--bus-text); }
+.c-view { background: var(--surface-2); color: var(--ink-2); border: 1px solid var(--rule); }
+.c-none { color: var(--ink-3); }
+
+/* steps */
+.steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, 1fr); gap: 1.4cqw; position: relative; counter-reset: s; }
+.steps::before { content: ""; position: absolute; left: 3cqw; right: 3cqw; top: 2.6cqw; height: .5cqw; background: var(--ink); border-radius: 99em; }
+.steps::after { content: ""; position: absolute; left: 3cqw; right: 3cqw; top: 2.83cqw; border-top: .12cqw dashed var(--surface); }
+.steps li { position: relative; display: grid; gap: 1.2cqh; align-content: start; counter-increment: s; }
+.steps li::before {
+  content: counter(s); width: 5.7cqw; height: 5.7cqw; border-radius: 50%; background: var(--surface);
+  border: .5cqw solid var(--ink); display: grid; place-items: center; font-family: "Overpass Mono", monospace;
+  font-weight: 700; font-size: 2cqw; position: relative; z-index: 1;
+}
+.steps li:last-child::before { background: var(--bus); border-color: var(--bus); color: var(--on-bus); }
+.steps b { font-family: Overpass, sans-serif; font-weight: 800; font-size: var(--fs-body); line-height: 1.2; }
+.steps span { font-size: var(--fs-small); color: var(--ink-2); line-height: 1.38; }
+.who { font-family: "Overpass Mono", monospace; font-size: var(--fs-label); color: var(--ink-3); letter-spacing: .06em; text-transform: uppercase; }
+
+/* scenario columns */
+.scen { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.6cqw; align-items: stretch; }
+.card { background: var(--surface-2); border: 1px solid var(--rule); border-radius: 1cqw; padding: 2cqh 1.5cqw; display: grid; gap: 1.1cqh; align-content: start; }
+.card .flow { display: grid; gap: .8cqh; }
+.card .flow div { font-size: var(--fs-small); color: var(--ink-2); line-height: 1.35; padding-left: 1.4cqw; position: relative; }
+.card .flow div::before { content: ""; position: absolute; left: .1cqw; top: .55em; width: .7cqw; height: .7cqw; border-radius: 50%; background: var(--rule-strong); }
+.card .flow div:last-child::before { background: var(--live); }
+.tagline { font-family: "Overpass Mono", monospace; font-size: var(--fs-label); letter-spacing: .08em; text-transform: uppercase; }
+.t-alert { color: var(--alert); } .t-bus { color: var(--bus-text); } .t-ink { color: var(--ink-3); }
+
+/* closing */
+.closing { grid-template-columns: 1.05fr 1fr; align-items: stretch; gap: 3cqw; }
+.pricebox { background: var(--ink); color: var(--surface); border-radius: 1.2cqw; padding: 3cqh 2.4cqw; display: grid; gap: 1.6cqh; align-content: start; }
+:root[data-theme="dark"] .pricebox { background: var(--surface-2); color: var(--ink); border: 1px solid var(--rule); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .pricebox { background: var(--surface-2); color: var(--ink); border: 1px solid var(--rule); } }
+.pricebox .big { font-family: Overpass, sans-serif; font-weight: 900; font-size: 3.3cqw; line-height: 1; letter-spacing: -.02em; }
+.pricebox .big em { font-style: normal; color: var(--bus); }
+.pricebox ul { margin: 0; padding-left: 1.2em; display: grid; gap: .8cqh; font-size: var(--fs-small); line-height: 1.4; opacity: .9; }
+.contact { display: grid; gap: .5cqh; border-top: 1px solid currentColor; padding-top: 1.6cqh; opacity: .95; }
+.contact .mono { font-size: var(--fs-body); }
+.limits { display: flex; flex-wrap: wrap; gap: .6cqw; }
+.limits span { font-size: var(--fs-label); border: 1px dashed var(--rule-strong); color: var(--ink-3); border-radius: 99em; padding: .3em .8em; }
+
+/* ---------- route progress (one stop per slide) ---------- */
+.route { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 14px; }
+.stops { position: relative; display: flex; justify-content: space-between; align-items: center; height: 34px; padding: 0 6px; }
+.stops::before { content: ""; position: absolute; left: 6px; right: 6px; top: 50%; height: 8px; transform: translateY(-50%); background: var(--ink); border-radius: 99px; }
+.stops::after { content: ""; position: absolute; left: 12px; right: 12px; top: 50%; border-top: 2px dashed var(--ground); transform: translateY(-1px); }
+.stopbtn { position: relative; z-index: 1; width: 18px; height: 18px; border-radius: 50%; border: 3px solid var(--ink); background: var(--surface); padding: 0; cursor: pointer; }
+.stopbtn.visited { background: var(--rule-strong); }
+.stopbtn[aria-current="step"] { width: 26px; height: 26px; background: var(--bus); border-color: var(--bus); box-shadow: 0 0 0 4px var(--ground); }
+.stopbtn:hover { transform: scale(1.12); }
+.stopbtn .tip { position: absolute; bottom: 150%; left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--surface); font-size: 11px; padding: 3px 7px; border-radius: 5px; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity .15s; }
+.stopbtn:hover .tip, .stopbtn:focus-visible .tip { opacity: 1; }
+.navbtn { width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--rule); background: var(--surface); cursor: pointer; display: grid; place-items: center; }
+.navbtn:disabled { opacity: .35; cursor: default; }
+.navbtn svg { width: 18px; height: 18px; }
+
+/* ---------- reading mode: phones, and printing ---------- */
+@media (max-width: 820px) {
+  .app { padding: 12px 16px 28px; grid-template-rows: auto auto; }
+  .route, .tbtn.fs, .hint, .counter { display: none; }
+  .stage { display: grid; gap: 18px; place-items: stretch; }
+  .slide {
+    display: grid !important; width: 100%; aspect-ratio: auto; container-type: inline-size; animation: none !important;
+    padding: 22px 18px; gap: 16px;
+    --fs-hero: clamp(1.9rem, 8.4vw, 2.6rem); --fs-h2: clamp(1.45rem, 6.2vw, 1.9rem);
+    --fs-lead: 1.02rem; --fs-body: .95rem; --fs-small: .86rem; --fs-label: .72rem; --fs-stat: 2.1rem;
+  }
+  .slide-head { max-width: none; }
+  .two, .two-r, .closing, .scen { grid-template-columns: 1fr; }
+  .steps { grid-template-columns: 1fr; gap: 14px; }
+  .steps::before, .steps::after { display: none; }
+  .steps li { grid-template-columns: 38px 1fr; column-gap: 12px; }
+  .steps li::before { width: 34px; height: 34px; border-width: 3px; font-size: .9rem; grid-row: span 3; }
+  .stats { grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+  .feats li { grid-template-columns: 26px 1fr; gap: 10px; }
+  .feats .dot { width: 26px; height: 26px; } .feats .dot svg { width: 14px; height: 14px; }
+  .phone { width: min(260px, 70vw); border-radius: 34px; padding: 9px; }
+  .screen { border-radius: 26px; font-size: 10px; }
+  .console { grid-template-columns: 1fr; height: auto; }
+  .side { display: flex; flex-wrap: wrap; border-right: 0; border-bottom: 1px solid var(--rule); padding: 10px; }
+  .kpis { grid-template-columns: 1fr 1fr; gap: 8px; } .kpi .v { font-size: 1.2rem; }
+  .mapbox { height: 190px; }
+  .matrix-wrap { overflow-x: auto; }
+  .pricebox .big { font-size: 1.8rem; }
+  .pricebox { padding: 20px 18px; border-radius: 12px; }
+  .card { padding: 16px; border-radius: 12px; }
+  .card .flow div { padding-left: 16px; } .card .flow div::before { width: 7px; height: 7px; left: 0; }
+}
+@media print {
+  @page { size: 13.333in 7.5in; margin: 0; }
+  body { background: #fff; }
+  .topbar, .route { display: none; }
+  .app { padding: 0; display: block; }
+  .stage { display: block; }
+  .slide { display: grid !important; width: 13.333in; height: 7.5in; aspect-ratio: auto; border: 0; border-radius: 0; box-shadow: none; page-break-after: always; break-after: page; animation: none !important; }
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header class="topbar">
+    <div class="brand"><img src="data:image/png;base64,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" alt=""><span>Buss<b>zo</b></span></div>
+    <span class="spacer"></span>
+    <span class="hint">← → to move · F for full screen</span>
+    <span class="counter" id="counter" aria-live="polite">1 / 12</span>
+    <button class="tbtn fs" id="fsbtn" type="button" aria-label="Present full screen">
+      <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4"/></svg>
+      Present
+    </button>
+  </header>
+
+  <main class="stage" id="stage">
+
+    <!-- 1 ─────────────────────────────── -->
+    <section class="slide is-current" data-title="Busszo" aria-label="Slide 1: Busszo">
+      <div></div>
+      <div class="slide-body two">
+        <div class="col">
+          <p class="eyebrow">Live college bus tracking</p>
+          <h1>Every college bus, live on every student's phone.</h1>
+          <p class="lead">Busszo connects your transport office, your drivers and your students on one live map — from the moment a trip starts to the last stop.</p>
+          <p class="small mono">Android · iPhone · Web console</p>
+        </div>
+        <figure>
+          <svg viewBox="0 0 540 380" role="img" aria-label="A college bus route with five stops. The bus is between Pallavaram and Guindy, and a student waiting at Guindy has just received the alert: your bus is one stop away.">
+            <path class="d-road" stroke-width="22" d="M40 320 C 140 320, 150 220, 250 220 S 360 110, 470 110 L 500 60"/>
+            <path class="d-dash" stroke-width="2.5" d="M40 320 C 140 320, 150 220, 250 220 S 360 110, 470 110 L 500 60"/>
+            <g>
+              <circle class="d-stop" stroke-width="5" cx="52" cy="320" r="11"/>
+              <circle class="d-stop" stroke-width="5" cx="176" cy="262" r="11"/>
+              <circle class="d-stop" stroke-width="5" cx="300" cy="196" r="11"/>
+              <circle class="d-bus" cx="420" cy="118" r="15"/>
+              <circle class="d-stop" stroke-width="5" cx="494" cy="70" r="11"/>
+            </g>
+            <text class="d-muted" font-size="13" x="52" y="355" text-anchor="middle">Tambaram</text>
+            <text class="d-muted" font-size="13" x="176" y="297" text-anchor="middle">Chromepet</text>
+            <text class="d-muted" font-size="13" x="300" y="232" text-anchor="middle">Pallavaram</text>
+            <text class="d-text" font-size="13" font-weight="600" x="420" y="155" text-anchor="middle">Guindy</text>
+            <text class="d-muted" font-size="13" x="494" y="42" text-anchor="middle">Campus</text>
+            <!-- the bus -->
+            <g transform="translate(330 150) rotate(-24)">
+              <rect class="d-bus" x="-26" y="-14" width="52" height="28" rx="7"/>
+              <rect x="-18" y="-8" width="11" height="9" rx="2" fill="#1d2129"/>
+              <rect x="-4" y="-8" width="11" height="9" rx="2" fill="#1d2129"/>
+              <rect x="10" y="-8" width="11" height="9" rx="2" fill="#1d2129"/>
+            </g>
+            <!-- the alert -->
+            <g transform="translate(250 20)">
+              <rect class="d-box" x="0" y="0" width="210" height="64" rx="12" stroke-width="1.5"/>
+              <rect class="d-bus" x="12" y="14" width="36" height="36" rx="9"/>
+              <text class="d-onbus" font-size="16" x="30" y="38" text-anchor="middle">21</text>
+              <text class="d-head" font-size="14" x="58" y="29">Your bus is one stop away</text>
+              <text class="d-muted" font-size="12" x="58" y="47">Bus 21 · after Pallavaram</text>
+              <path class="d-line" stroke-width="1.5" stroke-dasharray="3 4" d="M170 64 L 214 94"/>
+            </g>
+          </svg>
+          <figcaption>A student waiting at Guindy is told the bus is one stop away — no phone call needed.</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <!-- 2 ─────────────────────────────── -->
+    <section class="slide" data-title="The problem" aria-label="Slide 2: The problem">
+      <div class="slide-head">
+        <p class="eyebrow">The problem today</p>
+        <h2>Every late bus turns into a round of phone calls.</h2>
+      </div>
+      <div class="slide-body two-r">
+        <figure>
+          <svg viewBox="0 0 580 330" role="img" aria-label="Students at three stops each call the transport office asking where the bus is. The office calls the driver, and the driver answers while driving.">
+            <defs>
+              <marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="d-arrow" d="M0 0 L10 5 L0 10 z"/></marker>
+              <marker id="a2r" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="d-arrowa" d="M0 0 L10 5 L0 10 z"/></marker>
+            </defs>
+            <g font-size="12">
+              <rect class="d-soft" x="10" y="20" width="130" height="58" rx="10"/>
+              <text class="d-head" font-size="14" x="75" y="46" text-anchor="middle">Students</text>
+              <text class="d-muted" x="75" y="64" text-anchor="middle">Tambaram stop</text>
+              <rect class="d-soft" x="10" y="136" width="130" height="58" rx="10"/>
+              <text class="d-head" font-size="14" x="75" y="162" text-anchor="middle">Students</text>
+              <text class="d-muted" x="75" y="180" text-anchor="middle">Chromepet stop</text>
+              <rect class="d-soft" x="10" y="252" width="130" height="58" rx="10"/>
+              <text class="d-head" font-size="14" x="75" y="278" text-anchor="middle">Students</text>
+              <text class="d-muted" x="75" y="296" text-anchor="middle">Guindy stop</text>
+            </g>
+            <rect class="d-box" stroke-width="2" x="226" y="120" width="140" height="90" rx="12"/>
+            <text class="d-head" font-size="15" x="296" y="158" text-anchor="middle">Transport</text>
+            <text class="d-head" font-size="15" x="296" y="177" text-anchor="middle">office</text>
+            <text class="d-muted" font-size="11.5" x="296" y="232" text-anchor="middle">lines busy all morning</text>
+
+            <path class="d-line" stroke-width="1.8" marker-end="url(#a2)" d="M142 52 C 190 60, 205 110, 226 138"/>
+            <path class="d-line" stroke-width="1.8" marker-end="url(#a2)" d="M142 165 L 224 165"/>
+            <path class="d-line" stroke-width="1.8" marker-end="url(#a2)" d="M142 280 C 190 272, 205 222, 226 192"/>
+            <text class="d-mono" font-size="11" x="150" y="100">"Where is</text>
+            <text class="d-mono" font-size="11" x="150" y="114">the bus?"</text>
+
+            <rect class="d-bus" x="450" y="130" width="116" height="70" rx="12"/>
+            <text class="d-onbus" font-size="15" x="508" y="162" text-anchor="middle">Driver</text>
+            <text class="d-onbus" font-size="11.5" font-weight="600" x="508" y="180" text-anchor="middle">on the road</text>
+            <path class="d-line" stroke-width="1.8" marker-end="url(#a2)" d="M368 148 L 448 148"/>
+            <text class="d-mono" font-size="11" x="408" y="138" text-anchor="middle">calls</text>
+            <path class="d-alertline" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#a2r)" d="M448 184 L 370 184"/>
+            <text class="d-alert" font-family="Overpass Mono, monospace" font-size="11" x="409" y="204" text-anchor="middle">answers while</text>
+            <text class="d-alert" font-family="Overpass Mono, monospace" font-size="11" x="409" y="218" text-anchor="middle">driving</text>
+          </svg>
+          <figcaption>One delayed bus: dozens of calls into one office, and a driver taking calls at the wheel.</figcaption>
+        </figure>
+        <ul class="feats">
+          <li><i class="dot"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="8" r="6"/><path d="M8 5v3l2 1.5"/></svg></i><div><b>Students wait without knowing</b><span>Is the bus late, already gone, or not coming? From a stop, there's no way to tell.</span></div></li>
+          <li><i class="dot"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h3l1 3-2 1a8 8 0 0 0 4 4l1-2 3 1v3a1 1 0 0 1-1 1A11 11 0 0 1 2 4a1 1 0 0 1 1-1z"/></svg></i><div><b>The office becomes a call centre</b><span>Transport staff spend the morning answering the same question.</span></div></li>
+          <li><i class="dot"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 2 14 13H2z"/><path d="M8 6v3M8 11v.5"/></svg></i><div><b>Drivers get distracted</b><span>The only person who knows where the bus is, is the one driving it.</span></div></li>
+          <li><i class="dot"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 2h6l3 3v9H4z"/><path d="M6 8h5M6 11h3"/></svg></i><div><b>Nothing is on record</b><span>Breakdowns and delays get handled by phone and forgotten.</span></div></li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- 3 ─────────────────────────────── -->
+    <section class="slide" data-title="One live view" aria-label="Slide 3: One live view">
+      <div class="slide-head">
+        <p class="eyebrow">What Busszo is</p>
+        <h2>One live view, shared by everyone who moves your students.</h2>
+      </div>
+      <div class="slide-body two">
+        <figure>
+          <svg viewBox="0 0 560 350" role="img" aria-label="The driver's app sends the bus location to Busszo. Busszo shows the bus and sends alerts to the student app, and gives the transport office a live map. The office sets up routes and people in Busszo.">
+            <defs>
+              <marker id="a3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="d-arrow" d="M0 0 L10 5 L0 10 z"/></marker>
+            </defs>
+            <rect class="d-soft" x="10" y="40" width="150" height="86" rx="12"/>
+            <text class="d-head" font-size="15" x="85" y="76" text-anchor="middle">Driver app</text>
+            <text class="d-muted" font-size="12" x="85" y="96" text-anchor="middle">on the driver's phone</text>
+
+            <rect class="d-soft" x="400" y="40" width="150" height="86" rx="12"/>
+            <text class="d-head" font-size="15" x="475" y="76" text-anchor="middle">Student app</text>
+            <text class="d-muted" font-size="12" x="475" y="96" text-anchor="middle">Android &amp; iPhone</text>
+
+            <rect class="d-bus" x="205" y="30" width="150" height="106" rx="16"/>
+            <text class="d-onbus" font-size="22" x="280" y="80" text-anchor="middle">Busszo</text>
+            <text class="d-onbus" font-size="11.5" font-weight="600" x="280" y="102" text-anchor="middle">keeps every bus live</text>
+
+            <path class="d-line" stroke-width="2" marker-end="url(#a3)" d="M162 70 L 203 70"/>
+            <text class="d-mono" font-size="11" x="182" y="60" text-anchor="middle">location</text>
+            <path class="d-line" stroke-width="2" marker-end="url(#a3)" d="M357 70 L 398 70"/>
+            <text class="d-mono" font-size="11" x="378" y="60" text-anchor="middle">bus + alerts</text>
+
+            <rect class="d-box" stroke-width="2" x="165" y="236" width="230" height="96" rx="12"/>
+            <text class="d-head" font-size="15" x="280" y="274" text-anchor="middle">Transport office</text>
+            <text class="d-muted" font-size="12" x="280" y="294" text-anchor="middle">web console · any browser</text>
+            <text class="d-muted" font-size="12" x="280" y="312" text-anchor="middle">you and the staff you invite</text>
+
+            <path class="d-line" stroke-width="2" marker-end="url(#a3)" d="M256 234 L 256 138"/>
+            <text class="d-mono" font-size="11" x="248" y="190" text-anchor="end">buses, routes,</text>
+            <text class="d-mono" font-size="11" x="248" y="204" text-anchor="end">people, messages</text>
+            <path class="d-line" stroke-width="2" marker-end="url(#a3)" d="M304 138 L 304 234"/>
+            <text class="d-mono" font-size="11" x="312" y="190">live map,</text>
+            <text class="d-mono" font-size="11" x="312" y="204">issues, reports</text>
+          </svg>
+          <figcaption>Drivers share, students see, the office sets it up and watches it all run.</figcaption>
+        </figure>
+        <ul class="feats">
+          <li><i class="dot"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="12" height="9" rx="1.5"/><path d="M6 14h4"/></svg></i><div><b>Transport admin</b><span>Sets up buses, routes and people, and watches every bus live from the web console.</span></div></li>
+          <li><i class="dot"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="2.5"/><circle cx="11.5" cy="7" r="2"/><path d="M1.5 14c.5-3 2.3-4.5 4.5-4.5s4 1.5 4.5 4.5M10 10.5c2 0 3.8 1 4.3 3.5"/></svg></i><div><b>Your staff</b><span>Dispatchers and office staff, each given only the parts of the console they need.</span></div></li>
+          <li><i class="dot"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="12" height="8" rx="2"/><circle cx="5" cy="12.5" r="1.3"/><circle cx="11" cy="12.5" r="1.3"/></svg></i><div><b>Drivers</b><span>Start the trip with one tap; the app shares the bus location until they end it.</span></div></li>
+          <li><i class="dot"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 14s5-4.5 5-8.5A5 5 0 0 0 3 5.5C3 9.5 8 14 8 14z"/><circle cx="8" cy="5.5" r="1.8"/></svg></i><div><b>Students</b><span>See their own bus on the map and get alerts as it gets close.</span></div></li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- 4 ─────────────────────────────── -->
+    <section class="slide" data-title="Live tracking" aria-label="Slide 4: How live tracking works">
+      <div class="slide-head">
+        <p class="eyebrow">How live tracking works</p>
+        <h2>The driver's phone is the tracker. No hardware to fit on the bus.</h2>
+      </div>
+      <div class="slide-body" style="grid-template-rows: 1fr auto; gap: 3.2cqh;">
+        <figure>
+          <svg viewBox="0 0 980 240" role="img" aria-label="The driver's phone sends the bus position to the Busszo server every 5 seconds or every 10 metres during a trip. The server passes the latest position to the student app, which refreshes every 5 seconds, and to the live map in the transport office console.">
+            <defs>
+              <marker id="a4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path class="d-arrow" d="M0 0 L10 5 L0 10 z"/></marker>
+            </defs>
+            <rect class="d-soft" x="10" y="70" width="200" height="100" rx="14"/>
+            <text class="d-head" font-size="17" x="110" y="110" text-anchor="middle">Driver's phone</text>
+            <text class="d-muted" font-size="13" x="110" y="132" text-anchor="middle">GPS, during the trip</text>
+
+            <path class="d-line" stroke-width="2.4" marker-end="url(#a4)" d="M214 120 L 386 120"/>
+            <text class="d-mono" font-size="13" x="300" y="104" text-anchor="middle">position, every</text>
+            <text class="d-mono" font-size="13" x="300" y="146" text-anchor="middle">5 s or 10 m</text>
+
+            <rect class="d-bus" x="390" y="60" width="200" height="120" rx="16"/>
+            <text class="d-onbus" font-size="20" x="490" y="112" text-anchor="middle">Busszo</text>
+            <text class="d-onbus" font-size="13" font-weight="600" x="490" y="134" text-anchor="middle">server</text>
+
+            <path class="d-line" stroke-width="2.4" marker-end="url(#a4)" d="M594 96 C 650 96, 680 50, 756 50"/>
+            <text class="d-mono" font-size="13" x="672" y="46" text-anchor="middle">latest position</text>
+            <path class="d-line" stroke-width="2.4" marker-end="url(#a4)" d="M594 144 C 650 144, 680 190, 756 190"/>
+            <text class="d-mono" font-size="13" x="672" y="214" text-anchor="middle">live map</text>
+
+            <rect class="d-box" stroke-width="2" x="760" y="10" width="210" height="84" rx="14"/>
+            <text class="d-head" font-size="17" x="865" y="46" text-anchor="middle">Student app</text>
+            <text class="d-muted" font-size="13" x="865" y="68" text-anchor="middle">map refreshes every 5 s</text>
+
+            <rect class="d-box" stroke-width="2" x="760" y="148" width="210" height="84" rx="14"/>
+            <text class="d-head" font-size="17" x="865" y="184" text-anchor="middle">Transport office</text>
+            <text class="d-muted" font-size="13" x="865" y="206" text-anchor="middle">every bus on one map</text>
+          </svg>
+        </figure>
+        <div class="stats">
+          <div class="stat"><div class="n">5<small>sec</small></div><div class="l">How often the student's map moves the bus.</div></div>
+          <div class="stat"><div class="n">10<small>m</small></div><div class="l">A moving bus reports again after this much road, even inside 5 seconds.</div></div>
+          <div class="stat"><div class="n">5<small>km</small></div><div class="l">"Buses near me" — any running bus of your college within this distance.</div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5 ─────────────────────────────── -->
+    <section class="slide" data-title="A trip" aria-label="Slide 5: A trip, stop by stop">
+      <div class="slide-head">
+        <p class="eyebrow">A trip, stop by stop</p>
+        <h2>Students hear from the bus at the moments that matter.</h2>
+      </div>
+      <div class="slide-body" style="align-content: center;">
+        <figure>
+          <svg viewBox="0 0 1000 330" role="img" aria-label="A trip in five moments. The driver taps start and students get 'Bus has started'. The bus moves live on the map. When the driver marks the stop before a student's stop, that student gets 'Your bus is one stop away'. When the driver marks the stop, the student gets 'Your bus has arrived'. When the driver ends the trip, students get 'Bus has stopped' and location sharing ends.">
+            <path class="d-road" stroke-width="24" d="M60 200 L 940 200"/>
+            <path class="d-dash" stroke-width="2.5" d="M60 200 L 940 200"/>
+            <!-- stops -->
+            <g>
+              <circle class="d-stop" stroke-width="5" cx="80"  cy="200" r="13"/>
+              <circle class="d-stop" stroke-width="5" cx="300" cy="200" r="13"/>
+              <circle class="d-stop" stroke-width="5" cx="520" cy="200" r="13"/>
+              <circle class="d-bus"  cx="740" cy="200" r="17"/>
+              <circle class="d-stop" stroke-width="5" cx="920" cy="200" r="13"/>
+            </g>
+            <text class="d-muted" font-size="14" x="80"  y="244" text-anchor="middle">Depot</text>
+            <text class="d-muted" font-size="14" x="300" y="244" text-anchor="middle">Chromepet</text>
+            <text class="d-muted" font-size="14" x="520" y="244" text-anchor="middle">Pallavaram</text>
+            <text class="d-text"  font-size="14" font-weight="600" x="740" y="244" text-anchor="middle">Guindy · Ananya's stop</text>
+            <text class="d-muted" font-size="14" x="920" y="244" text-anchor="middle">Campus</text>
+
+            <!-- bus between Chromepet and Pallavaram -->
+            <g transform="translate(630 200)">
+              <rect class="d-bus" x="-30" y="-17" width="60" height="34" rx="8"/>
+              <rect x="-21" y="-9" width="12" height="10" rx="2" fill="#1d2129"/>
+              <rect x="-5" y="-9" width="12" height="10" rx="2" fill="#1d2129"/>
+              <rect x="11" y="-9" width="12" height="10" rx="2" fill="#1d2129"/>
+            </g>
+
+            <!-- moments -->
+            <g font-size="13">
+              <line class="d-line" stroke-width="1.5" x1="80" y1="175" x2="80" y2="120"/>
+              <rect class="d-box" x="10" y="40" width="190" height="80" rx="10" stroke-width="1.5"/>
+              <text class="d-mono" font-size="12" x="24" y="64">1 · driver taps Start</text>
+              <text class="d-head" font-size="15" x="24" y="88">"Bus has started"</text>
+              <text class="d-muted" x="24" y="107">to every student on the bus</text>
+
+              <line class="d-line" stroke-width="1.5" x1="300" y1="175" x2="300" y2="120"/>
+              <rect class="d-soft" x="220" y="40" width="170" height="80" rx="10"/>
+              <text class="d-mono" font-size="12" x="234" y="64">2 · on the move</text>
+              <text class="d-head" font-size="15" x="234" y="88">Live on the map</text>
+              <text class="d-muted" x="234" y="107">updates every 5 seconds</text>
+
+              <line class="d-line" stroke-width="1.5" x1="520" y1="175" x2="520" y2="120"/>
+              <rect class="d-box" x="408" y="40" width="252" height="80" rx="10" stroke-width="1.5"/>
+              <text class="d-mono" font-size="12" x="422" y="64">3 · Pallavaram marked reached</text>
+              <text class="d-head" font-size="15" x="422" y="88">"Your bus is one stop away"</text>
+              <text class="d-muted" x="422" y="107">to Guindy students only</text>
+
+              <line class="d-line" stroke-width="1.5" x1="740" y1="222" x2="740" y2="268"/>
+              <rect class="d-box" x="620" y="268" width="240" height="56" rx="10" stroke-width="1.5"/>
+              <text class="d-mono" font-size="12" x="634" y="289">4 · driver marks the stop</text>
+              <text class="d-head" font-size="15" x="634" y="312">"Your bus has arrived"</text>
+
+              <line class="d-line" stroke-width="1.5" x1="920" y1="175" x2="920" y2="120"/>
+              <rect class="d-box" x="700" y="40" width="250" height="80" rx="10" stroke-width="1.5"/>
+              <text class="d-mono" font-size="12" x="714" y="64">5 · driver ends the trip</text>
+              <text class="d-head" font-size="15" x="714" y="88">"Bus has stopped"</text>
+              <text class="d-muted" x="714" y="107">location sharing ends</text>
+            </g>
+          </svg>
+          <figcaption>Each student is alerted about their own stop, not every stop. A "Bus arriving soon" alert also fires on its own when the bus comes within 300 m of the stop before theirs. Busszo shows where the bus is; it doesn't guess arrival times.</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <!-- 6 ─────────────────────────────── -->
+    <section class="slide" data-title="For students" aria-label="Slide 6: For students">
+      <div class="slide-head">
+        <p class="eyebrow">For students</p>
+        <h2>Leave home when the bus is close, not when you guess it is.</h2>
+      </div>
+      <div class="slide-body two-r" style="grid-template-columns: 1fr auto;">
+        <ul class="feats">
+          <li><i class="dot"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 14s5-4.5 5-8.5A5 5 0 0 0 3 5.5C3 9.5 8 14 8 14z"/><circle cx="8" cy="5.5" r="1.8"/></svg></i><div><b>Their own bus, live on the map</b><span>Bus number, plate, route and stops — and where it is right now.</span></div></li>
+          <li><i class="dot"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="5.5" r="2.8"/><path d="M2.5 14c.7-3 2.8-4.5 5.5-4.5s4.8 1.5 5.5 4.5"/></svg></i><div><b>Know the driver</b><span>Name and photo, with a one-tap call button when it's really needed.</span></div></li>
+          <li><i class="dot"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 11V7a4 4 0 0 1 8 0v4l1.5 1.5h-11z"/><path d="M6.5 14h3"/></svg></i><div><b>Alerts that fit their stop</b><span>Trip started, arriving soon, one stop away, arrived — plus breakdown and delay notices.</span></div></li>
+          <li><i class="dot"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="8" r="6"/><path d="M4 12 12 4"/></svg></i><div><b>Stop closed today?</b><span>The app tells them, and points them to the nearest open stop on the route.</span></div></li>
+          <li><i class="dot"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 14 14"/></svg></i><div><b>Missed it? Find another</b><span>See other buses running now, or every bus within 5 km.</span></div></li>
+          <li><i class="dot"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.5 3.5h11v7h-6l-3 2.5v-2.5h-2z"/></svg></i><div><b>Help &amp; support built in</b><span>Report an app problem with a screenshot, and read the reply in the app.</span></div></li>
+        </ul>
+        <div class="phone" role="img" aria-label="Example of the student home screen: Bus 21 is online, with the driver's name and a call button, a map, and an alert that the bus is one stop away.">
+          <div class="screen">
+            <div class="scr-top"><div class="avatar">A</div><div><div class="t">Hi, Ananya</div><div class="s">Roll · 22CS1041</div></div></div>
+            <div class="buscard">
+              <div class="row"><div><div class="num">Bus 21</div><div class="plate">TN 22 AB 1406</div></div><span class="pill-live">● Online</span></div>
+              <div class="drv"><span>Driver · Ravi Kumar</span><span class="call">Call</span></div>
+            </div>
+            <div class="minimap">
+              <svg viewBox="0 0 200 150" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+                <rect width="200" height="150" fill="#e9ece6"/>
+                <path d="M-10 40 L 210 70 M60 -10 L 90 160 M-10 120 L 210 100" stroke="#fff" stroke-width="9"/>
+                <path d="M20 130 C 60 110, 80 80, 110 70 S 160 30, 190 20" stroke="#1d2129" stroke-width="3" fill="none" stroke-dasharray="1 5" stroke-linecap="round"/>
+                <circle cx="110" cy="70" r="11" fill="#fdc802" stroke="#fff" stroke-width="3"/>
+                <circle cx="160" cy="36" r="6" fill="#fff" stroke="#1d2129" stroke-width="3"/>
+              </svg>
+              <div class="toast"><b>Your bus is one stop away</b><span>Bus 21 · reaching Guindy next</span></div>
+            </div>
+            <div class="navbar"><span class="on">Home</span><span>Profile</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 7 ─────────────────────────────── -->
+    <section class="slide" data-title="For drivers" aria-label="Slide 7: For drivers">
+      <div class="slide-head">
+        <p class="eyebrow">For drivers</p>
+        <h2>Two taps a trip. Problems reported once, heard by everyone.</h2>
+      </div>
+      <div class="slide-body" style="grid-template-columns: auto 1fr; align-items: center; gap: 3.4cqw;">
+        <div class="phone" role="img" aria-label="Example of the driver screen: a large Start trip button, the stops on the route with one marked as reached, and buttons to report an issue.">
+          <div class="screen driver-screen">
+            <div class="scr-top"><div class="avatar">R</div><div><div class="t">Hi, Ravi</div><div class="s">Bus 21 · Tambaram route</div></div></div>
+            <div style="display:grid; align-content:start; gap:.2em; padding-top:.9em;">
+              <div class="startbtn">End trip</div>
+              <div class="stoplist">
+                <div><span>Chromepet</span><span class="done">✓ reached</span></div>
+                <div class="next"><span>Pallavaram</span><span>Mark reached</span></div>
+                <div><span>Guindy</span><span style="color:#999">next</span></div>
+              </div>
+              <div class="issue-row"><span>Breakdown</span><span>Traffic delay</span><span>Refuelling</span><span>Mechanical</span><span>Weather</span></div>
+            </div>
+            <div class="navbar"><span class="on">Home</span><span>Profile</span></div>
+          </div>
+        </div>
+        <div class="col" style="gap: 3cqh;">
+          <figure>
+            <svg viewBox="0 0 640 230" role="img" aria-label="When the driver reports a breakdown, Busszo alerts the students on that bus and alerts the transport office with the driver's name. When the driver clears it, students are told the bus is back on the road.">
+              <defs>
+                <marker id="a7" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="d-arrow" d="M0 0 L10 5 L0 10 z"/></marker>
+              </defs>
+              <rect class="d-soft" x="4" y="70" width="150" height="86" rx="12"/>
+              <text class="d-head" font-size="15" x="79" y="104" text-anchor="middle">Driver taps</text>
+              <text class="d-alert" font-family="Overpass, sans-serif" font-weight="800" font-size="16" x="79" y="130" text-anchor="middle">Breakdown</text>
+
+              <path class="d-line" stroke-width="2" marker-end="url(#a7)" d="M156 113 L 224 113"/>
+              <rect class="d-bus" x="228" y="78" width="120" height="70" rx="14"/>
+              <text class="d-onbus" font-size="17" x="288" y="119" text-anchor="middle">Busszo</text>
+
+              <path class="d-line" stroke-width="2" marker-end="url(#a7)" d="M350 100 C 390 100, 400 50, 428 50"/>
+              <path class="d-line" stroke-width="2" marker-end="url(#a7)" d="M350 126 C 390 126, 400 176, 428 176"/>
+
+              <rect class="d-box" stroke-width="1.5" x="432" y="14" width="204" height="72" rx="10"/>
+              <text class="d-mono" font-size="11" x="446" y="36">every student on bus 21</text>
+              <text class="d-head" font-size="14" x="446" y="60">"Bus 21: breakdown"</text>
+              <text class="d-muted" font-size="11.5" x="446" y="77">expect a delay</text>
+
+              <rect class="d-box" stroke-width="1.5" x="432" y="140" width="204" height="72" rx="10"/>
+              <text class="d-mono" font-size="11" x="446" y="162">transport office</text>
+              <text class="d-head" font-size="14" x="446" y="186">"Breakdown on bus 21"</text>
+              <text class="d-muted" font-size="11.5" x="446" y="203">reported by Ravi Kumar</text>
+            </svg>
+            <figcaption>When the problem is sorted, the driver clears it and students hear "Bus 21 is back on the road".</figcaption>
+          </figure>
+          <ul class="feats" style="grid-template-columns: 1fr 1fr; column-gap: 2cqw;">
+            <li><i class="dot"><svg viewBox="0 0 16 16" fill="currentColor"><path d="M5 3l8 5-8 5z"/></svg></i><div><b>One tap to start and end</b><span>Location is shared only while a trip is on.</span></div></li>
+            <li><i class="dot"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 8.5 6.5 12 13 4.5"/></svg></i><div><b>Mark each stop reached</b><span>Students at that stop are told the bus has arrived.</span></div></li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 8 ─────────────────────────────── -->
+    <section class="slide" data-title="Transport office" aria-label="Slide 8: For the transport office">
+      <div class="slide-head">
+        <p class="eyebrow">For the transport office</p>
+        <h2>The whole fleet, set up and watched from one browser tab.</h2>
+      </div>
+      <div class="slide-body" style="grid-template-columns: 1.35fr 1fr; align-items: stretch;">
+        <div class="console" role="img" aria-label="Example of the web console: a sidebar of modules and a dashboard with fleet counts and a live map of buses.">
+          <div class="side">
+            <div class="item on">Dashboard</div>
+            <div class="item">Buses <span class="tag">42</span></div>
+            <div class="item">Routes &amp; stops</div>
+            <div class="item">Drivers <span class="tag">44</span></div>
+            <div class="item">Students <span class="tag">1,860</span></div>
+            <div class="item">Assignments</div>
+            <div class="item">Live tracking</div>
+            <div class="item">Send notification</div>
+            <div class="item">Roles &amp; access</div>
+          </div>
+          <div class="panel">
+            <div class="ttl">Good morning · 7:42 am</div>
+            <div class="kpis">
+              <div class="kpi"><div class="v">38</div><div class="k">on a trip</div></div>
+              <div class="kpi"><div class="v">4</div><div class="k">not started</div></div>
+              <div class="kpi"><div class="v" style="color:var(--alert)">1</div><div class="k">issue open</div></div>
+              <div class="kpi"><div class="v">1,860</div><div class="k">students</div></div>
+            </div>
+            <div class="mapbox">
+              <svg viewBox="0 0 400 190" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+                <rect class="d-soft" width="400" height="190"/>
+                <path class="d-ground" d="M-10 60 L 410 90 L 410 104 L -10 74 z M110 -10 L 140 200 L 126 200 L 96 -10 z M-10 150 L 410 128 L 410 140 L -10 162 z M280 -10 L 300 200 L 288 200 L 268 -10 z"/>
+                <g>
+                  <circle class="d-bus" cx="70" cy="68" r="7"/><circle class="d-bus" cx="118" cy="40" r="7"/>
+                  <circle class="d-bus" cx="200" cy="82" r="7"/><circle class="d-bus" cx="286" cy="60" r="7"/>
+                  <circle class="d-bus" cx="340" cy="96" r="7"/><circle class="d-bus" cx="170" cy="148" r="7"/>
+                  <circle class="d-bus" cx="250" cy="140" r="7"/><circle class="d-bus" cx="60" cy="150" r="7"/>
+                  <circle class="d-alert" cx="132" cy="112" r="8"/>
+                </g>
+              </svg>
+            </div>
+          </div>
+        </div>
+        <ul class="feats" style="align-content: center;">
+          <li><i class="dot"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12c2-6 8-2 10-8"/><circle cx="3" cy="12" r="1.5"/><circle cx="13" cy="4" r="1.5"/></svg></i><div><b>Buses, routes and stops</b><span>Place each stop on the map, set the order, done.</span></div></li>
+          <li><i class="dot"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><rect x="2.5" y="2.5" width="11" height="11" rx="1.5"/><path d="M2.5 6.5h11M6.5 2.5v11"/></svg></i><div><b>Import from a spreadsheet</b><span>Add hundreds of students, drivers or buses at once, then assign them in bulk.</span></div></li>
+          <li><i class="dot"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 5h9l-2.5-2.5M13 11H4l2.5 2.5"/></svg></i><div><b>Switch drivers and students</b><span>Cover a driver on leave or rebalance a full bus in a few clicks.</span></div></li>
+          <li><i class="dot"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 11V7a4 4 0 0 1 8 0v4l1.5 1.5h-11z"/></svg></i><div><b>Send a notification</b><span>To students, drivers or both — a holiday, a route change, a late start.</span></div></li>
+          <li><i class="dot"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 2h6l3 3v9H4z"/><path d="M6.5 9.5 8 11l2.5-3"/></svg></i><div><b>Reports in Excel or PDF</b><span>Export your lists whenever management asks for them.</span></div></li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- 9 ─────────────────────────────── -->
+    <section class="slide" data-title="When plans change" aria-label="Slide 9: When plans change">
+      <div class="slide-head">
+        <p class="eyebrow">When plans change</p>
+        <h2>Closed roads, breakdowns and absent drivers — handled in the app.</h2>
+      </div>
+      <div class="slide-body" style="grid-template-rows: auto 1fr; gap: 2.6cqh;">
+        <figure>
+          <svg viewBox="0 0 980 140" role="img" aria-label="A route with four stops. Pallavaram is closed today. A student whose stop is Pallavaram is pointed to Chromepet, the nearest open stop.">
+            <defs>
+              <marker id="a9" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path class="d-arrowb" d="M0 0 L10 5 L0 10 z"/></marker>
+            </defs>
+            <path class="d-road" stroke-width="20" d="M60 90 L 920 90"/>
+            <path class="d-dash" stroke-width="2.5" d="M60 90 L 920 90"/>
+            <circle class="d-stop" stroke-width="5" cx="120" cy="90" r="12"/>
+            <circle class="d-stop" stroke-width="5" cx="380" cy="90" r="12"/>
+            <circle class="d-ground" cx="620" cy="90" r="15"/>
+            <circle fill="none" class="d-alertline" stroke-width="5" cx="620" cy="90" r="13"/>
+            <path class="d-alertline" stroke-width="4" d="M611 81 L 629 99 M629 81 L 611 99"/>
+            <circle class="d-stop" stroke-width="5" cx="860" cy="90" r="12"/>
+            <text class="d-muted" font-size="14" x="120" y="130" text-anchor="middle">Tambaram</text>
+            <text class="d-text" font-size="14" font-weight="600" x="380" y="130" text-anchor="middle">Chromepet · open</text>
+            <text class="d-alert" font-family="Instrument Sans, sans-serif" font-weight="600" font-size="14" x="620" y="130" text-anchor="middle">Pallavaram · closed today</text>
+            <text class="d-muted" font-size="14" x="860" y="130" text-anchor="middle">Guindy</text>
+            <path class="d-busline" stroke-width="3" marker-end="url(#a9)" d="M605 60 C 540 18, 440 18, 392 60"/>
+            <text class="d-mono" font-size="13" x="500" y="20" text-anchor="middle">nearest open stop · 1.2 km</text>
+          </svg>
+        </figure>
+        <div class="scen">
+          <div class="card">
+            <p class="tagline t-alert">Road closed</p>
+            <h3>Suspend a stop for the day</h3>
+            <div class="flow">
+              <div>The office marks the stop closed — or names a temporary one.</div>
+              <div>Students at that stop see it in their app, with the nearest open stop.</div>
+              <div>Reopen it later; everyone's stop assignment is still there.</div>
+            </div>
+          </div>
+          <div class="card">
+            <p class="tagline t-bus">Bus in trouble</p>
+            <h3>Breakdown, traffic, weather</h3>
+            <div class="flow">
+              <div>The driver reports it from the app in one tap.</div>
+              <div>Students on that bus and the office are alerted at once.</div>
+              <div>Cleared: students hear the bus is back on the road.</div>
+            </div>
+          </div>
+          <div class="card">
+            <p class="tagline t-ink">Driver or seat change</p>
+            <h3>Switch drivers and students</h3>
+            <div class="flow">
+              <div>Move a driver to another bus, or students between buses.</div>
+              <div>The bus keeps its route and its stops.</div>
+              <div>Moved students are notified: "Assigned to bus 14".</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 10 ─────────────────────────────── -->
+    <section class="slide" data-title="Roles & access" aria-label="Slide 10: Roles and access">
+      <div class="slide-head">
+        <p class="eyebrow">Your team, your rules</p>
+        <h2>Give each staff member exactly the part of the console they need.</h2>
+      </div>
+      <div class="slide-body two" style="grid-template-columns: 1.4fr 1fr; align-items: center;">
+        <div class="matrix-wrap">
+          <table class="matrix">
+            <caption class="small" style="caption-side: bottom; text-align: left; padding-top: 1.2cqh;">Dispatcher and Front desk are example roles — you name your own and choose their access.</caption>
+            <thead><tr><th scope="col">Console section</th><th scope="col">Owner</th><th scope="col">Dispatcher</th><th scope="col">Front desk</th></tr></thead>
+            <tbody>
+              <tr><th scope="row">Dashboard</th><td><span class="chip c-full">Full</span></td><td><span class="chip c-view">View</span></td><td><span class="chip c-view">View</span></td></tr>
+              <tr><th scope="row">Buses</th><td><span class="chip c-full">Full</span></td><td><span class="chip c-view">View</span></td><td><span class="chip c-none">—</span></td></tr>
+              <tr><th scope="row">Routes &amp; stops</th><td><span class="chip c-full">Full</span></td><td><span class="chip c-edit">Edit</span></td><td><span class="chip c-none">—</span></td></tr>
+              <tr><th scope="row">Drivers</th><td><span class="chip c-full">Full</span></td><td><span class="chip c-view">View</span></td><td><span class="chip c-none">—</span></td></tr>
+              <tr><th scope="row">Students</th><td><span class="chip c-full">Full</span></td><td><span class="chip c-view">View</span></td><td><span class="chip c-edit">Edit</span></td></tr>
+              <tr><th scope="row">Assignments</th><td><span class="chip c-full">Full</span></td><td><span class="chip c-edit">Edit</span></td><td><span class="chip c-view">View</span></td></tr>
+              <tr><th scope="row">Live tracking</th><td><span class="chip c-full">Full</span></td><td><span class="chip c-view">View</span></td><td><span class="chip c-view">View</span></td></tr>
+              <tr><th scope="row">Send notification</th><td><span class="chip c-full">Full</span></td><td><span class="chip c-edit">Send</span></td><td><span class="chip c-none">—</span></td></tr>
+              <tr><th scope="row">Roles &amp; access</th><td><span class="chip c-full">Full</span></td><td><span class="chip c-none">—</span></td><td><span class="chip c-none">—</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <ul class="feats">
+          <li><i class="dot"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="7" width="10" height="7" rx="1.5"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/></svg></i><div><b>Nine sections, four kinds of access</b><span>View, add, edit and delete — set per section, per role.</span></div></li>
+          <li><i class="dot"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><rect x="4.5" y="1.5" width="7" height="13" rx="1.5"/><path d="M7 12h2"/></svg></i><div><b>Sign in with a mobile number</b><span>Staff get a one-time code. No passwords to share or forget.</span></div></li>
+          <li><i class="dot"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="8" r="6"/><path d="M8 4.5V8"/></svg></i><div><b>Add staff by mobile number</b><span>Invite a colleague, pick their role, and change it any time.</span></div></li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- 11 ─────────────────────────────── -->
+    <section class="slide" data-title="Getting started" aria-label="Slide 11: Getting started">
+      <div class="slide-head">
+        <p class="eyebrow">Getting started</p>
+        <h2>From sign-up to buses on the map in five steps.</h2>
+      </div>
+      <div class="slide-body" style="align-content: center; gap: 4cqh;">
+        <ol class="steps">
+          <li><span class="who">Your office</span><b>Register your college</b><span>Create the account; we verify it before it goes live.</span></li>
+          <li><span class="who">Your office</span><b>Add buses and routes</b><span>Bus numbers, capacity, and each route's stops on the map.</span></li>
+          <li><span class="who">Your office</span><b>Import drivers and students</b><span>Upload your existing lists from a spreadsheet.</span></li>
+          <li><span class="who">Your office</span><b>Assign them to buses</b><span>A driver per bus, and each student to a bus and a stop.</span></li>
+          <li><span class="who">Drivers &amp; students</span><b>Install and sign in</b><span>Mobile number and a one-time code. The next trip is live.</span></li>
+        </ol>
+        <p class="lead" style="max-width: 70ch;">No devices to buy and nothing to fit on the buses: drivers and students use the phones they already carry, and the office uses any browser.</p>
+      </div>
+    </section>
+
+    <!-- 12 ─────────────────────────────── -->
+    <section class="slide" data-title="Trust & pricing" aria-label="Slide 12: Trust, pricing and next steps">
+      <div class="slide-head">
+        <p class="eyebrow">Trust, pricing and next steps</p>
+        <h2>Built to be trusted with your students' journeys.</h2>
+      </div>
+      <div class="slide-body closing">
+        <div class="col" style="align-content: start; gap: 2.4cqh;">
+          <ul class="feats">
+            <li><i class="dot"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 14s5-4.5 5-8.5A5 5 0 0 0 3 5.5C3 9.5 8 14 8 14z"/></svg></i><div><b>Location only during a trip</b><span>A driver's position is shared from Start to End — never outside a trip.</span></div></li>
+            <li><i class="dot"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><rect x="4.5" y="1.5" width="7" height="13" rx="1.5"/></svg></i><div><b>Every account is a verified mobile</b><span>Sign-in by one-time code; no shared logins, no passwords.</span></div></li>
+            <li><i class="dot"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><rect x="2.5" y="2.5" width="11" height="11" rx="1.5"/><path d="M8 2.5v11"/></svg></i><div><b>Your college's data stays yours</b><span>Each college sees only its own buses, drivers and students.</span></div></li>
+          </ul>
+          <div class="grid" style="display:grid; gap:1cqh;">
+            <p class="tagline t-ink">Not included today</p>
+            <div class="limits"><span>Parent accounts</span><span>Attendance</span><span>Fee collection</span><span>SOS button</span><span>Arrival-time predictions</span></div>
+          </div>
+        </div>
+        <div class="pricebox">
+          <p class="tagline" style="color: var(--bus);">Pricing</p>
+          <div class="big">Priced <em>per student.</em></div>
+          <ul>
+            <li>One figure based on how many students you enrol.</li>
+            <li>The full feature set, all roles included.</li>
+            <li>No separate charge per bus, route or stop.</li>
+          </ul>
+          <div class="contact">
+            <p class="tagline" style="color: var(--bus);">Next step</p>
+            <p class="body" style="color: inherit;">Share your student count and routes — we'll send a quote and help you set up your first buses.</p>
+            <p class="mono">twostackd@gmail.com</p>
+            <p class="mono">+91 93605 55572</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <nav class="route" aria-label="Slides">
+    <button class="navbtn" id="prev" type="button" aria-label="Previous slide">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M10 3 5 8l5 5"/></svg>
+    </button>
+    <div class="stops" id="stops"></div>
+    <button class="navbtn" id="next" type="button" aria-label="Next slide">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 3 5 5-5 5"/></svg>
+    </button>
+  </nav>
+</div>
+
+<script>
+(() => {
+  const slides = [...document.querySelectorAll(".slide")];
+  const stopsEl = document.getElementById("stops");
+  const counter = document.getElementById("counter");
+  const prev = document.getElementById("prev");
+  const next = document.getElementById("next");
+  let current = 0;
+
+  const stops = slides.map((s, i) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "stopbtn";
+    b.setAttribute("aria-label", `Slide ${i + 1}: ${s.dataset.title}`);
+    const tip = document.createElement("span");
+    tip.className = "tip";
+    tip.textContent = `${i + 1} · ${s.dataset.title}`;
+    b.appendChild(tip);
+    b.addEventListener("click", () => go(i));
+    stopsEl.appendChild(b);
+    return b;
+  });
+
+  function go(n) {
+    current = Math.max(0, Math.min(slides.length - 1, n));
+    slides.forEach((s, i) => s.classList.toggle("is-current", i === current));
+    stops.forEach((b, i) => {
+      if (i === current) b.setAttribute("aria-current", "step"); else b.removeAttribute("aria-current");
+      b.classList.toggle("visited", i < current);
+    });
+    counter.textContent = `${current + 1} / ${slides.length}`;
+    prev.disabled = current === 0;
+    next.disabled = current === slides.length - 1;
+    try { history.replaceState(null, "", `#${current + 1}`); } catch (e) {}
+  }
+
+  prev.addEventListener("click", () => go(current - 1));
+  next.addEventListener("click", () => go(current + 1));
+
+  function toggleFullscreen() {
+    try {
+      if (document.fullscreenElement) document.exitFullscreen();
+      else document.documentElement.requestFullscreen();
+    } catch (e) {}
+  }
+  document.getElementById("fsbtn").addEventListener("click", toggleFullscreen);
+
+  document.addEventListener("keydown", (e) => {
+    if (e.target.closest("input, textarea, [contenteditable]")) return;
+    if (["ArrowRight", "PageDown", " "].includes(e.key)) { e.preventDefault(); go(current + 1); }
+    else if (["ArrowLeft", "PageUp"].includes(e.key)) { e.preventDefault(); go(current - 1); }
+    else if (e.key === "Home") go(0);
+    else if (e.key === "End") go(slides.length - 1);
+    else if (e.key === "f" || e.key === "F") toggleFullscreen();
+  });
+
+  const fromHash = parseInt((location.hash || "").slice(1), 10);
+  go(Number.isFinite(fromHash) ? fromHash - 1 : 0);
+})();
+</script>
+
+</body>
+</html>
