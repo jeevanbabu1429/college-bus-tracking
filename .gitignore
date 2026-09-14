@@ -3,3 +3,9 @@
 
 # Editor/tooling backups (app.json.bak, package.json.bak, Info.plist.bak …).
 *.bak
+
+# Apple push auth keys. Apple lets you download a .p8 exactly once, so a copy
+# that reaches the repo is both a leaked signing secret and the only copy
+# someone might be relying on. Distribute out of band, like the Android
+# upload keystore.
+*.p8
