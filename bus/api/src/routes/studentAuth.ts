@@ -9,6 +9,7 @@ import {
   sendSuspended,
 } from "../lib/suspension.js";
 import { generateOtp } from "../lib/otp.js";
+import { isText, MOBILE_MESSAGE } from "../lib/httpErrors.js";
 
 const router = Router();
 
@@ -23,8 +24,9 @@ function signToken(payload: { role: "student"; sub: string }): string {
 
 router.post("/request-otp", async (req, res) => {
   const { mobile } = req.body ?? {};
-  if (!mobile) {
-    res.status(400).json({ error: "mobile is required" });
+  // A string only: an object here would be run as a query operator.
+  if (!isText(mobile)) {
+    res.status(400).json({ error: MOBILE_MESSAGE });
     return;
   }
 
@@ -46,12 +48,12 @@ router.post("/request-otp", async (req, res) => {
 
 router.post("/verify-otp", async (req, res) => {
   const { mobile, otp } = req.body ?? {};
-  if (!mobile || !otp) {
-    res.status(400).json({ error: "mobile and otp are required" });
+  if (!isText(mobile) || !isText(String(otp ?? ""))) {
+    res.status(400).json({ error: "Enter your mobile number and the code we sent you." });
     return;
   }
 
-  const student = await StudentModel.findOne({ mobile });
+  const student = await StudentModel.findOne({ mobile }).select("+otp +otpExpiresAt");
   if (!student || !student.otp || !student.otpExpiresAt) {
     res.status(400).json({ error: "Request an OTP first" });
     return;

@@ -27,7 +27,7 @@ function normalise(value: unknown): string | null {
 router.post("/request-otp", async (req, res) => {
   const mobile = normalise(req.body?.mobile);
   if (!mobile) {
-    res.status(400).json({ error: "mobile is required" });
+    res.status(400).json({ error: "Enter a valid 10-digit mobile number." });
     return;
   }
 
@@ -58,11 +58,13 @@ router.post("/verify-otp", async (req, res) => {
   const mobile = normalise(req.body?.mobile);
   const { otp, staffId } = req.body ?? {};
   if (!mobile || typeof otp !== "string") {
-    res.status(400).json({ error: "mobile and otp are required" });
+    res.status(400).json({ error: "Enter your mobile number and the code we sent you." });
     return;
   }
 
-  const accounts = await StaffModel.find({ mobile, active: { $ne: false } });
+  const accounts = await StaffModel.find({ mobile, active: { $ne: false } }).select(
+    "+otp +otpExpiresAt"
+  );
   const valid = accounts.filter(
     (a) =>
       a.otp &&

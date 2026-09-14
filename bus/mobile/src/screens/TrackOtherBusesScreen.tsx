@@ -14,6 +14,7 @@ import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useTheme, type Colors } from "../theme/ThemeContext";
 import { studentAuthApi, type LiveBusItem } from "../api/studentAuth";
+import { timeAgo, useNow } from "../lib/time";
 import type { StudentStackParamList } from "../navigation/types";
 
 const POLL_MS = 5000;
@@ -25,6 +26,7 @@ export function TrackOtherBusesScreen() {
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
   const [items, setItems] = useState<LiveBusItem[] | null>(null);
+  const now = useNow();
   const [refreshing, setRefreshing] = useState(false);
   const [query, setQuery] = useState("");
   const inFlight = useRef(false);
@@ -232,7 +234,7 @@ export function TrackOtherBusesScreen() {
                   ) : null}
                   {placed && loc ? (
                     <Text style={styles.rowAge}>
-                      Updated {secondsAgo(loc.updatedAt)}s ago
+                      Updated {timeAgo(loc.updatedAt, now)}
                     </Text>
                   ) : (
                     <Text style={styles.rowAge}>
@@ -268,9 +270,6 @@ export function TrackOtherBusesScreen() {
   );
 }
 
-function secondsAgo(iso: string): number {
-  return Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1000));
-}
 
 function callDriver(name: string, mobile: string): void {
   const digits = mobile.replace(/\D/g, "");

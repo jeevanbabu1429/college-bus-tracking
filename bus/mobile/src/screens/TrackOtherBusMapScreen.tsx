@@ -15,6 +15,7 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from "react-native-maps";
 import { useTheme, type Colors } from "../theme/ThemeContext";
 import { studentAuthApi, type LiveBusItem } from "../api/studentAuth";
+import { isStale, timeAgo, useNow } from "../lib/time";
 import type { StudentStackParamList } from "../navigation/types";
 
 const POLL_MS = 5000;
@@ -32,6 +33,7 @@ export function TrackOtherBusMapScreen() {
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
   const [item, setItem] = useState<LiveBusItem | null | undefined>(undefined);
+  const now = useNow();
   const inFlight = useRef(false);
   const mapRef = useRef<MapView | null>(null);
 
@@ -57,6 +59,7 @@ export function TrackOtherBusMapScreen() {
 
   const bus = item?.bus ?? null;
   const loc = item?.driver.currentLocation ?? null;
+  const stale = loc ? isStale(loc.updatedAt, now) : false;
   const placedStops: PlacedStop[] = useMemo(() => {
     if (!bus) return [];
     return bus.stops
@@ -182,7 +185,7 @@ export function TrackOtherBusMapScreen() {
               <Marker
                 coordinate={{ latitude: loc.lat, longitude: loc.lng }}
                 title={`Bus ${bus?.busNumber ?? ""}`}
-                description={`Updated ${secondsAgo(loc.updatedAt)}s ago`}
+                description={`Updated ${timeAgo(loc.updatedAt, now)}`}
                 anchor={{ x: 0.5, y: 0.5 }}
                 // Static image rather than a custom child view — Android was
                 // clipping the rasterised view. See StudentDashboardScreen.
@@ -195,12 +198,14 @@ export function TrackOtherBusMapScreen() {
             <View
               style={[
                 styles.bannerDot,
-                loc ? styles.bannerDotLive : styles.bannerDotIdle,
+                loc && !stale ? styles.bannerDotLive : styles.bannerDotIdle,
               ]}
             />
             <Text style={styles.bannerText}>
               {loc
-                ? `Live · updated ${secondsAgo(loc.updatedAt)}s ago`
+                ? stale
+                  ? `Last update ${timeAgo(loc.updatedAt, now)} · no new location since`
+                  : `Live · updated ${timeAgo(loc.updatedAt, now)}`
                 : "Waiting for first location…"}
             </Text>
           </View>
@@ -219,9 +224,6 @@ export function TrackOtherBusMapScreen() {
   );
 }
 
-function secondsAgo(iso: string): number {
-  return Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1000));
-}
 
 function makeStyles(colors: Colors) {
   return StyleSheet.create({

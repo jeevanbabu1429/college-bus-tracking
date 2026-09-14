@@ -68,17 +68,17 @@ router.put("/:collegeId", adminOnly, async (req, res) => {
   const { name, address, code, busCount, driverCount } = req.body ?? {};
 
   if (!name || !address || !code) {
-    res.status(400).json({ error: "name, address, code are required" });
+    res.status(400).json({ error: "Please enter the college name, address and code." });
     return;
   }
   if (typeof busCount !== "number" || busCount < 0) {
-    res.status(400).json({ error: "busCount must be a non-negative number" });
+    res.status(400).json({ error: "Number of buses must be 0 or more." });
     return;
   }
   if (typeof driverCount !== "number" || driverCount < 0) {
     res
       .status(400)
-      .json({ error: "driverCount must be a non-negative number" });
+      .json({ error: "Number of drivers must be 0 or more." });
     return;
   }
 
@@ -100,7 +100,7 @@ router.put("/:collegeId", adminOnly, async (req, res) => {
       _id: { $ne: college._id },
     });
     if (existing) {
-      res.status(409).json({ error: "code already exists" });
+      res.status(409).json({ error: "This college code is already in use." });
       return;
     }
   }
@@ -120,17 +120,17 @@ router.post("/", adminOnly, async (req, res) => {
   const { name, address, code, busCount, driverCount } = req.body ?? {};
 
   if (!name || !address || !code) {
-    res.status(400).json({ error: "name, address, code are required" });
+    res.status(400).json({ error: "Please enter the college name, address and code." });
     return;
   }
   if (typeof busCount !== "number" || busCount < 0) {
-    res.status(400).json({ error: "busCount must be a non-negative number" });
+    res.status(400).json({ error: "Number of buses must be 0 or more." });
     return;
   }
   if (typeof driverCount !== "number" || driverCount < 0) {
     res
       .status(400)
-      .json({ error: "driverCount must be a non-negative number" });
+      .json({ error: "Number of drivers must be 0 or more." });
     return;
   }
 
@@ -140,7 +140,7 @@ router.post("/", adminOnly, async (req, res) => {
     code: upperCode,
   });
   if (existing) {
-    res.status(409).json({ error: "code already exists" });
+    res.status(409).json({ error: "This college code is already in use." });
     return;
   }
 

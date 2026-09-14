@@ -1,4 +1,13 @@
 import { Router } from "express";
+import {
+  duplicateField,
+  duplicateMessage,
+  isDuplicateKeyError,
+  isLatitude,
+  isLongitude,
+  isText,
+  rowErrorMessage,
+} from "../lib/httpErrors.js";
 import { isValidObjectId } from "mongoose";
 import { BusModel } from "../models/Bus.js";
 import { CollegeModel } from "../models/College.js";
@@ -177,12 +186,12 @@ router.post("/", async (req, res) => {
 
   const { busNumber, plateNumber, capacity } = req.body ?? {};
 
-  if (!busNumber || !plateNumber) {
-    res.status(400).json({ error: "busNumber and plateNumber are required" });
+  if (!isText(busNumber) || !isText(plateNumber)) {
+    res.status(400).json({ error: "Please enter the bus number and plate number." });
     return;
   }
   if (typeof capacity !== "number" || capacity < 1) {
-    res.status(400).json({ error: "capacity must be a number ≥ 1" });
+    res.status(400).json({ error: "Capacity must be at least 1." });
     return;
   }
 
@@ -195,10 +204,8 @@ router.post("/", async (req, res) => {
     });
     res.status(201).json(bus);
   } catch (err) {
-    if ((err as { code?: number }).code === 11000) {
-      const dup = (err as { keyPattern?: Record<string, number> }).keyPattern;
-      const field = dup && "plateNumber" in dup ? "plateNumber" : "busNumber";
-      res.status(409).json({ error: `${field} already exists` });
+    if (isDuplicateKeyError(err)) {
+      res.status(409).json({ error: duplicateMessage(duplicateField(err)) });
       return;
     }
     throw err;
@@ -256,11 +263,11 @@ router.post("/bulk", async (req, res) => {
         : NaN;
 
     if (!busNumber) {
-      failed.push({ row: i + 1, plateNumber, error: "busNumber is required" });
+      failed.push({ row: i + 1, plateNumber, error: "Bus number is missing" });
       continue;
     }
     if (!plateNumber) {
-      failed.push({ row: i + 1, busNumber, error: "plateNumber is required" });
+      failed.push({ row: i + 1, busNumber, error: "Plate number is missing" });
       continue;
     }
     if (!Number.isFinite(capacity) || capacity < 1) {
@@ -268,7 +275,7 @@ router.post("/bulk", async (req, res) => {
         row: i + 1,
         busNumber,
         plateNumber,
-        error: "capacity must be a number ≥ 1",
+        error: "Capacity must be at least 1",
       });
       continue;
     }
@@ -282,23 +289,7 @@ router.post("/bulk", async (req, res) => {
       });
       created.push(bus);
     } catch (err) {
-      if ((err as { code?: number }).code === 11000) {
-        const dup = (err as { keyPattern?: Record<string, number> }).keyPattern;
-        const field = dup && "plateNumber" in dup ? "plateNumber" : "busNumber";
-        failed.push({
-          row: i + 1,
-          busNumber,
-          plateNumber,
-          error: `${field} already exists`,
-        });
-      } else {
-        failed.push({
-          row: i + 1,
-          busNumber,
-          plateNumber,
-          error: (err as Error).message || "Failed to create",
-        });
-      }
+      failed.push({ row: i + 1, busNumber, plateNumber, error: rowErrorMessage(err) });
     }
   }
 
@@ -356,14 +347,14 @@ router.post("/driver-assignments", async (req, res) => {
     const driverLabel = licenceNumber || mobile || "";
 
     if (!busNumber) {
-      failed.push({ row: i + 1, error: "busNumber is required" });
+      failed.push({ row: i + 1, error: "Bus number is missing" });
       continue;
     }
     if (!licenceNumber && !mobile) {
       failed.push({
         row: i + 1,
         busNumber,
-        error: "licenceNumber or mobile is required",
+        error: "Licence number or mobile number is missing",
       });
       continue;
     }
@@ -373,7 +364,7 @@ router.post("/driver-assignments", async (req, res) => {
         row: i + 1,
         busNumber,
         driver: driverLabel,
-        error: "busNumber appears more than once in this upload",
+        error: "This bus appears more than once in the file",
       });
       continue;
     }
@@ -383,7 +374,7 @@ router.post("/driver-assignments", async (req, res) => {
         row: i + 1,
         busNumber,
         driver: driverLabel,
-        error: "driver appears more than once in this upload",
+        error: "This driver appears more than once in the file",
       });
       continue;
     }
@@ -394,7 +385,7 @@ router.post("/driver-assignments", async (req, res) => {
         row: i + 1,
         busNumber,
         driver: driverLabel,
-        error: "bus not found in this college",
+        error: "Bus not found in this college",
       });
       continue;
     }
@@ -408,7 +399,7 @@ router.post("/driver-assignments", async (req, res) => {
         row: i + 1,
         busNumber,
         driver: driverLabel,
-        error: "driver not found in this college",
+        error: "Driver not found in this college",
       });
       continue;
     }
@@ -437,14 +428,14 @@ router.post("/driver-assignments", async (req, res) => {
           row: i + 1,
           busNumber,
           driver: driverLabel,
-          error: "driver is already assigned to another bus",
+          error: "Driver is already assigned to another bus",
         });
       } else {
         failed.push({
           row: i + 1,
           busNumber,
           driver: driverLabel,
-          error: (err as Error).message || "Failed to assign",
+          error: rowErrorMessage(err),
         });
       }
     }
@@ -618,10 +609,13 @@ router.put("/:busId/route", async (req, res) => {
     // Only preserve a temporary replacement while suspended is true —
     // storing one on a non-suspended stop would just be dead metadata.
     const temporaryReplacement = suspended && rawTemp ? rawTemp : null;
+    const placed = isObj && isLatitude(raw.lat) && isLongitude(raw.lng);
     normalizedStops.push({
       name: trimmed,
-      lat: isObj && typeof raw.lat === "number" ? raw.lat : null,
-      lng: isObj && typeof raw.lng === "number" ? raw.lng : null,
+      // A pin is kept only as a real position; anything else leaves the stop
+      // unplaced rather than drawing it off the map.
+      lat: placed ? raw.lat : null,
+      lng: placed ? raw.lng : null,
       suspended,
       temporaryReplacement,
     });

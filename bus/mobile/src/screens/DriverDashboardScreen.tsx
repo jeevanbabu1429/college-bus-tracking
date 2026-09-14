@@ -25,6 +25,7 @@ import {
   type TripStatus,
 } from "../api/driverTrip";
 import { driverAuthApi, type DriverCollege } from "../api/driverAuth";
+import { ApiError } from "../api/client";
 import { pickSquareAvatar } from "../lib/images";
 import { Avatar } from "../components/Avatar";
 import { Toast } from "../components/Toast";
@@ -151,10 +152,13 @@ export function DriverDashboardScreen() {
         return;
       }
       await driverTripApi.start();
-      const current = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.High,
-      });
+      // The trip is on from here. A first fix that fails (GPS off, no sky
+      // view yet) must not stop the watcher below from starting, or the
+      // trip shows as active while no location is ever shared.
       try {
+        const current = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.High,
+        });
         await driverTripApi.sendLocation(
           current.coords.latitude,
           current.coords.longitude
@@ -170,7 +174,13 @@ export function DriverDashboardScreen() {
       await startWatching();
       await loadStatus();
     } catch (e) {
-      setError((e as Error).message);
+      // Anything that is not the server talking came from the phone's
+      // location service, whose messages are written for developers.
+      setError(
+        e instanceof ApiError
+          ? e.message
+          : "Couldn't get this phone's location. Turn on location (GPS) and try again."
+      );
     } finally {
       setBusy(false);
     }

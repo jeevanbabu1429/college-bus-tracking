@@ -1,4 +1,14 @@
 import { Router } from "express";
+import {
+  duplicateField,
+  duplicateMessage,
+  isDuplicateKeyError,
+  isText,
+  MOBILE_MESSAGE,
+  normaliseMobile,
+  parseDate,
+  rowErrorMessage,
+} from "../lib/httpErrors.js";
 import { isValidObjectId, Types } from "mongoose";
 import { StudentModel } from "../models/Student.js";
 import { CollegeModel } from "../models/College.js";
@@ -46,12 +56,22 @@ router.post("/", async (req, res) => {
   const { name, rollNumber, gender, dob, address, mobile, busId, stop } =
     req.body ?? {};
 
-  if (!name || !rollNumber || !gender || !dob || !address || !mobile) {
-    res.status(400).json({ error: "All fields are required" });
+  if (![name, rollNumber, gender, address].every(isText) || !dob || !mobile) {
+    res.status(400).json({ error: "Please fill in every field." });
     return;
   }
   if (!GENDERS.includes(gender)) {
-    res.status(400).json({ error: "Invalid gender" });
+    res.status(400).json({ error: "Please choose a gender." });
+    return;
+  }
+  const dobDate = parseDate(dob);
+  if (!dobDate) {
+    res.status(400).json({ error: "Please enter a valid date of birth." });
+    return;
+  }
+  const mobileNumber = normaliseMobile(mobile);
+  if (!mobileNumber) {
+    res.status(400).json({ error: MOBILE_MESSAGE });
     return;
   }
 
@@ -98,19 +118,17 @@ router.post("/", async (req, res) => {
       name,
       rollNumber,
       gender,
-      dob,
+      dob: dobDate,
       address,
-      mobile,
+      mobile: mobileNumber,
       bus: resolvedBus,
       stop: resolvedStop,
     });
     const populated = await student.populate("bus");
     res.status(201).json(populated);
   } catch (err) {
-    if ((err as { code?: number }).code === 11000) {
-      const dup = (err as { keyPattern?: Record<string, number> }).keyPattern;
-      const field = dup ? Object.keys(dup)[0] : "field";
-      res.status(409).json({ error: `${field} already exists` });
+    if (isDuplicateKeyError(err)) {
+      res.status(409).json({ error: duplicateMessage(duplicateField(err)) });
       return;
     }
     throw err;
@@ -162,14 +180,15 @@ router.post("/bulk", async (req, res) => {
     const gender = str(row.gender).toLowerCase();
     const dob = str(row.dob);
     const address = str(row.address);
-    const mobile = str(row.mobile);
+    const mobile = normaliseMobile(row.mobile);
+    const typedMobile = str(row.mobile);
 
     if (!name) {
-      failed.push({ row: i + 1, error: "name is required" });
+      failed.push({ row: i + 1, error: "Name is missing" });
       continue;
     }
     if (!rollNumber) {
-      failed.push({ row: i + 1, name, error: "rollNumber is required" });
+      failed.push({ row: i + 1, name, error: "Roll number is missing" });
       continue;
     }
     if (!GENDERS.includes(gender)) {
@@ -177,12 +196,12 @@ router.post("/bulk", async (req, res) => {
         row: i + 1,
         name,
         rollNumber,
-        error: "gender must be male, female or other",
+        error: "Gender must be male, female or other",
       });
       continue;
     }
     if (!dob) {
-      failed.push({ row: i + 1, name, rollNumber, error: "dob is required" });
+      failed.push({ row: i + 1, name, rollNumber, error: "Date of birth is missing" });
       continue;
     }
     const dobDate = new Date(dob);
@@ -191,16 +210,21 @@ router.post("/bulk", async (req, res) => {
         row: i + 1,
         name,
         rollNumber,
-        error: "dob must be a valid date",
+        error: "Date of birth is not a valid date",
       });
       continue;
     }
     if (!address) {
-      failed.push({ row: i + 1, name, rollNumber, error: "address is required" });
+      failed.push({ row: i + 1, name, rollNumber, error: "Address is missing" });
       continue;
     }
     if (!mobile) {
-      failed.push({ row: i + 1, name, rollNumber, error: "mobile is required" });
+      failed.push({
+        row: i + 1,
+        name,
+        rollNumber,
+        error: typedMobile ? "Mobile number must be 10 digits" : "Mobile number is missing",
+      });
       continue;
     }
 
@@ -218,23 +242,7 @@ router.post("/bulk", async (req, res) => {
       });
       created.push(student);
     } catch (err) {
-      if ((err as { code?: number }).code === 11000) {
-        const dup = (err as { keyPattern?: Record<string, number> }).keyPattern;
-        const field = dup ? Object.keys(dup).join("+") : "field";
-        failed.push({
-          row: i + 1,
-          name,
-          rollNumber,
-          error: `${field} already exists`,
-        });
-      } else {
-        failed.push({
-          row: i + 1,
-          name,
-          rollNumber,
-          error: (err as Error).message || "Failed to create",
-        });
-      }
+      failed.push({ row: i + 1, name, rollNumber, error: rowErrorMessage(err) });
     }
   }
 
@@ -263,12 +271,22 @@ router.put("/:studentId", async (req, res) => {
   const { name, rollNumber, gender, dob, address, mobile, busId, stop } =
     req.body ?? {};
 
-  if (!name || !rollNumber || !gender || !dob || !address || !mobile) {
-    res.status(400).json({ error: "All fields are required" });
+  if (![name, rollNumber, gender, address].every(isText) || !dob || !mobile) {
+    res.status(400).json({ error: "Please fill in every field." });
     return;
   }
   if (!GENDERS.includes(gender)) {
-    res.status(400).json({ error: "Invalid gender" });
+    res.status(400).json({ error: "Please choose a gender." });
+    return;
+  }
+  const dobDate = parseDate(dob);
+  if (!dobDate) {
+    res.status(400).json({ error: "Please enter a valid date of birth." });
+    return;
+  }
+  const mobileNumber = normaliseMobile(mobile);
+  if (!mobileNumber) {
+    res.status(400).json({ error: MOBILE_MESSAGE });
     return;
   }
 
@@ -336,9 +354,9 @@ router.put("/:studentId", async (req, res) => {
     name,
     rollNumber,
     gender,
-    dob,
+    dob: dobDate,
     address,
-    mobile,
+    mobile: mobileNumber,
     bus: nextBus,
     stop: nextStop,
   });
@@ -348,10 +366,8 @@ router.put("/:studentId", async (req, res) => {
     const populated = await student.populate("bus");
     res.json(populated);
   } catch (err) {
-    if ((err as { code?: number }).code === 11000) {
-      const dup = (err as { keyPattern?: Record<string, number> }).keyPattern;
-      const field = dup ? Object.keys(dup)[0] : "field";
-      res.status(409).json({ error: `${field} already exists` });
+    if (isDuplicateKeyError(err)) {
+      res.status(409).json({ error: duplicateMessage(duplicateField(err)) });
       return;
     }
     throw err;
@@ -411,7 +427,7 @@ router.post("/bus-assignments", async (req, res) => {
     const studentLabel = rollNumber || mobile;
 
     if (!rollNumber && !mobile) {
-      failed.push({ row: i + 1, error: "rollNumber or mobile is required" });
+      failed.push({ row: i + 1, error: "Roll number or mobile number is missing" });
       continue;
     }
 
@@ -421,7 +437,7 @@ router.post("/bus-assignments", async (req, res) => {
         row: i + 1,
         student: studentLabel,
         busNumber,
-        error: "student appears more than once in this upload",
+        error: "This student appears more than once in the file",
       });
       continue;
     }
@@ -435,7 +451,7 @@ router.post("/bus-assignments", async (req, res) => {
         row: i + 1,
         student: studentLabel,
         busNumber,
-        error: "student not found in this college",
+        error: "Student not found in this college",
       });
       continue;
     }
@@ -454,7 +470,7 @@ router.post("/bus-assignments", async (req, res) => {
         failed.push({
           row: i + 1,
           student: studentLabel,
-          error: (err as Error).message || "Failed to unassign",
+          error: rowErrorMessage(err),
         });
       }
       continue;
@@ -470,7 +486,7 @@ router.post("/bus-assignments", async (req, res) => {
         row: i + 1,
         student: studentLabel,
         busNumber,
-        error: "bus not found in this college",
+        error: "Bus not found in this college",
       });
       continue;
     }
@@ -486,7 +502,7 @@ router.post("/bus-assignments", async (req, res) => {
           row: i + 1,
           student: studentLabel,
           busNumber,
-          error: `bus is full (${bus.capacity} seats)`,
+          error: `Bus is full (${bus.capacity} seats)`,
         });
         continue;
       }
@@ -518,7 +534,7 @@ router.post("/bus-assignments", async (req, res) => {
         row: i + 1,
         student: studentLabel,
         busNumber,
-        error: (err as Error).message || "Failed to assign",
+        error: rowErrorMessage(err),
       });
     }
   }

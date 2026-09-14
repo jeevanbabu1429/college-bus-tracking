@@ -35,6 +35,11 @@ import {
   consoleComplaint,
   consoleComplaintDetail,
 } from "../lib/complaints.js";
+import {
+  duplicateField,
+  duplicateMessage,
+  isDuplicateKeyError,
+} from "../lib/httpErrors.js";
 
 const router = Router();
 
@@ -288,10 +293,8 @@ router.patch("/admins/:id", requireSuperAdmin, async (req, res) => {
     }
     res.json(admin);
   } catch (err) {
-    if ((err as { code?: number }).code === 11000) {
-      const dup = (err as { keyPattern?: Record<string, number> }).keyPattern;
-      const field = dup ? Object.keys(dup)[0] : "field";
-      res.status(409).json({ error: `${field} already exists` });
+    if (isDuplicateKeyError(err)) {
+      res.status(409).json({ error: duplicateMessage(duplicateField(err)) });
       return;
     }
     throw err;
@@ -458,10 +461,8 @@ router.patch("/colleges/:id", requireSuperAdmin, async (req, res) => {
     }
     res.json(college);
   } catch (err) {
-    if ((err as { code?: number }).code === 11000) {
-      const dup = (err as { keyPattern?: Record<string, number> }).keyPattern;
-      const field = dup ? Object.keys(dup).join("+") : "field";
-      res.status(409).json({ error: `${field} already exists` });
+    if (isDuplicateKeyError(err)) {
+      res.status(409).json({ error: duplicateMessage(duplicateField(err)) });
       return;
     }
     throw err;

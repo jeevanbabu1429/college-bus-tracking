@@ -156,8 +156,10 @@ export default function BulkDriverUploadPage() {
     try {
       const buffer = await file.arrayBuffer();
       workbook = XLSX.read(buffer, { type: "array", cellDates: true });
-    } catch (err) {
-      setParseError(`Could not read the file: ${(err as Error).message}`);
+    } catch {
+      setParseError(
+        "This file could not be read. Please upload an Excel (.xlsx, .xls) or CSV file."
+      );
       return;
     }
 
