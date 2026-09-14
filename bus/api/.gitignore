@@ -8,3 +8,6 @@ deploy/.env.dev
 deploy/.env.production
 .deploy-stage/
 bus-api*.tar.gz
+
+# images written by the local storage driver during development
+uploads/

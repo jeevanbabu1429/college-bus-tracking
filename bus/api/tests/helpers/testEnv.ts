@@ -1,3 +1,6 @@
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import mongoose from "mongoose";
 import { MongoMemoryServer } from "mongodb-memory-server";
 import type { Express } from "express";
@@ -8,6 +11,12 @@ process.env.JWT_SECRET = process.env.JWT_SECRET ?? "test-secret-do-not-use-in-pr
 // Deterministic OTP so verify-otp tests can pass a known code. `generateOtp`
 // already returns "0000" when NODE_ENV !== "production".
 process.env.NODE_ENV = "test";
+// Uploaded images go to the local-disk provider, in a throwaway folder per
+// test process. Forced rather than defaulted: a developer shell with
+// STORAGE_DRIVER=s3 must never send test uploads to a real bucket.
+process.env.STORAGE_DRIVER = "local";
+process.env.IMAGE_SERVER_PATH = fs.mkdtempSync(path.join(os.tmpdir(), "bus-api-test-images-"));
+process.env.IMAGE_SERVER_URL = "http://localhost/images";
 
 let mongo: MongoMemoryServer | null = null;
 

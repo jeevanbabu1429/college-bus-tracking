@@ -1,12 +1,29 @@
 import { Router } from "express";
-import { isValidObjectId } from "mongoose";
+import { isValidObjectId, Types } from "mongoose";
 import { DriverModel } from "../models/Driver.js";
 import { CollegeModel } from "../models/College.js";
-import { parseImageField } from "../lib/images.js";
+import {
+  deleteImage,
+  imageUrlFor,
+  parseImageField,
+  storeImage,
+} from "../lib/images.js";
 
 const router = Router({ mergeParams: true });
 
 const GENDERS = ["male", "female", "other"];
+
+type DriverDoc = InstanceType<typeof DriverModel>;
+
+// `image` in the database is either a legacy data URL or a storage path;
+// clients get something they can put straight into <img src> either way.
+async function withImageUrl(driver: DriverDoc) {
+  return { ...driver.toJSON(), image: await imageUrlFor(driver.image) };
+}
+
+function photoPrefix(collegeId: unknown, driverId: unknown): string {
+  return `drivers/${String(collegeId)}/${String(driverId)}`;
+}
 
 router.get("/", async (req, res) => {
   const { collegeId } = req.params as { collegeId: string };
@@ -17,7 +34,7 @@ router.get("/", async (req, res) => {
   const drivers = await DriverModel.find({ college: collegeId }).sort({
     createdAt: -1,
   });
-  res.json(drivers);
+  res.json(await Promise.all(drivers.map(withImageUrl)));
 });
 
 router.post("/", async (req, res) => {
@@ -70,8 +87,18 @@ router.post("/", async (req, res) => {
     return;
   }
 
+  // The id is minted up front so the photo can be filed under it before the
+  // document exists.
+  const driverId = new Types.ObjectId();
+  // On create there is nothing to preserve, so "unchanged" is just "none".
+  const storedImage =
+    photo.kind === "set" && photo.value
+      ? await storeImage(photo.value, photoPrefix(college._id, driverId))
+      : null;
+
   try {
     const driver = await DriverModel.create({
+      _id: driverId,
       college: college._id,
       name,
       dob,
@@ -80,11 +107,13 @@ router.post("/", async (req, res) => {
       aadharNumber,
       mobile,
       address,
-      // On create there is nothing to preserve, so "unchanged" is just "none".
-      image: photo.kind === "set" ? photo.value : null,
+      image: storedImage,
     });
-    res.status(201).json(driver);
+    res.status(201).json(await withImageUrl(driver));
   } catch (err) {
+    // The upload already happened; don't leave it behind for a driver that
+    // was never created.
+    await deleteImage(storedImage);
     if ((err as { code?: number }).code === 11000) {
       const dup = (err as { keyPattern?: Record<string, number> }).keyPattern;
       const field = dup ? Object.keys(dup)[0] : "field";
@@ -279,6 +308,14 @@ router.put("/:driverId", async (req, res) => {
     return;
   }
 
+  const previousImage = driver.image;
+  const nextImage =
+    photo.kind !== "set"
+      ? undefined
+      : photo.value
+        ? await storeImage(photo.value, photoPrefix(collegeId, driverId))
+        : null;
+
   driver.set({
     name,
     dob,
@@ -290,13 +327,18 @@ router.put("/:driverId", async (req, res) => {
     // Only touch the photo when the caller actually sent the field. Clients
     // that don't know about photos (the mobile admin edit screen) must not
     // wipe one uploaded from the website.
-    ...(photo.kind === "set" ? { image: photo.value } : {}),
+    ...(nextImage !== undefined ? { image: nextImage } : {}),
   });
 
   try {
     await driver.save();
-    res.json(driver);
+    // Only now that the new value is saved is the old file safe to remove.
+    if (nextImage !== undefined && previousImage !== nextImage) {
+      await deleteImage(previousImage);
+    }
+    res.json(await withImageUrl(driver));
   } catch (err) {
+    if (nextImage) await deleteImage(nextImage);
     if ((err as { code?: number }).code === 11000) {
       const dup = (err as { keyPattern?: Record<string, number> }).keyPattern;
       const field = dup ? Object.keys(dup)[0] : "field";

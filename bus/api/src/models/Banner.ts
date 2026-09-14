@@ -7,6 +7,10 @@ import { Schema, model, type InferSchemaType } from "mongoose";
 // reasonable poster sizes.
 const bannerSchema = new Schema(
   {
+    // Despite the name, new banners store a file path here (in S3 or on this
+    // server's disk, per STORAGE_DRIVER); only banners from before file storage
+    // hold a data URL. Kept under this name so no migration was needed — see
+    // lib/images.ts.
     imageDataUrl: { type: String, required: true },
     active: { type: Boolean, default: true },
   },

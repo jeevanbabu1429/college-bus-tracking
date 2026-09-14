@@ -4,6 +4,7 @@ import { BusModel } from "../models/Bus.js";
 import { CollegeModel } from "../models/College.js";
 import { DriverModel } from "../models/Driver.js";
 import { StudentModel } from "../models/Student.js";
+import { deleteImage } from "./images.js";
 
 // Delete a college and every downstream entity in a safe fixed order.
 //
@@ -27,7 +28,13 @@ export async function deleteCollegeCascade(
     { college: collegeId, driver: { $ne: null } },
     { $set: { driver: null } }
   );
+  // Photos are collected before the drivers go, and removed from storage only
+  // after — a failed file delete must never block deleting the college.
+  const photos = await DriverModel.find({ college: collegeId, image: { $ne: null } })
+    .select("image")
+    .lean();
   const driversRes = await DriverModel.deleteMany({ college: collegeId });
+  await Promise.all(photos.map((d) => deleteImage(d.image)));
   const busesRes = await BusModel.deleteMany({ college: collegeId });
   await CollegeModel.deleteOne({ _id: collegeId });
   return {

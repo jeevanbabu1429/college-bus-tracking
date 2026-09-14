@@ -3,7 +3,12 @@ import jwt, { type SignOptions } from "jsonwebtoken";
 import { isValidObjectId } from "mongoose";
 import { DriverModel } from "../models/Driver.js";
 import { CollegeModel } from "../models/College.js";
-import { parseImageField } from "../lib/images.js";
+import {
+  deleteImage,
+  imageUrlFor,
+  parseImageField,
+  storeImage,
+} from "../lib/images.js";
 import {
   checkCollegeAdminSuspension,
   sendSuspended,
@@ -181,7 +186,7 @@ router.get("/me", requireDriver, async (req, res) => {
   }
   res.json({
     ...publicDriver(driver),
-    image: driver.image ?? null,
+    image: await imageUrlFor(driver.image),
     collegeInfo: await collegeInfoFor(driver.college),
   });
 });
@@ -208,16 +213,29 @@ router.put("/me/photo", requireDriver, async (req, res) => {
     return;
   }
 
-  const driver = await DriverModel.findByIdAndUpdate(
-    driverId,
-    { $set: { image: photo.value } },
-    { new: true }
-  );
-  if (!driver) {
+  const existing = await DriverModel.findById(driverId).select("college image").lean();
+  if (!existing) {
     res.status(404).json({ error: "Driver not found" });
     return;
   }
-  res.json({ ok: true, image: driver.image ?? null });
+
+  const nextImage = photo.value
+    ? await storeImage(photo.value, `drivers/${String(existing.college)}/${driverId}`)
+    : null;
+
+  const driver = await DriverModel.findByIdAndUpdate(
+    driverId,
+    { $set: { image: nextImage } },
+    { new: true }
+  );
+  if (!driver) {
+    await deleteImage(nextImage);
+    res.status(404).json({ error: "Driver not found" });
+    return;
+  }
+  // The replacement is saved; the old file can go.
+  if (existing.image !== nextImage) await deleteImage(existing.image);
+  res.json({ ok: true, image: await imageUrlFor(driver.image) });
 });
 
 export default router;
