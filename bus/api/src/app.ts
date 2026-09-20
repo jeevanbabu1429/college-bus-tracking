@@ -19,6 +19,7 @@ import notificationsRouter from "./routes/notifications.js";
 import superAdminRouter from "./routes/superAdmin.js";
 import loginRolesRouter from "./routes/loginRoles.js";
 import bannerRouter from "./routes/banner.js";
+import appVersionRouter from "./routes/appVersion.js";
 import complaintsRouter from "./routes/complaints.js";
 import { fileStorageRoute } from "./fileStorage/fileRoute/fileStorageRoute.js";
 import driverPhotoRouter from "./routes/driverPhoto.js";
@@ -60,6 +61,7 @@ export function createApp(): Express {
     app.use("/images", fileStorageRoute());
   }
   app.use("/api/login-roles", loginRolesRouter);
+  app.use("/api/app-version", appVersionRouter);
   app.use("/api/drivers", driverPhotoRouter);
 
   // Anything unmatched, and every error, answers in JSON the clients can show.

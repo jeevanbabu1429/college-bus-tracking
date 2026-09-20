@@ -35,6 +35,8 @@ import {
   consoleComplaint,
   consoleComplaintDetail,
 } from "../lib/complaints.js";
+import { AppVersionsModel, readAppVersions } from "../models/AppVersions.js";
+import { compareVersions, isVersion } from "../lib/appVersion.js";
 import {
   duplicateField,
   duplicateMessage,
@@ -641,6 +643,67 @@ router.delete("/banner", requireSuperAdmin, async (_req, res) => {
 // the mobile app AND the website console, so refusing a disabled role at the
 // endpoint would lock admins out of the web console too. Turning "admin" off
 // hides the card in the app; it does not disable the account.
+
+router.get("/app-versions", requireSuperAdmin, async (_req, res) => {
+  res.json(await readAppVersions());
+});
+
+// Both versions per platform, each optional. An empty box means "no check on
+// this platform", which is also how the feature starts out.
+router.put("/app-versions", requireSuperAdmin, async (req, res) => {
+  const body = req.body ?? {};
+  const keys = [
+    "androidLatest",
+    "androidMinimum",
+    "iosLatest",
+    "iosMinimum",
+  ] as const;
+  const next: Record<string, string> = {};
+  for (const key of keys) {
+    const raw = body[key];
+    if (raw === undefined) continue;
+    if (typeof raw !== "string") {
+      res.status(400).json({ error: "Enter a version like 1.0.5, or leave it empty." });
+      return;
+    }
+    const value = raw.trim();
+    if (value !== "" && !isVersion(value)) {
+      res.status(400).json({ error: "Enter a version like 1.0.5, or leave it empty." });
+      return;
+    }
+    next[key] = value;
+  }
+  if (Object.keys(next).length === 0) {
+    res.status(400).json({ error: "Nothing to save." });
+    return;
+  }
+
+  const merged = { ...(await readAppVersions()), ...next };
+  // A minimum above the latest would force an update to a build nobody can
+  // download yet — every user locked out with nowhere to go.
+  for (const [platform, latest, minimum] of [
+    ["Android", merged.androidLatest, merged.androidMinimum],
+    ["iOS", merged.iosLatest, merged.iosMinimum],
+  ] as const) {
+    if (
+      isVersion(latest) &&
+      isVersion(minimum) &&
+      compareVersions(minimum, latest) > 0
+    ) {
+      res.status(400).json({
+        error: `The ${platform} minimum version cannot be newer than the latest version — everyone would be locked out with no update to install.`,
+      });
+      return;
+    }
+  }
+
+  await AppVersionsModel.findOneAndUpdate({}, next, {
+    new: true,
+    upsert: true,
+    setDefaultsOnInsert: true,
+  });
+  res.json(merged);
+});
 
 router.get("/login-roles", requireSuperAdmin, async (_req, res) => {
   res.json(await readLoginRoles());

@@ -72,6 +72,14 @@ export type LoginRoles = {
 
 export type LoginRoleKey = keyof LoginRoles;
 
+/** Which mobile app versions are still allowed to run. Product-wide. */
+export type AppVersions = {
+  androidLatest: string;
+  androidMinimum: string;
+  iosLatest: string;
+  iosMinimum: string;
+};
+
 export const superAdminApi = {
   login: (email: string, password: string) =>
     apiFetch<{ token: string; superAdmin: SuperAdmin }>(
@@ -148,6 +156,15 @@ export const superAdminApi = {
   // payload that would leave all three off.
   putLoginRoles: (input: Partial<LoginRoles>) =>
     fetchSuper<LoginRoles>("/api/super/login-roles", {
+      method: "PUT",
+      body: JSON.stringify(input),
+    }),
+
+  getAppVersions: () => fetchSuper<AppVersions>("/api/super/app-versions"),
+  // An empty string switches that check off; the server refuses a minimum
+  // newer than the latest version.
+  putAppVersions: (input: Partial<AppVersions>) =>
+    fetchSuper<AppVersions>("/api/super/app-versions", {
       method: "PUT",
       body: JSON.stringify(input),
     }),

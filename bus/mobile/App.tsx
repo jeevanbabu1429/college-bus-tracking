@@ -11,6 +11,7 @@ import { AlertHost } from "./src/components/AppAlert";
 import { BannerModal } from "./src/components/BannerModal";
 import { AndroidNavigationBar } from "./src/components/AndroidNavigationBar";
 import { ErrorBoundary } from "./src/components/ErrorBoundary";
+import { UpdateGate } from "./src/components/UpdateGate";
 import { OnboardingScreen } from "./src/screens/OnboardingScreen";
 import { useOnboarding } from "./src/onboarding/useOnboarding";
 
@@ -49,6 +50,9 @@ function ThemedRoot() {
       {/* Mounted once, above the navigator, so AppAlert.alert() from anywhere
           (screens, hooks, plain modules) draws the same popup on every OS. */}
       <AlertHost />
+      {/* Above the banner: someone on a version we no longer support should
+          see the update wall, not a promo poster. */}
+      {splashDone && <UpdateGate />}
       {splashDone && !showOnboarding && <BannerModal />}
       {!splashDone && (
         <AnimatedSplash
