@@ -201,6 +201,7 @@ describe("account deletion", () => {
       buses: 1,
       drivers: 1,
       students: 1,
+      staff: 0,
     });
     assert.equal(await AdminModel.findById(admin.id), null);
     assert.equal(await CollegeModel.findById(college.id), null);
@@ -228,6 +229,33 @@ describe("account deletion", () => {
     // The account is gone, so the same token cannot delete anything again.
     const again = await remove(token, { reason: "Left the college", otp: "0000" });
     assert.equal(again.status, 401);
+  });
+
+  it("takes the college's staff and roles with it", async () => {
+    const role = await RoleModel.create({
+      college: college._id,
+      name: "Dispatcher",
+      permissions: [],
+    });
+    const staff = await StaffModel.create({
+      college: college._id,
+      role: role._id,
+      name: "Sam",
+      mobile: "9400000002",
+    });
+    const token = tokenFor.admin();
+    await requestCode(token);
+    const res = await remove(token, { reason: "Closing the contract", otp: "0000" });
+    assert.equal(res.status, 200);
+    assert.equal(res.body.removed.staff, 1);
+    // Left behind, these are accounts that can still sign in to a console
+    // with nothing in it.
+    assert.equal(await StaffModel.findById(staff.id), null);
+    assert.equal(await RoleModel.findById(role.id), null);
+    const stillThere = await request(app)
+      .post("/api/staff-auth/request-otp")
+      .send({ mobile: "9400000002" });
+    assert.equal(stillThere.status, 404);
   });
 
   it("is refused while the super admin has it switched off", async () => {

@@ -4,6 +4,8 @@ import { BusModel } from "../models/Bus.js";
 import { CollegeModel } from "../models/College.js";
 import { DriverModel } from "../models/Driver.js";
 import { StudentModel } from "../models/Student.js";
+import { StaffModel } from "../models/Staff.js";
+import { RoleModel } from "../models/Role.js";
 import { deleteImage } from "./images.js";
 
 // Delete a college and every downstream entity in a safe fixed order.
@@ -15,13 +17,15 @@ import { deleteImage } from "./images.js";
 //   2. Un-assign drivers from buses (releases the partial-unique index)
 //   3. Delete drivers
 //   4. Delete buses
-//   5. Delete the college
+//   5. Delete the staff accounts and the roles they were given
+//   6. Delete the college
 export async function deleteCollegeCascade(
   collegeId: string | Types.ObjectId
 ): Promise<{
   students: number;
   drivers: number;
   buses: number;
+  staff: number;
 }> {
   const studentsRes = await StudentModel.deleteMany({ college: collegeId });
   await BusModel.updateMany(
@@ -36,11 +40,17 @@ export async function deleteCollegeCascade(
   const driversRes = await DriverModel.deleteMany({ college: collegeId });
   await Promise.all(photos.map((d) => deleteImage(d.image)));
   const busesRes = await BusModel.deleteMany({ college: collegeId });
+  // Staff and roles belong to this college and nothing else. Left behind they
+  // are accounts that can still sign in to a console with nothing in it, and
+  // mobile numbers kept after the customer asked for everything to go.
+  const staffRes = await StaffModel.deleteMany({ college: collegeId });
+  await RoleModel.deleteMany({ college: collegeId });
   await CollegeModel.deleteOne({ _id: collegeId });
   return {
     students: studentsRes.deletedCount ?? 0,
     drivers: driversRes.deletedCount ?? 0,
     buses: busesRes.deletedCount ?? 0,
+    staff: staffRes.deletedCount ?? 0,
   };
 }
 
@@ -54,14 +64,16 @@ export async function deleteAdminCascade(
   students: number;
   drivers: number;
   buses: number;
+  staff: number;
 }> {
   const colleges = await CollegeModel.find({ admin: adminId }).select("_id");
-  const totals = { students: 0, drivers: 0, buses: 0 };
+  const totals = { students: 0, drivers: 0, buses: 0, staff: 0 };
   for (const c of colleges) {
     const n = await deleteCollegeCascade(c._id);
     totals.students += n.students;
     totals.drivers += n.drivers;
     totals.buses += n.buses;
+    totals.staff += n.staff;
   }
   await AdminModel.deleteOne({ _id: adminId });
   return { colleges: colleges.length, ...totals };

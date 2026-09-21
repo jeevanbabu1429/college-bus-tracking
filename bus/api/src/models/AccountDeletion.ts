@@ -31,6 +31,7 @@ const accountDeletionSchema = new Schema(
       buses: { type: Number, default: 0 },
       drivers: { type: Number, default: 0 },
       students: { type: Number, default: 0 },
+      staff: { type: Number, default: 0 },
     },
   },
   { timestamps: true }

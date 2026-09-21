@@ -166,7 +166,7 @@ router.post("/", async (req, res) => {
     ? await CollegeModel.findById(user.college).select("name admin").lean()
     : null;
 
-  let removed = { colleges: 0, buses: 0, drivers: 0, students: 0 };
+  let removed = { colleges: 0, buses: 0, drivers: 0, students: 0, staff: 0 };
   if (role === "admin") {
     const totals = await deleteAdminCascade(user.id);
     removed = {
@@ -174,6 +174,7 @@ router.post("/", async (req, res) => {
       buses: totals.buses,
       drivers: totals.drivers,
       students: totals.students,
+      staff: totals.staff,
     };
   } else if (role === "driver") {
     await deleteDriverAccount(user.id);

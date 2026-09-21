@@ -605,6 +605,9 @@ function ProfileView({
           icon="🚪"
           label="Logout"
           onPress={onLogout}
+          // Without the delete row below, logout is the last one and must not
+          // draw a divider under itself.
+          isLast={!canDeleteAccount}
         />
         {canDeleteAccount && (
           <Row

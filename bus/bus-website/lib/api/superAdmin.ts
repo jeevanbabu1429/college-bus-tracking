@@ -150,7 +150,7 @@ export const superAdminApi = {
   deleteCollege: (id: string, confirmCode: string) =>
     fetchSuper<{
       ok: true;
-      deleted: { students: number; drivers: number; buses: number };
+      deleted: { students: number; drivers: number; buses: number; staff: number };
     }>(
       `/api/super/colleges/${id}?confirm=${encodeURIComponent(confirmCode)}`,
       { method: "DELETE" }
