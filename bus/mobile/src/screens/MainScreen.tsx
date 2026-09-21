@@ -17,6 +17,7 @@ import { useAuth } from "../auth/AuthContext";
 import { useTheme, type Colors } from "../theme/ThemeContext";
 import { collegesApi, type College } from "../api/colleges";
 import type { AppStackParamList } from "../navigation/types";
+import { useAccountDeletionEnabled } from "../api/appSettings";
 
 type Props = NativeStackScreenProps<AppStackParamList, "Main">;
 type Tab = "home" | "profile";
@@ -66,6 +67,8 @@ export function MainScreen({ navigation }: Props) {
   } = useColleges();
   const { mode, colors, setMode } = useTheme();
   const [tab, setTab] = useState<Tab>("home");
+  // Hidden when the super admin has switched account deletion off.
+  const deletionEnabled = useAccountDeletionEnabled();
 
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const isDark = mode === "dark";
@@ -130,6 +133,8 @@ export function MainScreen({ navigation }: Props) {
           onAddCollege={() => navigation.navigate("AddCollege")}
           onEditAdmin={() => navigation.navigate("EditAdmin")}
           onSupport={() => navigation.navigate("MyComplaints")}
+          canDeleteAccount={deletionEnabled}
+          onDeleteAccount={() => navigation.navigate("DeleteAccount")}
           onClaimOrphans={async () => {
             try {
               const { claimed } = await collegesApi.claimOrphans();
@@ -363,6 +368,8 @@ type ProfileViewProps = {
   onEditAdmin: () => void;
   onClaimOrphans: () => Promise<void>;
   onSupport: () => void;
+  canDeleteAccount: boolean;
+  onDeleteAccount: () => void;
   onLogout: () => Promise<void> | void;
 };
 
@@ -452,6 +459,8 @@ function ProfileView({
   onEditAdmin,
   onClaimOrphans,
   onSupport,
+  canDeleteAccount,
+  onDeleteAccount,
   onLogout,
 }: ProfileViewProps) {
   const insets = useSafeAreaInsets();
@@ -596,9 +605,22 @@ function ProfileView({
           icon="🚪"
           label="Logout"
           onPress={onLogout}
-          destructive
-          isLast
+          // Without the delete row below, logout is the last one and must not
+          // draw a divider under itself.
+          isLast={!canDeleteAccount}
         />
+        {canDeleteAccount && (
+          <Row
+            styles={styles}
+            colors={colors}
+            icon="🗑️"
+            label="Delete account"
+            sublabel="Removes your colleges, buses, drivers and students"
+            onPress={onDeleteAccount}
+            destructive
+            isLast
+          />
+        )}
       </View>
     </ScrollView>
   );

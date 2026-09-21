@@ -13,6 +13,7 @@ import {
   IconShield,
   IconHelp,
   IconDownload,
+  IconTrash,
 } from "./icons";
 
 // Red accent + darker sidebar-active-bg for the super admin area. Set as
@@ -33,6 +34,11 @@ const NAV: NavItem[] = [
   { href: "/super-admin/banner", label: "Banner", Icon: IconRoute },
   { href: "/super-admin/app-login", label: "App sign-in", Icon: IconShield },
   { href: "/super-admin/versions", label: "App versions", Icon: IconDownload },
+  {
+    href: "/super-admin/account-deletion",
+    label: "Account deletion",
+    Icon: IconTrash,
+  },
   { href: "/super-admin/complaints", label: "Complaints", Icon: IconHelp },
 ];
 
@@ -43,6 +49,7 @@ const TITLES: Record<string, string> = {
   banner: "Banner",
   "app-login": "App sign-in",
   versions: "App versions",
+  "account-deletion": "Account deletion",
   complaints: "Complaints",
   "change-password": "Change password",
 };

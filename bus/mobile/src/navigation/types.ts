@@ -1,10 +1,11 @@
-// Help & support is reachable from every role, and each role runs its own
-// stack, so these two routes are mixed into all three param lists below rather
-// than living in one of them. The screens are typed off SupportRoutes alone so
-// neither has to know which stack it was pushed onto.
+// Help & support and Delete account are reachable from every role, and each
+// role runs its own stack, so these routes are mixed into all three param
+// lists below rather than living in one of them. The screens are typed off
+// SupportRoutes alone so none has to know which stack it was pushed onto.
 export type SupportRoutes = {
   ReportProblem: undefined;
   MyComplaints: undefined;
+  DeleteAccount: undefined;
 };
 
 export type AuthStackParamList = {
