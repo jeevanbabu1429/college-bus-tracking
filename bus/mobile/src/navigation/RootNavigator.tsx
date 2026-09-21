@@ -30,6 +30,7 @@ import { TrackOtherBusMapScreen } from "../screens/TrackOtherBusMapScreen";
 import { PendingApprovalScreen } from "../screens/PendingApprovalScreen";
 import { ReportProblemScreen } from "../screens/ReportProblemScreen";
 import { MyComplaintsScreen } from "../screens/MyComplaintsScreen";
+import { DeleteAccountScreen } from "../screens/DeleteAccountScreen";
 import { CollegeProvider } from "../college/CollegeContext";
 import type {
   AppStackParamList,
@@ -87,6 +88,7 @@ function AppNavigator() {
       <AppStack.Screen name="EditStudent" component={EditStudentScreen} />
       <AppStack.Screen name="MyComplaints" component={MyComplaintsScreen} />
       <AppStack.Screen name="ReportProblem" component={ReportProblemScreen} />
+      <AppStack.Screen name="DeleteAccount" component={DeleteAccountScreen} />
     </AppStack.Navigator>
   );
 }
@@ -102,6 +104,10 @@ function DriverNavigator() {
       <DriverStack.Screen
         name="ReportProblem"
         component={ReportProblemScreen}
+      />
+      <DriverStack.Screen
+        name="DeleteAccount"
+        component={DeleteAccountScreen}
       />
     </DriverStack.Navigator>
   );
@@ -127,6 +133,10 @@ function StudentNavigator() {
       <StudentStack.Screen
         name="ReportProblem"
         component={ReportProblemScreen}
+      />
+      <StudentStack.Screen
+        name="DeleteAccount"
+        component={DeleteAccountScreen}
       />
     </StudentStack.Navigator>
   );

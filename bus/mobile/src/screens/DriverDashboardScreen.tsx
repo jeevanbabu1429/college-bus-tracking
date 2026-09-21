@@ -26,6 +26,7 @@ import {
 } from "../api/driverTrip";
 import { driverAuthApi, type DriverCollege } from "../api/driverAuth";
 import { ApiError } from "../api/client";
+import { useAccountDeletionEnabled } from "../api/appSettings";
 import { pickSquareAvatar } from "../lib/images";
 import { Avatar } from "../components/Avatar";
 import { Toast } from "../components/Toast";
@@ -344,6 +345,9 @@ export function DriverDashboardScreen() {
     }
   }, []);
 
+  // Hidden when the super admin has switched account deletion off.
+  const deletionEnabled = useAccountDeletionEnabled();
+
   const onLogout = () =>
     AppAlert.alert(
       "Logout?",
@@ -404,6 +408,8 @@ export function DriverDashboardScreen() {
           onChangePhoto={handleChangePhoto}
           onRemovePhoto={handleRemovePhoto}
           onSupport={() => navigation.navigate("MyComplaints")}
+          canDeleteAccount={deletionEnabled}
+          onDeleteAccount={() => navigation.navigate("DeleteAccount")}
           onLogout={onLogout}
         />
       )}
@@ -1116,6 +1122,8 @@ type ProfileViewProps = {
   onChangePhoto: () => void;
   onRemovePhoto: () => void;
   onSupport: () => void;
+  canDeleteAccount: boolean;
+  onDeleteAccount: () => void;
   onLogout: () => void;
 };
 
@@ -1131,6 +1139,8 @@ function ProfileView({
   onChangePhoto,
   onRemovePhoto,
   onSupport,
+  canDeleteAccount,
+  onDeleteAccount,
   onLogout,
 }: ProfileViewProps) {
   const insets = useSafeAreaInsets();
@@ -1318,6 +1328,31 @@ function ProfileView({
           <Text style={styles.phSupportChevron}>&#8250;</Text>
         </Pressable>
       </View>
+
+      {canDeleteAccount && (
+        <>
+          <Text style={styles.phSectionHeader}>Account</Text>
+          <View style={styles.phCard}>
+            <Pressable
+              onPress={onDeleteAccount}
+              style={({ pressed }) => [
+                styles.phToggleRow,
+                pressed && styles.phSupportPressed,
+              ]}
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.phToggleLabel, { color: colors.danger }]}>
+                  Delete account
+                </Text>
+                <Text style={styles.phToggleHelp}>
+                  Remove your account and its data for good
+                </Text>
+              </View>
+              <Text style={styles.phSupportChevron}>&#8250;</Text>
+            </Pressable>
+          </View>
+        </>
+      )}
 
       <View style={{ marginTop: 24, marginBottom: 24 }}>
         <Pressable

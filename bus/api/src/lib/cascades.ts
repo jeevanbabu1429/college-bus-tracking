@@ -66,3 +66,24 @@ export async function deleteAdminCascade(
   await AdminModel.deleteOne({ _id: adminId });
   return { colleges: colleges.length, ...totals };
 }
+
+// Delete one driver and let go of anything pointing at them: the bus they were
+// assigned to keeps its route and students, it just has no driver until one is
+// put back. The photo file is removed after the document, so a storage failure
+// cannot leave an account half-deleted.
+export async function deleteDriverAccount(
+  driverId: string | Types.ObjectId
+): Promise<void> {
+  const driver = await DriverModel.findById(driverId).select("image").lean();
+  await BusModel.updateMany({ driver: driverId }, { $set: { driver: null } });
+  await DriverModel.deleteOne({ _id: driverId });
+  await deleteImage(driver?.image ?? null);
+}
+
+// Delete one student. Their seat on the bus goes with them and nothing else
+// is affected.
+export async function deleteStudentAccount(
+  studentId: string | Types.ObjectId
+): Promise<void> {
+  await StudentModel.deleteOne({ _id: studentId });
+}

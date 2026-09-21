@@ -36,6 +36,7 @@ import {
   consoleComplaintDetail,
 } from "../lib/complaints.js";
 import { AppVersionsModel, readAppVersions } from "../models/AppVersions.js";
+import { AppSettingsModel, readAppSettings } from "../models/AppSettings.js";
 import { compareVersions, isVersion } from "../lib/appVersion.js";
 import {
   duplicateField,
@@ -643,6 +644,24 @@ router.delete("/banner", requireSuperAdmin, async (_req, res) => {
 // the mobile app AND the website console, so refusing a disabled role at the
 // endpoint would lock admins out of the web console too. Turning "admin" off
 // hides the card in the app; it does not disable the account.
+
+router.get("/app-settings", requireSuperAdmin, async (_req, res) => {
+  res.json(await readAppSettings());
+});
+
+router.put("/app-settings", requireSuperAdmin, async (req, res) => {
+  const value = (req.body ?? {}).accountDeletionEnabled;
+  if (typeof value !== "boolean") {
+    res.status(400).json({ error: "accountDeletionEnabled must be true or false" });
+    return;
+  }
+  await AppSettingsModel.findOneAndUpdate(
+    {},
+    { accountDeletionEnabled: value },
+    { new: true, upsert: true, setDefaultsOnInsert: true }
+  );
+  res.json(await readAppSettings());
+});
 
 router.get("/app-versions", requireSuperAdmin, async (_req, res) => {
   res.json(await readAppVersions());

@@ -72,6 +72,11 @@ export type LoginRoles = {
 
 export type LoginRoleKey = keyof LoginRoles;
 
+/** Product-wide switches for the mobile app. */
+export type AppSettings = {
+  accountDeletionEnabled: boolean;
+};
+
 /** Which mobile app versions are still allowed to run. Product-wide. */
 export type AppVersions = {
   androidLatest: string;
@@ -158,6 +163,13 @@ export const superAdminApi = {
     fetchSuper<LoginRoles>("/api/super/login-roles", {
       method: "PUT",
       body: JSON.stringify(input),
+    }),
+
+  getAppSettings: () => fetchSuper<AppSettings>("/api/super/app-settings"),
+  putAppSettings: (accountDeletionEnabled: boolean) =>
+    fetchSuper<AppSettings>("/api/super/app-settings", {
+      method: "PUT",
+      body: JSON.stringify({ accountDeletionEnabled }),
     }),
 
   getAppVersions: () => fetchSuper<AppVersions>("/api/super/app-versions"),

@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import { AppAlert } from "../components/AppAlert";
 import { isStale, timeAgo, useNow } from "../lib/time";
+import { useAccountDeletionEnabled } from "../api/appSettings";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -238,6 +239,9 @@ export function StudentDashboardScreen() {
     };
   }, [student?.bus, fetchLocation]);
 
+  // Hidden when the super admin has switched account deletion off.
+  const deletionEnabled = useAccountDeletionEnabled();
+
   const onLogout = () =>
     AppAlert.alert(
       "Logout?",
@@ -286,6 +290,8 @@ export function StudentDashboardScreen() {
           setMode={setMode}
           student={student}
           onSupport={() => navigation.navigate("MyComplaints")}
+          canDeleteAccount={deletionEnabled}
+          onDeleteAccount={() => navigation.navigate("DeleteAccount")}
           onLogout={onLogout}
         />
       )}
@@ -915,6 +921,8 @@ type ProfileViewProps = {
   setMode: (m: "light" | "dark") => Promise<void>;
   student: Student | null;
   onSupport: () => void;
+  canDeleteAccount: boolean;
+  onDeleteAccount: () => void;
   onLogout: () => void;
 };
 
@@ -925,6 +933,8 @@ function ProfileView({
   setMode,
   student,
   onSupport,
+  canDeleteAccount,
+  onDeleteAccount,
   onLogout,
 }: ProfileViewProps) {
   const insets = useSafeAreaInsets();
@@ -1024,6 +1034,31 @@ function ProfileView({
           <Text style={styles.phSupportChevron}>&#8250;</Text>
         </Pressable>
       </View>
+
+      {canDeleteAccount && (
+        <>
+          <Text style={styles.phSectionHeader}>Account</Text>
+          <View style={styles.phCard}>
+            <Pressable
+              onPress={onDeleteAccount}
+              style={({ pressed }) => [
+                styles.phToggleRow,
+                pressed && styles.phSupportPressed,
+              ]}
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.phToggleLabel, { color: colors.danger }]}>
+                  Delete account
+                </Text>
+                <Text style={styles.phToggleHelp}>
+                  Remove your account and its data for good
+                </Text>
+              </View>
+              <Text style={styles.phSupportChevron}>&#8250;</Text>
+            </Pressable>
+          </View>
+        </>
+      )}
 
       <View style={{ marginTop: 24, marginBottom: 24 }}>
         <Pressable

@@ -20,7 +20,9 @@ import superAdminRouter from "./routes/superAdmin.js";
 import loginRolesRouter from "./routes/loginRoles.js";
 import bannerRouter from "./routes/banner.js";
 import appVersionRouter from "./routes/appVersion.js";
+import appSettingsRouter from "./routes/appSettings.js";
 import complaintsRouter from "./routes/complaints.js";
+import accountDeletionRouter from "./routes/accountDeletion.js";
 import { fileStorageRoute } from "./fileStorage/fileRoute/fileStorageRoute.js";
 import driverPhotoRouter from "./routes/driverPhoto.js";
 import { errorHandler, notFoundHandler } from "./lib/httpErrors.js";
@@ -55,6 +57,7 @@ export function createApp(): Express {
   app.use("/api/super", superAdminRouter);
   app.use("/api/banner", bannerRouter);
   app.use("/api/complaints", complaintsRouter);
+  app.use("/api/account/delete", accountDeletionRouter);
   // Uploaded images, when they are kept on this server's disk rather than in
   // S3. Outside /api on purpose: these are plain static files, as in kareez.
   if (process.env.STORAGE_DRIVER !== "s3" && process.env.IMAGE_SERVER_PATH) {
@@ -62,6 +65,7 @@ export function createApp(): Express {
   }
   app.use("/api/login-roles", loginRolesRouter);
   app.use("/api/app-version", appVersionRouter);
+  app.use("/api/app-settings", appSettingsRouter);
   app.use("/api/drivers", driverPhotoRouter);
 
   // Anything unmatched, and every error, answers in JSON the clients can show.
