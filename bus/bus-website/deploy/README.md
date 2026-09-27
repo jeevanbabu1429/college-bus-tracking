@@ -1,18 +1,26 @@
-# Manual dev deploy — bus-website
+# Manual deploy — bus-website
 
 The website half of the pair. Same shape as `bus/api/deploy/deploy.sh`
 (preflight → build → package → scp → PM2 → health check), same server, same
 "no domain, no TLS" dev posture — a different port and a Next.js app instead of
 an Express one.
 
-| | |
-|---|---|
-| Base URL | `http://89.116.134.28:3040` |
-| Server | `89.116.134.28` (shared — also runs the API and other projects) |
-| Remote dir | `/opt/bus-website-dev` |
-| PM2 process | `bus-website-dev` |
-| Talks to | the API at `http://89.116.134.28:3030` |
-| `NODE_ENV` | `production` |
+Two environments run side by side, picked with `DEPLOY_ENV`. Each has its own
+folder, PM2 process, port and env file.
+
+| | **dev** (default) | **demo** (shown to clients) |
+|---|---|---|
+| Base URL | `http://89.116.134.28:3040` | `https://buszo.thinkcove.com` |
+| Command | `./deploy/deploy.sh` | `DEPLOY_ENV=demo ./deploy/deploy.sh` |
+| Port | `3040` (open to the internet) | `3060` (Traefik only) |
+| Remote dir | `/opt/bus-website-dev` | `/opt/bus-website-demo` |
+| PM2 process | `bus-website-dev` | `bus-website-demo` |
+| Env file | `deploy/.env.production` | `deploy/.env.demo` |
+| Talks to | `http://89.116.134.28:3030` | `https://buszo-api.thinkcove.com` |
+| `NODE_ENV` | `production` | `production` |
+
+The demo domains and their certificates are set up once by
+`bus/api/deploy/setup-demo-domains.sh` — see that README.
 
 > **`NODE_ENV=production` here does not mean the stack is production.**
 > Next.js simply refuses to serve a built app in any other mode, and the
@@ -26,12 +34,16 @@ an Express one.
 
 ## Ports on this box
 
-| Port | Process | What |
-|---|---|---|
-| 3030 | `bus-api-dev` | Express API |
-| 3040 | `bus-website-dev` | this Next.js site |
+| Port | Process | What | Reached by |
+|---|---|---|---|
+| 3030 | `bus-api-dev` | Express API, dev | the internet, directly |
+| 3040 | `bus-website-dev` | this site, dev | the internet, directly |
+| 3050 | `bus-api-demo` | Express API, demo | Traefik only |
+| 3060 | `bus-website-demo` | this site, demo | Traefik only |
+| 80, 443 | Traefik | the two demo domains | the internet |
 
-Both must be open in the firewall. The site is rendered in the visitor's
+The two dev ports must be open in the firewall. The demo ports do not need to
+be: Traefik reaches them over loopback on the same box. The site is rendered in the visitor's
 browser and calls the API **from there**, so a user who can load the site but
 not reach 3030 sees a site where every page fails to load data.
 
@@ -75,7 +87,8 @@ there too, or the site will be healthy on the box and unreachable from outside.
 From `college-bus-tracking/bus/bus-website`:
 
 ```bash
-cp deploy/.env.production.example deploy/.env.production
+cp deploy/.env.production.example deploy/.env.production   # dev
+cp deploy/.env.demo.example deploy/.env.demo               # demo
 ```
 
 `NEXT_PUBLIC_API_URL` is pre-filled. The seven Firebase values are optional —
@@ -109,7 +122,8 @@ what ships always matches `deploy/.env.production`.
 
 ```bash
 cd college-bus-tracking/bus/bus-website
-./deploy/deploy.sh
+./deploy/deploy.sh                    # dev
+DEPLOY_ENV=demo ./deploy/deploy.sh    # demo
 ```
 
 Escape hatches:

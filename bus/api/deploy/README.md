@@ -1,19 +1,27 @@
-# Manual dev deploy — bus-api
+# Manual deploy — bus-api
 
 Same shape as `deploy-dev2.yml` (build → package → scp → PM2), but run from your
 machine over SSH. No GitHub Actions runner needed.
 
-This is a **dev** deployment: reached directly by IP and port, no domain, no
-TLS, no Traefik. The database is MongoDB Atlas.
+Two environments run side by side on the same box, picked with `DEPLOY_ENV`.
+Each has its own folder, PM2 process, port, image folder, env file and
+database, so deploying one never disturbs the other.
 
-| | |
-|---|---|
-| Base URL | `http://89.116.134.28:3030` |
-| Server | `89.116.134.28` (shared with other projects) |
-| Remote dir | `/opt/bus-api-dev` |
-| PM2 process | `bus-api-dev` |
-| Database | MongoDB Atlas |
-| `NODE_ENV` | `development` |
+| | **dev** (default) | **demo** (shown to clients) |
+|---|---|---|
+| Base URL | `http://89.116.134.28:3030` | `https://buszo-api.thinkcove.com` |
+| Command | `./deploy/deploy.sh` | `DEPLOY_ENV=demo ./deploy/deploy.sh` |
+| Port | `3030` (open to the internet) | `3050` (Traefik only) |
+| Remote dir | `/opt/bus-api-dev` | `/opt/bus-api-demo` |
+| PM2 process | `bus-api-dev` | `bus-api-demo` |
+| Images | `/var/lib/bus-api-dev/images` | `/var/lib/bus-api-demo/images` |
+| Env file | `deploy/.env.dev` | `deploy/.env.demo` |
+| Database | Atlas (`bus_dev`) | Atlas — **a different database** |
+| TLS | none | Let's Encrypt, renewed automatically |
+| `NODE_ENV` | `development` | `development` |
+
+The demo database must be a separate one. A demo is where people click
+everything, and it must never show — or damage — dev data.
 
 > **`NODE_ENV=development` makes every OTP `0000`.**
 > `src/lib/otp.ts` returns a fixed `"0000"` whenever `NODE_ENV !== "production"`.
@@ -37,6 +45,33 @@ Other projects run on this box, so the deploy is scoped to avoid them:
 
 Never run a `apt-get install nodejs` / NodeSource upgrade on this box; it would
 replace Node for every project at once.
+
+---
+
+## The demo domains (one-off)
+
+`https://buszo.thinkcove.com` (website) and `https://buszo-api.thinkcove.com`
+(API) are served by **Traefik**, which already runs on this box on ports 80 and
+443 for every other project here. It reads one rule file per domain from
+`/opt/traefik/dynamic` and gets certificates from Let's Encrypt itself.
+
+Before the first demo deploy, point both names at `89.116.134.28` with an A
+record — **DNS only, not proxied**, or Let's Encrypt cannot reach the server —
+then run once:
+
+```bash
+cd college-bus-tracking/bus/api
+./deploy/setup-demo-domains.sh
+```
+
+It writes a single file, `/opt/traefik/dynamic/buszo.thinkcove.com.yml`, with a
+router and service per domain pointing at `localhost:3050` and `localhost:3060`.
+Traefik is watching that directory, so there is nothing to restart and no
+certbot step. No other project's file is touched, and running it again just
+rewrites the same file.
+
+The demo ports themselves stay closed to the internet: Traefik reaches them over
+loopback on the same machine.
 
 ---
 
@@ -90,7 +125,8 @@ catch this and say so.
 From `college-bus-tracking/bus/api`:
 
 ```bash
-cp deploy/.env.dev.example deploy/.env.dev
+cp deploy/.env.dev.example deploy/.env.dev      # dev
+cp deploy/.env.demo.example deploy/.env.demo    # demo
 ```
 
 Fill in:
@@ -117,7 +153,8 @@ Run from **Git Bash** on Windows (not PowerShell — it's a bash script):
 
 ```bash
 cd college-bus-tracking/bus/api
-./deploy/deploy.sh
+./deploy/deploy.sh                    # dev
+DEPLOY_ENV=demo ./deploy/deploy.sh    # demo
 ```
 
 Escape hatches:

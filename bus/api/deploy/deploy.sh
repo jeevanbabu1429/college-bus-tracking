@@ -1,13 +1,19 @@
 #!/usr/bin/env bash
 #
-# Manual DEV deploy for bus-api → VPS, PM2, no reverse proxy.
+# Manual deploy for bus-api → VPS, PM2.
 #
 # Same shape as .github/workflows/deploy-dev2.yml (build → package → scp → PM2),
 # minus GitHub Actions: the build happens on your machine, the artifact is scp'd
 # to the VPS, and the remote steps run over plain ssh. No runner required.
 #
-# Dev deployment: reached directly at http://<VPS_HOST>:<API_PORT>, no domain,
-# no TLS, no Traefik. Database is MongoDB Atlas.
+# Two environments live side by side on the same box, told apart by DEPLOY_ENV:
+#
+#   dev   (default)  http://<VPS_HOST>:3030        no domain, no TLS
+#   demo             https://buszo-api.thinkcove.com  behind Traefik + Let's Encrypt
+#
+# Each has its own directory, PM2 process, image folder, port and env file, so
+# deploying one never touches the other. Database is MongoDB Atlas — a separate
+# database per environment, set in its own env file.
 #
 # Shared server, so two things are deliberate:
 #   * the app runs under its own nvm-managed Node, leaving the system Node (used
@@ -15,8 +21,9 @@
 #   * only /opt/bus-api-dev and the PM2 process 'bus-api-dev' are ever touched.
 #
 # Usage:
-#   ./deploy/deploy.sh                 # full deploy
-#   SKIP_TESTS=1 ./deploy/deploy.sh    # skip the test suite
+#   ./deploy/deploy.sh                      # dev
+#   DEPLOY_ENV=demo ./deploy/deploy.sh      # demo (client demo server)
+#   SKIP_TESTS=1 ./deploy/deploy.sh         # skip the test suite
 
 set -euo pipefail
 
@@ -24,9 +31,19 @@ set -euo pipefail
 # Config — the manual equivalent of the workflow's `env:` block.
 # ---------------------------------------------------------------------------
 NODE_VERSION_MIN='20'                          # workflow pinned 22; 20+ is fine
-API_PORT="${API_PORT:-3030}"
-APP_NAME='College Bus Tracking API (Dev)'
-PM2_NAME='bus-api-dev'
+
+# Which environment this run deploys. Everything below is named after it, so a
+# demo deploy cannot overwrite the dev one by accident.
+DEPLOY_ENV="${DEPLOY_ENV:-dev}"
+case "$DEPLOY_ENV" in
+  dev)  DEFAULT_PORT=3030 ;;
+  demo) DEFAULT_PORT=3050 ;;
+  *) echo "DEPLOY_ENV must be 'dev' or 'demo' (got '$DEPLOY_ENV')" >&2; exit 1 ;;
+esac
+
+API_PORT="${API_PORT:-$DEFAULT_PORT}"
+APP_NAME="College Bus Tracking API (${DEPLOY_ENV})"
+PM2_NAME="bus-api-$DEPLOY_ENV"
 
 # Dev, not production. This is what makes generateOtp() return a fixed "0000"
 # (src/lib/otp.ts) — convenient for testing logins, and the reason this port
@@ -34,14 +51,23 @@ PM2_NAME='bus-api-dev'
 NODE_ENV='development'
 
 VPS_HOST="${VPS_HOST:-89.116.134.28}"
+
+# Where the outside world reaches this app: the port directly on dev, the
+# domain Traefik serves on demo.
+if [[ "$DEPLOY_ENV" == 'demo' ]]; then
+  PUBLIC_URL="${PUBLIC_URL:-https://buszo-api.thinkcove.com}"
+else
+  PUBLIC_URL="${PUBLIC_URL:-http://$VPS_HOST:$API_PORT}"
+fi
+
 VPS_USER="${VPS_USER:-root}"
-REMOTE_DIR="${REMOTE_DIR:-/opt/bus-api-dev}"
+REMOTE_DIR="${REMOTE_DIR:-/opt/bus-api-$DEPLOY_ENV}"
 # Uploaded images (local storage). Deliberately NOT under $REMOTE_DIR — the
 # remote step below empties that directory on every deploy.
-IMAGE_DIR="${IMAGE_DIR:-/var/lib/bus-api-dev/images}"
+IMAGE_DIR="${IMAGE_DIR:-/var/lib/bus-api-$DEPLOY_ENV/images}"
 
 SSH_KEY="${SSH_KEY:-}"                         # optional: path to a private key
-TARBALL='bus-api-dev.tar.gz'
+TARBALL="bus-api-$DEPLOY_ENV.tar.gz"
 
 # ---------------------------------------------------------------------------
 API_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -72,9 +98,9 @@ fi
 
 # Gitignored, so they can only ever be supplied by hand. This is the manual
 # stand-in for the workflow's `${{ secrets.* }}` injection.
-DEV_ENV="$DEPLOY_DIR/.env.dev"
+DEV_ENV="$DEPLOY_DIR/.env.$DEPLOY_ENV"
 [[ -f "$DEV_ENV" ]] || fail \
-  "Missing $DEV_ENV — copy deploy/.env.dev.example and fill it in."
+  "Missing $DEV_ENV — copy deploy/.env.$DEPLOY_ENV.example and fill it in."
 
 FIREBASE_JSON="$API_DIR/firebase-service-account.json"
 [[ -f "$FIREBASE_JSON" ]] || fail "Missing $FIREBASE_JSON."
@@ -154,7 +180,7 @@ echo "Using Node v$remote_major at $REMOTE_NODE_BIN"
 echo "Deploying $APP_NAME"
 echo "  from : $API_DIR"
 echo "  to   : $REMOTE:$REMOTE_DIR"
-echo "  url  : http://$VPS_HOST:$API_PORT"
+echo "  url  : $PUBLIC_URL"
 
 # --- Build locally ---------------------------------------------------------
 step 'Installing dependencies (npm ci)'
@@ -198,7 +224,7 @@ fi
 grep -q '^IMAGE_SERVER_PATH=' "$STAGE_DIR/.env" \
   || echo "IMAGE_SERVER_PATH=$IMAGE_DIR" >> "$STAGE_DIR/.env"
 grep -q '^IMAGE_SERVER_URL=' "$STAGE_DIR/.env" \
-  || echo "IMAGE_SERVER_URL=http://$VPS_HOST:$API_PORT/images" >> "$STAGE_DIR/.env"
+  || echo "IMAGE_SERVER_URL=$PUBLIC_URL/images" >> "$STAGE_DIR/.env"
 
 # PM2 config is rendered here rather than on the server, so there are no nested
 # heredocs to escape. Two things matter:
@@ -261,7 +287,7 @@ cd "$REMOTE_DIR"
 mkdir -p "$IMAGE_DIR"
 
 echo "Cleaning previous deploy (keeping the uploaded tarball)..."
-find . -maxdepth 1 -mindepth 1 ! -name 'bus-api-dev*.tar.gz' -exec rm -rf {} +
+find . -maxdepth 1 -mindepth 1 ! -name "$TARBALL" -exec rm -rf {} +
 
 echo "Extracting build..."
 tar -xzf "$TARBALL"
@@ -299,11 +325,16 @@ exit 1
 REMOTE_SCRIPT
 
 # --- Verify from outside ---------------------------------------------------
-# With no reverse proxy the port is exposed directly, so confirm it is actually
-# reachable from off-box — a firewall drop is invisible to the local check.
-step "Verifying http://$VPS_HOST:$API_PORT/health from here"
-if curl -fsS --max-time 10 "http://$VPS_HOST:$API_PORT/health" 2>/dev/null | grep -q '"ok"'; then
+# dev is reached on its port directly, demo through Traefik on its domain. Either
+# way, check from here: a firewall drop or a missing vhost is invisible to the
+# on-box check that just passed.
+step "Verifying $PUBLIC_URL/health from here"
+if curl -fsS --max-time 10 "$PUBLIC_URL/health" 2>/dev/null | grep -q '"ok"'; then
   echo 'Reachable from outside.'
+elif [[ "$DEPLOY_ENV" == 'demo' ]]; then
+  warn "App is healthy on the VPS but $PUBLIC_URL is not answering."
+  warn "Run the one-off proxy setup if you have not yet:  ./deploy/setup-demo-domains.sh"
+  warn "Then check Traefik:  ssh $REMOTE 'tail -20 /var/log/traefik/traefik.log'"
 else
   warn "App is healthy on the VPS but port $API_PORT is not reachable from here."
   warn "Open it on the server:  ufw allow $API_PORT/tcp"
@@ -316,6 +347,6 @@ rm -rf "$STAGE_DIR" "$API_DIR/$TARBALL"
 ssh "${SSH_OPTS[@]}" "$REMOTE" 'pm2 status'
 
 echo
-echo "Base URL : http://$VPS_HOST:$API_PORT"
-echo "Health   : http://$VPS_HOST:$API_PORT/health"
+echo "Base URL : $PUBLIC_URL"
+echo "Health   : $PUBLIC_URL/health"
 echo "Logs     : ssh $REMOTE 'pm2 logs $PM2_NAME'"

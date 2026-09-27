@@ -34,7 +34,7 @@
           "remote-notification"
         ]
       },
-      "buildNumber": "4",
+      "buildNumber": "5",
       "googleServicesFile": "./GoogleService-Info.plist",
       "entitlements": {
         "aps-environment": "development"
