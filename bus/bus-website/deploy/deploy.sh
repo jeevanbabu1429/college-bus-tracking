@@ -1,13 +1,18 @@
 #!/usr/bin/env bash
 #
-# Manual deploy for bus-website (Next.js) -> VPS, PM2, no reverse proxy.
+# Manual deploy for bus-website (Next.js) -> VPS, PM2.
 #
 # Same shape as bus/api/deploy/deploy.sh — preflight, build locally, package,
 # scp, PM2, health check — pointed at the Next.js app instead of the Express
 # API, and sharing the same server.
 #
-# Reached directly at http://<VPS_HOST>:<WEB_PORT>. No domain, no TLS, no
-# Traefik. It talks to the API at NEXT_PUBLIC_API_URL, also over plain HTTP.
+# Two environments live side by side on the same box, told apart by DEPLOY_ENV:
+#
+#   dev   (default)  http://<VPS_HOST>:3040       no domain, no TLS
+#   demo             https://buszo.thinkcove.com  behind Traefik + Let's Encrypt
+#
+# Each has its own directory, PM2 process, port and env file, so deploying one
+# never touches the other. Both talk to their own API at NEXT_PUBLIC_API_URL.
 #
 # Shared server, so the same two rules as the API deploy hold:
 #   * the app runs under its own nvm-managed Node, leaving the system Node
@@ -16,7 +21,8 @@
 #     ever touched. The API's own process is never restarted.
 #
 # Usage:
-#   ./deploy/deploy.sh                  # full deploy
+#   ./deploy/deploy.sh                  # dev
+#   DEPLOY_ENV=demo ./deploy/deploy.sh  # demo (client demo server)
 #   SKIP_LINT=1 ./deploy/deploy.sh      # skip eslint
 #   LINT_STRICT=1 ./deploy/deploy.sh    # make lint errors fail the deploy
 #   WEB_PORT=3041 ./deploy/deploy.sh    # different port
@@ -27,9 +33,19 @@ set -euo pipefail
 # Config — override any of these from the environment.
 # ---------------------------------------------------------------------------
 NODE_VERSION_MIN='20'
-WEB_PORT="${WEB_PORT:-3040}"                   # 3030 is the API; keep them apart
-APP_NAME='College Bus Tracking Website'
-PM2_NAME='bus-website-dev'
+
+# Which environment this run deploys. Everything below is named after it, so a
+# demo deploy cannot overwrite the dev one by accident.
+DEPLOY_ENV="${DEPLOY_ENV:-dev}"
+case "$DEPLOY_ENV" in
+  dev)  DEFAULT_PORT=3040 ;;
+  demo) DEFAULT_PORT=3060 ;;
+  *) echo "DEPLOY_ENV must be 'dev' or 'demo' (got '$DEPLOY_ENV')" >&2; exit 1 ;;
+esac
+
+WEB_PORT="${WEB_PORT:-$DEFAULT_PORT}"          # the API has its own; keep apart
+APP_NAME="College Bus Tracking Website (${DEPLOY_ENV})"
+PM2_NAME="bus-website-$DEPLOY_ENV"
 
 # Next.js requires production mode to serve a built app. Unlike the API — where
 # NODE_ENV=development is a deliberate choice that pins every OTP to "0000" —
@@ -37,11 +53,20 @@ PM2_NAME='bus-website-dev'
 NODE_ENV='production'
 
 VPS_HOST="${VPS_HOST:-89.116.134.28}"
+
+# Where the outside world reaches this app: the port directly on dev, the
+# domain Traefik serves on demo.
+if [[ "$DEPLOY_ENV" == 'demo' ]]; then
+  PUBLIC_URL="${PUBLIC_URL:-https://buszo.thinkcove.com}"
+else
+  PUBLIC_URL="${PUBLIC_URL:-http://$VPS_HOST:$WEB_PORT}"
+fi
+
 VPS_USER="${VPS_USER:-root}"
-REMOTE_DIR="${REMOTE_DIR:-/opt/bus-website-dev}"
+REMOTE_DIR="${REMOTE_DIR:-/opt/bus-website-$DEPLOY_ENV}"
 
 SSH_KEY="${SSH_KEY:-}"                         # optional: path to a private key
-TARBALL='bus-website-dev.tar.gz'
+TARBALL="bus-website-$DEPLOY_ENV.tar.gz"
 
 # ---------------------------------------------------------------------------
 WEB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -70,9 +95,16 @@ if (( node_major < NODE_VERSION_MIN )); then
   fail "Node $NODE_VERSION_MIN+ required to build; you have $(node -v)."
 fi
 
-PROD_ENV="$DEPLOY_DIR/.env.production"
+# dev keeps its historical name; demo has its own file beside it.
+if [[ "$DEPLOY_ENV" == 'dev' ]]; then
+  PROD_ENV="$DEPLOY_DIR/.env.production"
+  PROD_ENV_EXAMPLE='deploy/.env.production.example'
+else
+  PROD_ENV="$DEPLOY_DIR/.env.$DEPLOY_ENV"
+  PROD_ENV_EXAMPLE="deploy/.env.$DEPLOY_ENV.example"
+fi
 [[ -f "$PROD_ENV" ]] || fail \
-  "Missing $PROD_ENV — copy deploy/.env.production.example and fill it in."
+  "Missing $PROD_ENV — copy $PROD_ENV_EXAMPLE and fill it in."
 
 if grep -qE '^NEXT_PUBLIC_API_URL=[[:space:]]*$' "$PROD_ENV"; then
   fail "$PROD_ENV has an empty NEXT_PUBLIC_API_URL."
@@ -147,7 +179,7 @@ echo "Using Node v$remote_major at $REMOTE_NODE_BIN"
 echo "Deploying $APP_NAME"
 echo "  from : $WEB_DIR"
 echo "  to   : $REMOTE:$REMOTE_DIR"
-echo "  url  : http://$VPS_HOST:$WEB_PORT"
+echo "  url  : $PUBLIC_URL"
 
 # --- Build locally ---------------------------------------------------------
 step 'Installing dependencies (npm ci)'
@@ -259,7 +291,7 @@ echo "Running under $(node -v) ($NODE_BIN)"
 cd "$REMOTE_DIR"
 
 echo "Cleaning previous deploy (keeping the uploaded tarball)..."
-find . -maxdepth 1 -mindepth 1 ! -name 'bus-website-dev*.tar.gz' -exec rm -rf {} +
+find . -maxdepth 1 -mindepth 1 ! -name "$TARBALL" -exec rm -rf {} +
 
 echo "Extracting build..."
 tar -xzf "$TARBALL"
@@ -296,9 +328,13 @@ REMOTE_SCRIPT
 # --- Verify from outside ---------------------------------------------------
 # With no reverse proxy the port is exposed directly, so confirm it is actually
 # reachable from off-box — a firewall drop is invisible to the local check.
-step "Verifying http://$VPS_HOST:$WEB_PORT/api/health from here"
-if curl -fsS --max-time 10 "http://$VPS_HOST:$WEB_PORT/api/health" 2>/dev/null | grep -q '"ok"'; then
+step "Verifying $PUBLIC_URL/api/health from here"
+if curl -fsS --max-time 10 "$PUBLIC_URL/api/health" 2>/dev/null | grep -q '"ok"'; then
   echo 'Reachable from outside.'
+elif [[ "$DEPLOY_ENV" == 'demo' ]]; then
+  warn "App is healthy on the VPS but $PUBLIC_URL is not answering."
+  warn "Run the one-off proxy setup if you have not yet:"
+  warn "  ../api/deploy/setup-demo-domains.sh"
 else
   warn "App is healthy on the VPS but port $WEB_PORT is not reachable from here."
   warn "Open it on the server:  ufw allow $WEB_PORT/tcp"
@@ -311,6 +347,6 @@ rm -rf "$STAGE_DIR" "$WEB_DIR/$TARBALL"
 ssh "${SSH_OPTS[@]}" "$REMOTE" 'pm2 status'
 
 echo
-echo "Website  : http://$VPS_HOST:$WEB_PORT"
-echo "Health   : http://$VPS_HOST:$WEB_PORT/api/health"
+echo "Website  : $PUBLIC_URL"
+echo "Health   : $PUBLIC_URL/api/health"
 echo "Logs     : ssh $REMOTE 'pm2 logs $PM2_NAME'"

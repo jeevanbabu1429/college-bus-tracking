@@ -32,6 +32,8 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+# …but the deploy templates carry no secrets and are meant to be shared.
+!deploy/.env.*.example
 
 # vercel
 .vercel
