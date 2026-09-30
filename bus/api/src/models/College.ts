@@ -1,5 +1,8 @@
 import { Schema, model, type InferSchemaType } from "mongoose";
 
+/** Staff accounts included before a college has to ask for more. */
+export const DEFAULT_STAFF_LIMIT = 5;
+
 const collegeSchema = new Schema(
   {
     admin: {
@@ -25,6 +28,10 @@ const collegeSchema = new Schema(
     // existed have no value stored, and those must keep working. Only an
     // explicit `false` blocks, so reads are `approved === false`, never
     // `!approved`. The create route always writes an explicit value.
+    // How many staff accounts this college may have. Default 5; the super
+    // admin raises it per customer, which is the whole point of it being a
+    // field rather than a constant.
+    staffLimit: { type: Number, default: DEFAULT_STAFF_LIMIT, min: 0 },
     approved: { type: Boolean },
     approvedAt: { type: Date, default: null },
   },

@@ -4,9 +4,15 @@ import { useState } from "react";
 import {
   collegeAccessApi,
   type Role,
+  type StaffAllowance,
   type StaffMember,
 } from "../lib/api/collegeAccess";
 import { IconPlus } from "./icons";
+import {
+  SUPPORT_EMAIL,
+  SUPPORT_MOBILE_DISPLAY,
+  SUPPORT_TEL,
+} from "./SupportContact";
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -35,6 +41,8 @@ export function StaffPanel({
   collegeId,
   roles,
   staff,
+  allowance,
+  onAllowanceChange,
   canEdit,
   canCreate,
   canDelete,
@@ -44,6 +52,8 @@ export function StaffPanel({
   collegeId: string;
   roles: Role[];
   staff: StaffMember[] | null;
+  allowance: StaffAllowance | null;
+  onAllowanceChange: (next: StaffAllowance) => void;
   canEdit: boolean;
   canCreate: boolean;
   canDelete: boolean;
@@ -56,6 +66,9 @@ export function StaffPanel({
   const [busy, setBusy] = useState(false);
 
   const ready = name.trim() && mobile.replace(/\D/g, "").length >= 10 && roleId;
+  // Unknown allowance (the request failed) is treated as "not full": the
+  // server has the last word anyway, and a blocked form would be worse.
+  const full = allowance !== null && allowance.remaining <= 0;
 
   async function add() {
     if (!ready || busy) return;
@@ -68,6 +81,13 @@ export function StaffPanel({
         roleId,
       });
       onChange([created, ...(staff ?? [])]);
+      if (allowance) {
+        onAllowanceChange({
+          ...allowance,
+          used: allowance.used + 1,
+          remaining: Math.max(0, allowance.remaining - 1),
+        });
+      }
       setName("");
       setMobile("");
       setRoleId("");
@@ -93,6 +113,13 @@ export function StaffPanel({
     try {
       await collegeAccessApi.removeStaff(collegeId, member._id);
       onChange((staff ?? []).filter((s) => s._id !== member._id));
+      if (allowance) {
+        onAllowanceChange({
+          ...allowance,
+          used: Math.max(0, allowance.used - 1),
+          remaining: Math.min(allowance.limit, allowance.remaining + 1),
+        });
+      }
     } catch (e) {
       onError((e as Error).message);
     }
@@ -108,10 +135,41 @@ export function StaffPanel({
 
   return (
     <>
-      {canCreate && (
+      {canCreate && full && (
+        <div className="card">
+          <div className="card-titlerow" style={{ marginBottom: 12 }}>
+            <div className="card-title">You have used all your user accounts</div>
+          </div>
+          <p className="muted" style={{ lineHeight: 1.6, marginTop: 0 }}>
+            Your plan includes {allowance?.limit} user account
+            {allowance?.limit === 1 ? "" : "s"}, and all of them are in use. To
+            add more people, get in touch and we will raise it for your college.
+          </p>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 14 }}>
+            <a className="btn btn-primary" href={`mailto:${SUPPORT_EMAIL}?subject=More user accounts for Busszo`}>
+              Email {SUPPORT_EMAIL}
+            </a>
+            <a className="btn btn-secondary" href={`tel:${SUPPORT_TEL}`}>
+              Call {SUPPORT_MOBILE_DISPLAY}
+            </a>
+          </div>
+          <p className="muted small" style={{ marginTop: 14, marginBottom: 0 }}>
+            You can still change roles, switch someone off, or remove a person
+            to free a slot.
+          </p>
+        </div>
+      )}
+
+      {canCreate && !full && (
         <div className="card">
           <div className="card-titlerow" style={{ marginBottom: 16 }}>
             <div className="card-title">Add someone</div>
+            {allowance && (
+              <span className="muted small">
+                {allowance.remaining} of {allowance.limit} account
+                {allowance.limit === 1 ? "" : "s"} left
+              </span>
+            )}
           </div>
           {roles.length === 0 ? (
             <p className="muted">

@@ -2,6 +2,8 @@ import { Router } from "express";
 import { isValidObjectId } from "mongoose";
 import { RoleModel } from "../models/Role.js";
 import { StaffModel } from "../models/Staff.js";
+import { CollegeModel, DEFAULT_STAFF_LIMIT } from "../models/College.js";
+import { SUPPORT_EMAIL, SUPPORT_PHONE } from "../lib/support.js";
 import { MODULES, isValidPermission } from "../lib/permissions.js";
 import { getCaller } from "../lib/consoleAuth.js";
 
@@ -206,6 +208,30 @@ collegeStaffRouter.get("/", async (req, res) => {
   res.json(staff);
 });
 
+/**
+ * How many staff accounts this college may have, and how many are left.
+ *
+ * Its own endpoint rather than a wrapper around the list above, because the
+ * list's shape is an array that three screens already read.
+ */
+collegeStaffRouter.get("/allowance", async (req, res) => {
+  const { collegeId } = req.params as { collegeId: string };
+  res.json(await staffAllowance(collegeId));
+});
+
+async function staffAllowance(collegeId: string): Promise<{
+  used: number;
+  limit: number;
+  remaining: number;
+}> {
+  const [used, college] = await Promise.all([
+    StaffModel.countDocuments({ college: collegeId }),
+    CollegeModel.findById(collegeId).select("staffLimit").lean(),
+  ]);
+  const limit = college?.staffLimit ?? DEFAULT_STAFF_LIMIT;
+  return { used, limit, remaining: Math.max(0, limit - used) };
+}
+
 collegeStaffRouter.post("/", async (req, res) => {
   const { collegeId } = req.params as { collegeId: string };
   const caller = getCaller(req);
@@ -232,6 +258,20 @@ collegeStaffRouter.post("/", async (req, res) => {
     .lean();
   if (!role) {
     res.status(400).json({ error: "That role does not belong to this college" });
+    return;
+  }
+
+  const { used, limit } = await staffAllowance(collegeId);
+  if (used >= limit) {
+    res.status(403).json({
+      error:
+        `Your plan includes ${limit} user account${limit === 1 ? "" : "s"}, ` +
+        `and all ${limit} are in use. To add more, contact Busszo support at ` +
+        `${SUPPORT_EMAIL} or ${SUPPORT_PHONE}.`,
+      limitReached: true,
+      limit,
+      used,
+    });
     return;
   }
 

@@ -53,6 +53,7 @@ export type CollegePatchInput = Partial<{
   code: string;
   busCount: number;
   driverCount: number;
+  staffLimit: number;
 }>;
 
 // Every request routes through the same `apiFetch` but injects the super

@@ -7,6 +7,9 @@ export type College = {
   code: string;
   busCount: number;
   driverCount: number;
+  // How many console user accounts this college may create. Set by the super
+  // admin; undefined on colleges that predate the field, where 5 applies.
+  staffLimit?: number;
   actualBusCount: number;
   actualDriverCount: number;
   actualStudentCount: number;

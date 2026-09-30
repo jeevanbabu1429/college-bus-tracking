@@ -10,6 +10,7 @@ import {
   type StaffMember,
 } from "../../../lib/api/collegeAccess";
 import type { Grant } from "../../../lib/api/staffAuth";
+import type { StaffAllowance } from "../../../lib/api/collegeAccess";
 import { NoCollege } from "../../../components/NoCollege";
 import { RolePermissions } from "../../../components/RolePermissions";
 import { StaffPanel } from "../../../components/StaffPanel";
@@ -25,6 +26,7 @@ export default function RolesAccessPage() {
   const [modules, setModules] = useState<ModuleDef[] | null>(null);
   const [roles, setRoles] = useState<Role[] | null>(null);
   const [staff, setStaff] = useState<StaffMember[] | null>(null);
+  const [allowance, setAllowance] = useState<StaffAllowance | null>(null);
   const [selectedRoleId, setSelectedRoleId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
@@ -34,14 +36,16 @@ export default function RolesAccessPage() {
     if (!selected) return;
     setError(null);
     try {
-      const [cat, rs, ss] = await Promise.all([
+      const [cat, rs, ss, al] = await Promise.all([
         collegeAccessApi.catalogue(selected._id),
         collegeAccessApi.listRoles(selected._id),
         collegeAccessApi.listStaff(selected._id),
+        collegeAccessApi.staffAllowance(selected._id),
       ]);
       setModules(cat.modules);
       setRoles(rs);
       setStaff(ss);
+      setAllowance(al);
       setSelectedRoleId((prev) =>
         prev && rs.some((r) => r._id === prev) ? prev : rs[0]?._id ?? null
       );
@@ -170,6 +174,8 @@ export default function RolesAccessPage() {
           collegeId={selected._id}
           roles={roles ?? []}
           staff={staff}
+          allowance={allowance}
+          onAllowanceChange={setAllowance}
           canEdit={canEdit}
           canCreate={canCreate}
           canDelete={canDelete}

@@ -42,6 +42,7 @@ export default function SuperAdminCollegeDetailPage({
           code: found.code,
           busCount: found.busCount,
           driverCount: found.driverCount,
+          staffLimit: found.staffLimit ?? 5,
         });
       })
       .catch((e) => setError((e as Error).message));
@@ -179,6 +180,23 @@ export default function SuperAdminCollegeDetailPage({
                   setForm({ ...form, driverCount: Number(e.target.value) })
                 }
               />
+            </div>
+            <div className="field" style={{ marginBottom: 0 }}>
+              <label className="field-label">Console user accounts</label>
+              <input
+                className="field-control"
+                type="number"
+                min={0}
+                max={500}
+                value={form.staffLimit ?? 5}
+                onChange={(e) =>
+                  setForm({ ...form, staffLimit: Number(e.target.value) })
+                }
+              />
+              <span className="field-help">
+                Staff logins this college may create. At the limit they are told
+                to contact support — raise it here when they do.
+              </span>
             </div>
           </div>
           <div className="field" style={{ marginTop: 18, marginBottom: 0 }}>

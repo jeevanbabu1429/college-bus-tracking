@@ -437,7 +437,8 @@ router.patch("/colleges/:id", requireSuperAdmin, async (req, res) => {
     res.status(400).json({ error: "Invalid id" });
     return;
   }
-  const { name, address, code, busCount, driverCount } = req.body ?? {};
+  const { name, address, code, busCount, driverCount, staffLimit } =
+    req.body ?? {};
   const updates: Record<string, unknown> = {};
   if (typeof name === "string" && name.trim()) updates.name = name.trim();
   if (typeof address === "string" && address.trim())
@@ -447,6 +448,20 @@ router.patch("/colleges/:id", requireSuperAdmin, async (req, res) => {
   if (typeof busCount === "number" && busCount >= 0) updates.busCount = busCount;
   if (typeof driverCount === "number" && driverCount >= 0)
     updates.driverCount = driverCount;
+  // How many staff accounts the college may create. This is the lever behind
+  // the "contact support to add more users" message they see at the limit.
+  if (staffLimit !== undefined) {
+    if (
+      typeof staffLimit !== "number" ||
+      !Number.isInteger(staffLimit) ||
+      staffLimit < 0 ||
+      staffLimit > 500
+    ) {
+      res.status(400).json({ error: "User limit must be a whole number between 0 and 500." });
+      return;
+    }
+    updates.staffLimit = staffLimit;
+  }
 
   if (Object.keys(updates).length === 0) {
     res.status(400).json({ error: "No editable fields provided" });
