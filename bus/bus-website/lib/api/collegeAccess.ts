@@ -20,6 +20,12 @@ export type Role = {
   createdAt: string;
 };
 
+export type StaffAllowance = {
+  used: number;
+  limit: number;
+  remaining: number;
+};
+
 export type StaffMember = {
   _id: string;
   name: string;
@@ -64,6 +70,10 @@ export const collegeAccessApi = {
 
   listStaff: (collegeId: string) =>
     apiFetch<StaffMember[]>(`/api/colleges/${collegeId}/staff`),
+
+  /** How many user accounts this college's plan includes, and how many are left. */
+  staffAllowance: (collegeId: string) =>
+    apiFetch<StaffAllowance>(`/api/colleges/${collegeId}/staff/allowance`),
   addStaff: (
     collegeId: string,
     input: { name: string; mobile: string; roleId: string }
