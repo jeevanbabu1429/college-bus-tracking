@@ -18,6 +18,7 @@ import {
   IconSwap,
   IconBell,
   IconShield,
+  IconUpload,
 } from "./icons";
 import { SupportModal } from "./SupportButton";
 import { PendingApproval } from "./PendingApproval";
@@ -40,6 +41,10 @@ const NAV: NavItem[] = [
   { href: "/switch-drivers", label: "Switch drivers", Icon: IconSwap, module: "assignments" },
   { href: "/switch-students", label: "Switch students", Icon: IconSwap, module: "assignments" },
   { href: "/students", label: "Students", Icon: IconUsers, module: "students" },
+  // Sets a whole college up from one workbook. Governed by Buses rather than a
+  // module of its own: each sheet is checked against its own module when it
+  // runs, and anyone who can add buses can at least use part of it.
+  { href: "/bulk-upload", label: "Upload everything", Icon: IconUpload, module: "buses" },
   { href: "/send-notification", label: "Send notification", Icon: IconBell, module: "notifications" },
   { href: "/roles-access", label: "Roles & access", Icon: IconShield, module: "access" },
 ];
@@ -56,6 +61,7 @@ const PAGE_TITLES: Record<string, string> = {
   "assign-students": "Assign students",
   "send-notification": "Send notification",
   "roles-access": "Roles & access",
+  "bulk-upload": "Upload everything",
   profile: "Profile",
 };
 

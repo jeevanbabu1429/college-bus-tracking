@@ -19,6 +19,9 @@ const PATH_MODULES: { prefix: string; module: string | null }[] = [
   { prefix: "/switch-students", module: "assignments" },
   { prefix: "/track-drivers", module: "tracking" },
   { prefix: "/send-notification", module: "notifications" },
+  // Each sheet is checked against its own module as it is imported, so the
+  // page itself only gates on being able to add buses.
+  { prefix: "/bulk-upload", module: "buses" },
   { prefix: "/roles-access", module: "access" },
 ];
 
